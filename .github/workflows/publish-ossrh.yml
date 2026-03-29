@@ -1,7 +1,7 @@
-# Publishes to Maven Central via Central Portal OSSRH Staging API (see pom.xml release profile URLs).
-# Use a Central Portal User Token: https://central.sonatype.com/usertoken — legacy OSSRH tokens cause 401.
+# Publishes to Maven Central via org.sonatype.central:central-publishing-maven-plugin (Portal bundle upload).
+# Token: https://central.sonatype.com/usertoken — settings server id must be "central" (see setup-java server-id below).
 # Repository secrets (Settings → Secrets and variables → Actions):
-#   OSSRH_USERNAME — Portal token username
+#   OSSRH_USERNAME — Portal token username (name kept for backward compatibility)
 #   OSSRH_PASSWORD — Portal token password
 #   MAVEN_GPG_PRIVATE_KEY — ASCII-armored private key (full block including BEGIN/END)
 #   MAVEN_GPG_PASSPHRASE — passphrase for that key
@@ -33,11 +33,11 @@ jobs:
           distribution: temurin
           java-version: "17"
           cache: maven
-          server-id: ossrh
+          server-id: central
           server-username: OSSRH_USERNAME
           server-password: OSSRH_PASSWORD
           gpg-private-key: ${{ secrets.MAVEN_GPG_PRIVATE_KEY }}
           gpg-passphrase: MAVEN_GPG_PASSPHRASE
 
-      - name: Deploy to OSSRH
+      - name: Deploy to Maven Central
         run: mvn -B -ntp -P release deploy
