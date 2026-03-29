@@ -6,6 +6,15 @@
 #   MAVEN_GPG_PRIVATE_KEY — ASCII-armored private key (full block including BEGIN/END)
 #   MAVEN_GPG_PASSPHRASE — passphrase for that key
 #
+# GPG public key on a keyserver (required — without it Central reports:
+#   "Could not find a public key by the key fingerprint"):
+#   gpg --list-secret-keys --keyid-format LONG
+#   gpg --keyserver keys.openpgp.org --send-keys YOUR_FULL_KEY_ID
+#   # also supported: keyserver.ubuntu.com, pgp.mit.edu — see
+#   # https://central.sonatype.org/publish/requirements/gpg/
+# Wait a few minutes after send-keys before redeploying. If you sign with a subkey only,
+# use the primary signing key per Sonatype (same page, "Delete a Sub Key").
+#
 # One-time: register namespace io.github.connellite at https://central.sonatype.com/ and create user token.
 
 name: Publish Maven Central
