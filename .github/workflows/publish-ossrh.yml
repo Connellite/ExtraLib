@@ -1,7 +1,8 @@
-# Publishes to Maven Central via Sonatype OSSRH (s01).
+# Publishes to Maven Central via Central Portal OSSRH Staging API (see pom.xml release profile URLs).
+# Use a Central Portal User Token: https://central.sonatype.com/usertoken — legacy OSSRH tokens cause 401.
 # Repository secrets (Settings → Secrets and variables → Actions):
-#   OSSRH_USERNAME — Sonatype user token username (or legacy JIRA user)
-#   OSSRH_PASSWORD — Sonatype user token password
+#   OSSRH_USERNAME — Portal token username
+#   OSSRH_PASSWORD — Portal token password
 #   MAVEN_GPG_PRIVATE_KEY — ASCII-armored private key (full block including BEGIN/END)
 #   MAVEN_GPG_PASSPHRASE — passphrase for that key
 #
