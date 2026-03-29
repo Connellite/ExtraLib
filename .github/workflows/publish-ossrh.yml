@@ -1,0 +1,41 @@
+# Publishes to Maven Central via Sonatype OSSRH (s01).
+# Repository secrets (Settings → Secrets and variables → Actions):
+#   OSSRH_USERNAME — Sonatype user token username (or legacy JIRA user)
+#   OSSRH_PASSWORD — Sonatype user token password
+#   MAVEN_GPG_PRIVATE_KEY — ASCII-armored private key (full block including BEGIN/END)
+#   MAVEN_GPG_PASSPHRASE — passphrase for that key
+#
+# One-time: register namespace io.github.connellite at https://central.sonatype.com/ and create user token.
+
+name: Publish Maven Central
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: maven
+          server-id: ossrh
+          server-username: OSSRH_USERNAME
+          server-password: OSSRH_PASSWORD
+          gpg-private-key: ${{ secrets.MAVEN_GPG_PRIVATE_KEY }}
+          gpg-passphrase: MAVEN_GPG_PASSPHRASE
+
+      - name: Deploy to OSSRH
+        env:
+          OSSRH_USERNAME: ${{ secrets.OSSRH_USERNAME }}
+          OSSRH_PASSWORD: ${{ secrets.OSSRH_PASSWORD }}
+          MAVEN_GPG_PASSPHRASE: ${{ secrets.MAVEN_GPG_PASSPHRASE }}
+        run: mvn -B -ntp -P release deploy

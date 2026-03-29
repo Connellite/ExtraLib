@@ -1,0 +1,83 @@
+package io.github.connellite.jdbc;
+
+import io.github.connellite.exception.JdbcResultSetException;
+import lombok.extern.java.Log;
+
+import java.sql.Connection;
+import java.sql.ResultSet;
+import java.sql.ResultSetMetaData;
+import java.sql.Statement;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.NoSuchElementException;
+import java.util.Objects;
+import java.util.logging.Level;
+
+/**
+ * Forward-only iterator over JDBC query rows; each row is a {@link Map} of column label to string value ({@code null} kept).
+ * Closing releases the result set, statement, and connection from construction.
+ */
+@Log
+public class JdbcResultSetIterator implements Iterator<Map<String, Object>>, AutoCloseable {
+
+    private final Connection connection;
+    private final Statement statement;
+    private final ResultSet resultSet;
+    private final List<String> columnNames;
+    private boolean hasNextValue;
+
+    JdbcResultSetIterator(Connection conn, String query) throws Exception {
+        this.connection = conn;
+        this.statement = conn.createStatement(ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY);
+        this.resultSet = statement.executeQuery(query);
+        ResultSetMetaData metadata = resultSet.getMetaData();
+        this.columnNames = getColumnNames(metadata);
+        this.hasNextValue = resultSet.next();
+    }
+
+    private List<String> getColumnNames(ResultSetMetaData metadata) throws Exception {
+        List<String> names = new ArrayList<>();
+        int columnCount = metadata.getColumnCount();
+        for (int i = 1; i <= columnCount; i++) {
+            names.add(metadata.getColumnName(i));
+        }
+        return names;
+    }
+
+    @Override
+    public boolean hasNext() {
+        return hasNextValue;
+    }
+
+    @Override
+    public Map<String, Object> next() {
+        if (!hasNextValue) {
+            throw new NoSuchElementException();
+        }
+
+        Map<String, Object> row = new LinkedHashMap<>();
+        try {
+            for (String columnName : columnNames) {
+                Object value = resultSet.getObject(columnName);
+                row.put(columnName, Objects.toString(value, null));
+            }
+            hasNextValue = resultSet.next();
+        } catch (Exception e) {
+            log.log(Level.SEVERE, "Error reading row from JDBC result set", e);
+            hasNextValue = false;
+            throw new JdbcResultSetException(e);
+        }
+
+        return row;
+    }
+
+    @Override
+    public void close() throws Exception {
+        if (resultSet != null) resultSet.close();
+        if (statement != null) statement.close();
+        if (connection != null) connection.close();
+    }
+}
