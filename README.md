@@ -1,12 +1,12 @@
 # ExtraLib
 
-Small Java 17 utility library: JDBC helpers, collections, date/UUID parsing, and exception helpers.
+Small Java 17 utility library: JDBC helpers, collections, date/UUID parsing, and exception helpers.
 
 
 ## Requirements
 
-- JDK 17+
-- Maven 3.9+
+- JDK 17+
+- Maven 3.9+
 
 ## Dependency
 
@@ -14,6 +14,6 @@ Small Java 17 utility library: JDBC helpers, collections, date/UUID parsing, an
 <dependency>
     <groupId>io.github.connellite</groupId>
     <artifactId>ExtraLib</artifactId>
-    <version>0.1</version>
+    <version>0.2</version>
 </dependency>
 ```
