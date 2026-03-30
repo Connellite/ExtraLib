@@ -9,6 +9,7 @@ import java.util.Map;
 import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -55,7 +56,7 @@ class ResultSetStreamSqliteTest {
                 Map<String, Object> row = it.next();
                 assertEquals(1, row.get("pk"));
                 assertEquals("one", row.get("label"));
-                assertEquals(null, row.get("id"));
+                assertNull(row.get("id"));
             }
         }
     }
