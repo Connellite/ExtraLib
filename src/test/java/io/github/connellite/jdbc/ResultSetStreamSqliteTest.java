@@ -45,4 +45,18 @@ class ResultSetStreamSqliteTest {
             }
         }
     }
+
+    @Test
+    void iteratorUsesColumnAliasAsMapKey() throws Exception {
+        try (Connection c = SqliteMemory.open()) {
+            SqliteMemory.bootstrapDemoSchema(c);
+            try (ResultSetIterator it = new ResultSetIterator(c, "SELECT id AS pk, name AS label FROM demo ORDER BY id")) {
+                assertTrue(it.hasNext());
+                Map<String, Object> row = it.next();
+                assertEquals(1, row.get("pk"));
+                assertEquals("one", row.get("label"));
+                assertEquals(null, row.get("id"));
+            }
+        }
+    }
 }

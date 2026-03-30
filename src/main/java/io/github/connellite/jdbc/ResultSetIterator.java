@@ -5,6 +5,7 @@ import io.github.connellite.exception.JdbcResultSetException;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
+import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -14,8 +15,8 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 
 /**
- * Forward-only iterator over JDBC query rows; each row is a {@link Map} of column label to string value ({@code null} kept).
- * Closing releases the result set, statement, and connection from construction.
+ * Forward-only iterator over JDBC query rows;
+ * Closing releases the result set, statement from construction.
  */
 public class ResultSetIterator implements Iterator<Map<String, Object>>, AutoCloseable {
 
@@ -26,17 +27,23 @@ public class ResultSetIterator implements Iterator<Map<String, Object>>, AutoClo
 
     ResultSetIterator(Connection conn, String query) throws Exception {
         this.statement = conn.createStatement(ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY);
+        this.statement.setFetchSize(1000);
         this.resultSet = statement.executeQuery(query);
         ResultSetMetaData metadata = resultSet.getMetaData();
         this.columnNames = getColumnNames(metadata);
         this.hasNextValue = resultSet.next();
     }
 
-    private List<String> getColumnNames(ResultSetMetaData metadata) throws Exception {
+    private List<String> getColumnNames(ResultSetMetaData metadata) throws SQLException {
         List<String> names = new ArrayList<>();
         int columnCount = metadata.getColumnCount();
         for (int i = 1; i <= columnCount; i++) {
-            names.add(metadata.getColumnName(i));
+            String label = metadata.getColumnLabel(i);
+            if (label != null && !label.isBlank()) {
+                names.add(label);
+            } else {
+                names.add(metadata.getColumnName(i));
+            }
         }
         return names;
     }
