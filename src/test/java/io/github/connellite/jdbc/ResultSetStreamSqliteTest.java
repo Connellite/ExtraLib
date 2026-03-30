@@ -6,23 +6,22 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-class JdbcResultSetStreamSqliteTest {
+class ResultSetStreamSqliteTest {
 
     @Test
     void streamRowsThenClose() throws Exception {
         Connection c = SqliteMemory.open();
         SqliteMemory.bootstrapDemoSchema(c);
-        try (Stream<Map<String, Object>> stream = JdbcResultSetStream.stream(c, "SELECT id, name FROM demo ORDER BY id")) {
-            List<Map<String, Object>> rows = stream.collect(Collectors.toList());
+        try (Stream<Map<String, Object>> stream = ResultSetStream.stream(c, "SELECT id, name FROM demo ORDER BY id")) {
+            List<Map<String, Object>> rows = stream.toList();
             assertEquals(2, rows.size());
-            assertEquals("1", rows.get(0).get("id"));
+            assertEquals(1, rows.get(0).get("id"));
             assertEquals("one", rows.get(0).get("name"));
         }
     }
@@ -31,7 +30,7 @@ class JdbcResultSetStreamSqliteTest {
     void invalidSqlThrows() throws Exception {
         try (Connection c = SqliteMemory.open()) {
             SqliteMemory.bootstrapDemoSchema(c);
-            assertThrows(SQLException.class, () -> JdbcResultSetStream.stream(c, "SELECT FROM oops"));
+            assertThrows(SQLException.class, () -> ResultSetStream.stream(c, "SELECT FROM oops"));
         }
     }
 
@@ -39,10 +38,10 @@ class JdbcResultSetStreamSqliteTest {
     void iteratorSamePackageConstructs() throws Exception {
         try (Connection c = SqliteMemory.open()) {
             SqliteMemory.bootstrapDemoSchema(c);
-            try (JdbcResultSetIterator it = new JdbcResultSetIterator(c, "SELECT id FROM demo ORDER BY id")) {
+            try (ResultSetIterator it = new ResultSetIterator(c, "SELECT id FROM demo ORDER BY id")) {
                 assertTrue(it.hasNext());
                 Map<String, Object> row = it.next();
-                assertEquals("1", row.get("id"));
+                assertEquals(1, row.get("id"));
             }
         }
     }

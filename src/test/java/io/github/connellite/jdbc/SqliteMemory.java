@@ -1,5 +1,8 @@
 package io.github.connellite.jdbc;
 
+import lombok.AccessLevel;
+import lombok.NoArgsConstructor;
+
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
@@ -8,10 +11,8 @@ import java.sql.Statement;
 /**
  * In-memory SQLite connections for tests ({@code jdbc:sqlite::memory:}).
  */
+@NoArgsConstructor(access = AccessLevel.PRIVATE)
 public final class SqliteMemory {
-
-    private SqliteMemory() {
-    }
 
     public static Connection open() throws SQLException {
         return DriverManager.getConnection("jdbc:sqlite::memory:");

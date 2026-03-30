@@ -12,18 +12,18 @@ import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
 /**
- * Builds a sequential {@link Stream} over {@link JdbcResultSetIterator} rows. Close the stream (e.g. try-with-resources) to close JDBC resources.
+ * Builds a sequential {@link Stream} over {@link ResultSetIterator} rows. Close the stream (e.g. try-with-resources) to close JDBC resources.
  */
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
-public final class JdbcResultSetStream {
+public final class ResultSetStream {
     /**
      * @param connection connection closed when the stream is closed
      * @param sql        query executed once; forward-only read-only cursor
      */
     public static Stream<Map<String, Object>> stream(Connection connection, String sql) throws SQLException {
-        JdbcResultSetIterator it;
+        ResultSetIterator it;
         try {
-            it = new JdbcResultSetIterator(connection, sql);
+            it = new ResultSetIterator(connection, sql);
         } catch (Exception e) {
             if (e instanceof SQLException se) {
                 throw se;

@@ -1,7 +1,6 @@
 package io.github.connellite.jdbc;
 
 import io.github.connellite.exception.JdbcResultSetException;
-import lombok.extern.java.Log;
 
 import java.sql.Connection;
 import java.sql.ResultSet;
@@ -13,24 +12,19 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
-import java.util.Objects;
-import java.util.logging.Level;
 
 /**
  * Forward-only iterator over JDBC query rows; each row is a {@link Map} of column label to string value ({@code null} kept).
  * Closing releases the result set, statement, and connection from construction.
  */
-@Log
-public class JdbcResultSetIterator implements Iterator<Map<String, Object>>, AutoCloseable {
+public class ResultSetIterator implements Iterator<Map<String, Object>>, AutoCloseable {
 
-    private final Connection connection;
     private final Statement statement;
     private final ResultSet resultSet;
     private final List<String> columnNames;
     private boolean hasNextValue;
 
-    JdbcResultSetIterator(Connection conn, String query) throws Exception {
-        this.connection = conn;
+    ResultSetIterator(Connection conn, String query) throws Exception {
         this.statement = conn.createStatement(ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY);
         this.resultSet = statement.executeQuery(query);
         ResultSetMetaData metadata = resultSet.getMetaData();
@@ -62,11 +56,10 @@ public class JdbcResultSetIterator implements Iterator<Map<String, Object>>, Aut
         try {
             for (String columnName : columnNames) {
                 Object value = resultSet.getObject(columnName);
-                row.put(columnName, Objects.toString(value, null));
+                row.put(columnName, value);
             }
             hasNextValue = resultSet.next();
         } catch (Exception e) {
-            log.log(Level.SEVERE, "Error reading row from JDBC result set", e);
             hasNextValue = false;
             throw new JdbcResultSetException(e);
         }
@@ -76,8 +69,14 @@ public class JdbcResultSetIterator implements Iterator<Map<String, Object>>, Aut
 
     @Override
     public void close() throws Exception {
-        if (resultSet != null) resultSet.close();
-        if (statement != null) statement.close();
-        if (connection != null) connection.close();
+        try {
+            if (resultSet != null) resultSet.close();
+        } catch (Exception ignore) {
+        }
+
+        try {
+            if (statement != null) statement.close();
+        } catch (Exception ignore) {
+        }
     }
 }
