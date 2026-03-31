@@ -1,4 +1,6 @@
-package io.github.connellite.search;
+package io.github.connellite.match;
+
+import lombok.experimental.UtilityClass;
 
 import java.util.Objects;
 
@@ -7,7 +9,62 @@ import java.util.Objects;
  *
  * @author Varun Shah
  */
-public class WildKMP {
+@UtilityClass
+public class WildKMPMatching {
+
+    /**
+     * Wildcard semantics are equivalent to {@link #search(CharSequence, CharSequence)}:
+     * each {@code '*'} matches exactly one character, and consecutive {@code '*'} characters
+     * must match the same character.
+     *
+     * @param text    source text; not null
+     * @param pattern wildcard pattern; not null
+     * @param <T>     concrete character sequence type shared by both arguments
+     * @return {@code true} when at least one match exists in {@code text}
+     */
+    public static <T extends CharSequence> boolean isMatch(T text, T pattern) {
+        Objects.requireNonNull(text, "text");
+        Objects.requireNonNull(pattern, "pattern");
+
+        int textLength = text.length();
+        int patternLength = pattern.length();
+        if (patternLength == 0) {
+            return true;
+        }
+        if (patternLength > textLength) {
+            return false;
+        }
+
+        for (int start = 0; start <= textLength - patternLength; start++) {
+            Character groupWildcard = null;
+            boolean matched = true;
+
+            for (int j = 0; j < patternLength; j++) {
+                char patternChar = pattern.charAt(j);
+                char textChar = text.charAt(start + j);
+
+                if (patternChar == '*') {
+                    if (groupWildcard == null) {
+                        groupWildcard = textChar;
+                    } else if (groupWildcard != textChar) {
+                        matched = false;
+                        break;
+                    }
+                } else {
+                    groupWildcard = null;
+                    if (patternChar != textChar) {
+                        matched = false;
+                        break;
+                    }
+                }
+            }
+
+            if (matched) {
+                return true;
+            }
+        }
+        return false;
+    }
 
     /**
      * Given some text and a pattern, it searches for the first instance of the pattern in the text.<br>

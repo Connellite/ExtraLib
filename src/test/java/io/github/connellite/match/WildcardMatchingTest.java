@@ -1,4 +1,4 @@
-package io.github.connellite.search;
+package io.github.connellite.match;
 
 import org.junit.jupiter.api.Test;
 

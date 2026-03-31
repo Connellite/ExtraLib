@@ -1,10 +1,3 @@
-# Publishes to GitHub Packages (no GPG required).
-# Uses GITHUB_TOKEN. Ensure package visibility in repo Settings → Packages.
-#
-# Consumers add repository:
-#   https://maven.pkg.github.com/OWNER/REPO
-# with credentials: username = GitHub login, password = PAT with read:packages.
-
 name: Publish GitHub Packages
 
 on:

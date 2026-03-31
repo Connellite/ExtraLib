@@ -1,4 +1,4 @@
-package io.github.connellite.search;
+package io.github.connellite.match;
 
 import lombok.experimental.UtilityClass;
 
@@ -12,7 +12,43 @@ import java.util.Objects;
  * Time complexity is O(n + m) for text length n and pattern length m.
  */
 @UtilityClass
-public class KMPSearch {
+public class KMPMatching {
+
+    /**
+     * Independent KMP implementation.
+     *
+     * @param text    source text; not null
+     * @param pattern searched substring; not null
+     * @return {@code true} if {@code text} contains {@code pattern}
+     */
+    public static <T extends CharSequence> boolean isMatch(T text, T pattern) {
+        Objects.requireNonNull(text, "text");
+        Objects.requireNonNull(pattern, "pattern");
+        if (pattern.isEmpty()) {
+            return true;
+        }
+        if (text.isEmpty() || pattern.length() > text.length()) {
+            return false;
+        }
+
+        int[] lps = compileLps(pattern);
+
+        for (int i = 0, j = 0; i < text.length(); ) {
+            if (text.charAt(i) == pattern.charAt(j)) {
+                i++;
+                j++;
+                if (j == pattern.length()) {
+                    return true;
+                }
+            } else if (j > 0) {
+                j = lps[j - 1];
+            } else {
+                i++;
+            }
+        }
+
+        return false;
+    }
 
     /**
      * Finds all starting indices of {@code pattern} in {@code text}.

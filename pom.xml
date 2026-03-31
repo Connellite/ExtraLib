@@ -6,7 +6,7 @@
 
     <groupId>io.github.connellite</groupId>
     <artifactId>ExtraLib</artifactId>
-    <version>0.2</version>
+    <version>0.3</version>
     <packaging>jar</packaging>
 
     <name>ExtraLib</name>
@@ -49,7 +49,6 @@
         <maven-javadoc-plugin.version>3.6.3</maven-javadoc-plugin.version>
         <maven-gpg-plugin.version>3.2.6</maven-gpg-plugin.version>
         <central-publishing-maven-plugin.version>0.10.0</central-publishing-maven-plugin.version>
-        <!-- Override when publishing to a different GitHub repo: -Dgithub.packages.repo=https://maven.pkg.github.com/OWNER/REPO -->
         <github.packages.repo>https://maven.pkg.github.com/connellite/ExtraLib</github.packages.repo>
     </properties>
 
@@ -101,9 +100,6 @@
         </plugins>
     </build>
 
-    <!-- mvn -P release deploy — Maven Central via central-publishing-maven-plugin (Portal API).
-         Token: https://central.sonatype.com/usertoken — in ~/.m2/settings.xml use server id "central" (username/password = token).
-         GPG signatures still required. Avoid nexus-staging-maven-plugin + ossrh-staging-api: close/staging often returns 400. -->
     <profiles>
         <profile>
             <id>release</id>
@@ -176,7 +172,6 @@
             </build>
         </profile>
 
-        <!-- mvn -P github-packages deploy — GitHub Packages; server id "github" in settings or setup-java -->
         <profile>
             <id>github-packages</id>
             <distributionManagement>

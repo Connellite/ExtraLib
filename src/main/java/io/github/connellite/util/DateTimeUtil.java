@@ -4,19 +4,25 @@ import lombok.experimental.UtilityClass;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.time.OffsetDateTime;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeFormatterBuilder;
 import java.time.format.DateTimeParseException;
 import java.time.temporal.ChronoField;
+import java.util.Date;
 import java.util.List;
+import java.util.Locale;
 
 /**
  * Parses {@link LocalDate} and {@link LocalDateTime} from strings using a fixed set of patterns.
  * Throws if the input is blank or no pattern matches.
  */
 @UtilityClass
-public class DateTimeStringUtil {
+public class DateTimeUtil {
+
+    private static final ZoneId SYSTEM_ZONE = ZoneId.systemDefault();
 
     private static final List<DateTimeFormatter> INPUT_FORMATTERS = List.of(
             DateTimeFormatter.ISO_LOCAL_DATE_TIME,
@@ -46,6 +52,14 @@ public class DateTimeStringUtil {
             DateTimeFormatter.ofPattern("dd.MM.yyyy"),
             DateTimeFormatter.ofPattern("dd-MM-yyyy"),
             DateTimeFormatter.ofPattern("dd/MM/yyyy"),
+            new DateTimeFormatterBuilder()
+                    .parseCaseInsensitive()
+                    .appendPattern("dd MMM yyyy")
+                    .toFormatter(Locale.ENGLISH),
+            new DateTimeFormatterBuilder()
+                    .parseCaseInsensitive()
+                    .appendPattern("yyyy MMM dd")
+                    .toFormatter(Locale.ENGLISH),
             DateTimeFormatter.ofPattern("yyyy.MM.dd"),
             DateTimeFormatter.ofPattern("yyyy-MM-dd"),
             DateTimeFormatter.ofPattern("yyyy/MM/dd")
@@ -101,5 +115,40 @@ public class DateTimeStringUtil {
             }
         }
         throw new IllegalArgumentException("Unparseable date-time: '" + text + "'");
+    }
+
+    public static Date startOfDay(Date date) {
+        if (date == null) return null;
+
+        LocalDate localDate = date.toInstant().atZone(SYSTEM_ZONE).toLocalDate();
+        return Date.from(localDate.atStartOfDay(SYSTEM_ZONE).toInstant());
+    }
+
+    public static Date endOfDay(Date date) {
+        if (date == null) return null;
+
+        LocalDate localDate = date.toInstant().atZone(SYSTEM_ZONE).toLocalDate();
+        LocalDateTime endOfDay = localDate.atTime(23, 59, 59, 999_000_000);
+        return Date.from(endOfDay.atZone(SYSTEM_ZONE).toInstant());
+    }
+
+    public static java.sql.Date toSqlDate(Date date) {
+        if (date == null) return null;
+
+        LocalDate localDate = date.toInstant().atZone(SYSTEM_ZONE).toLocalDate();
+        return java.sql.Date.valueOf(localDate);
+    }
+
+    public static java.sql.Time toSqlTime(Date date) {
+        if (date == null) return null;
+
+        LocalTime localTime = date.toInstant().atZone(SYSTEM_ZONE).toLocalTime();
+        return java.sql.Time.valueOf(localTime);
+    }
+
+    public static java.sql.Timestamp toSqlTimestamp(Date date) {
+        if (date == null) return null;
+
+        return java.sql.Timestamp.from(date.toInstant());
     }
 }
