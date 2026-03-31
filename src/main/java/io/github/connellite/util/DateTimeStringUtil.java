@@ -23,23 +23,23 @@ public class DateTimeStringUtil {
             DateTimeFormatter.ISO_DATE_TIME,
             new DateTimeFormatterBuilder()
                     .appendPattern("yyyy-MM-dd'T'HH:mm:ss")
-                    .appendFraction(ChronoField.MILLI_OF_SECOND, 0, 3, true)
+                    .appendFraction(ChronoField.NANO_OF_SECOND, 0, 9, true)
                     .toFormatter(),
             new DateTimeFormatterBuilder()
                     .appendPattern("yyyy-MM-dd HH:mm:ss")
-                    .appendFraction(ChronoField.MILLI_OF_SECOND, 0, 3, true)
+                    .appendFraction(ChronoField.NANO_OF_SECOND, 0, 9, true)
                     .toFormatter(),
             new DateTimeFormatterBuilder()
                     .appendPattern("yyyy/MM/dd HH:mm:ss")
-                    .appendFraction(ChronoField.MILLI_OF_SECOND, 0, 3, true)
+                    .appendFraction(ChronoField.NANO_OF_SECOND, 0, 9, true)
                     .toFormatter(),
             new DateTimeFormatterBuilder()
                     .appendPattern("dd.MM.yyyy HH:mm:ss")
-                    .appendFraction(ChronoField.MILLI_OF_SECOND, 0, 3, true)
+                    .appendFraction(ChronoField.NANO_OF_SECOND, 0, 9, true)
                     .toFormatter(),
             new DateTimeFormatterBuilder()
                     .appendPattern("dd/MM/yyyy HH:mm:ss")
-                    .appendFraction(ChronoField.MILLI_OF_SECOND, 0, 3, true)
+                    .appendFraction(ChronoField.NANO_OF_SECOND, 0, 9, true)
                     .toFormatter(),
             DateTimeFormatter.ISO_LOCAL_DATE,
             DateTimeFormatter.ISO_DATE,
