@@ -27,31 +27,37 @@ public class DateTimeUtil {
     private static final List<DateTimeFormatter> INPUT_FORMATTERS = List.of(
             DateTimeFormatter.ISO_LOCAL_DATE_TIME,
             DateTimeFormatter.ISO_DATE_TIME,
-            new DateTimeFormatterBuilder()
-                    .appendPattern("yyyy-MM-dd'T'HH:mm:ss")
-                    .appendFraction(ChronoField.NANO_OF_SECOND, 0, 9, true)
-                    .toFormatter(),
+            DateTimeFormatter.RFC_1123_DATE_TIME,
+
             new DateTimeFormatterBuilder()
                     .appendPattern("yyyy-MM-dd HH:mm:ss")
                     .appendFraction(ChronoField.NANO_OF_SECOND, 0, 9, true)
                     .toFormatter(),
+
             new DateTimeFormatterBuilder()
                     .appendPattern("yyyy/MM/dd HH:mm:ss")
                     .appendFraction(ChronoField.NANO_OF_SECOND, 0, 9, true)
                     .toFormatter(),
+
             new DateTimeFormatterBuilder()
                     .appendPattern("dd.MM.yyyy HH:mm:ss")
                     .appendFraction(ChronoField.NANO_OF_SECOND, 0, 9, true)
                     .toFormatter(),
+
             new DateTimeFormatterBuilder()
                     .appendPattern("dd/MM/yyyy HH:mm:ss")
                     .appendFraction(ChronoField.NANO_OF_SECOND, 0, 9, true)
                     .toFormatter(),
+
             DateTimeFormatter.ISO_LOCAL_DATE,
             DateTimeFormatter.ISO_DATE,
+            DateTimeFormatter.BASIC_ISO_DATE,
             DateTimeFormatter.ofPattern("dd.MM.yyyy"),
             DateTimeFormatter.ofPattern("dd-MM-yyyy"),
             DateTimeFormatter.ofPattern("dd/MM/yyyy"),
+            DateTimeFormatter.ofPattern("yyyy.MM.dd"),
+            DateTimeFormatter.ofPattern("yyyy/MM/dd"),
+
             new DateTimeFormatterBuilder()
                     .parseCaseInsensitive()
                     .appendPattern("dd MMM yyyy")
@@ -60,9 +66,14 @@ public class DateTimeUtil {
                     .parseCaseInsensitive()
                     .appendPattern("yyyy MMM dd")
                     .toFormatter(Locale.ENGLISH),
-            DateTimeFormatter.ofPattern("yyyy.MM.dd"),
-            DateTimeFormatter.ofPattern("yyyy-MM-dd"),
-            DateTimeFormatter.ofPattern("yyyy/MM/dd")
+            new DateTimeFormatterBuilder()
+                    .parseCaseInsensitive()
+                    .appendPattern("dd MMM yyyy")
+                    .toFormatter(new Locale("ru")),
+            new DateTimeFormatterBuilder()
+                    .parseCaseInsensitive()
+                    .appendPattern("dd MMMM yyyy")
+                    .toFormatter(new Locale("ru"))
     );
 
     /**

@@ -32,6 +32,21 @@ class DateTimeUtilTest {
     }
 
     @Test
+    void parseLocalDateBasicIsoDate() {
+        assertEquals(LocalDate.of(2024, 3, 21), DateTimeUtil.parseLocalDate("20240321"));
+    }
+
+    @Test
+    void parseLocalDateRussianShortMonth() {
+        assertEquals(LocalDate.of(2024, 3, 21), DateTimeUtil.parseLocalDate("21 мар. 2024"));
+    }
+
+    @Test
+    void parseLocalDateRussianFullMonth() {
+        assertEquals(LocalDate.of(2024, 3, 21), DateTimeUtil.parseLocalDate("21 марта 2024"));
+    }
+
+    @Test
     void parseLocalDateTimeWithFraction() {
         LocalDateTime dt = DateTimeUtil.parseLocalDateTime("2011-12-03T10:15:30.5");
         assertEquals(LocalDateTime.of(2011, 12, 3, 10, 15, 30, 500_000_000), dt);
