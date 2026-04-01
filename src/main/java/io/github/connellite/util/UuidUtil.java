@@ -151,6 +151,9 @@ public class UuidUtil {
     }
 
     public static BigInteger convertToBigInteger(UUID id) {
+        if (null == id) {
+            return null;
+        }
         BigInteger lo = BigInteger.valueOf(id.getLeastSignificantBits());
         BigInteger hi = BigInteger.valueOf(id.getMostSignificantBits());
 
@@ -168,6 +171,9 @@ public class UuidUtil {
     }
 
     public static UUID convertFromBigInteger(BigInteger x) {
+        if (null == x) {
+            return null;
+        }
         BigInteger[] parts = x.divideAndRemainder(B);
         BigInteger hi = parts[0];
         BigInteger lo = parts[1];
