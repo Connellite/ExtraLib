@@ -52,15 +52,31 @@ public class UuidUtil {
                         "Invalid UUID byte length: " + bytes.length + ". Expected 16, 32 or 36 bytes.");
             };
         } else if (uuidObj instanceof String uuidString) {
-            return switch (uuidString.length()) {
+            String normalized = normalizeUuidString(uuidString);
+            return switch (normalized.length()) {
                 case 0 -> null;
-                case 32 -> hex2Uuid(uuidString);
-                case 36 -> UUID.fromString(uuidString);
-                default -> throw new IllegalArgumentException("Invalid UUID string: " + uuidString);
+                case 32 -> hex2Uuid(normalized);
+                case 36 -> UUID.fromString(normalized);
+                default -> throw new IllegalArgumentException("Invalid UUID string: " + normalized);
             };
         } else {
             throw new IllegalArgumentException("Unexpected UUID type: " + uuidObj.getClass());
         }
+    }
+
+    /**
+     * Removes square brackets from a UUID string if present.
+     * Example: "[550e8400-e29b-41d4-a716-446655440000]" -> "550e8400-e29b-41d4-a716-446655440000"
+     *
+     * @param uuidString the UUID string possibly wrapped in square brackets
+     * @return the UUID string without brackets, or the original string if no brackets
+     */
+    private static String normalizeUuidString(String uuidString) {
+        String s = uuidString.trim();
+        if (s.length() >= 2 && s.charAt(0) == '[' && s.charAt(s.length() - 1) == ']') {
+            return s.substring(1, s.length() - 1).trim();
+        }
+        return s;
     }
 
     /**
