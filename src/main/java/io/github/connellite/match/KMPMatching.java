@@ -21,7 +21,7 @@ public class KMPMatching {
      * @param pattern searched substring; not null
      * @return {@code true} if {@code text} contains {@code pattern}
      */
-    public static <T extends CharSequence> boolean isMatch(T text, T pattern) {
+    public static boolean isMatch(CharSequence text, CharSequence pattern) {
         Objects.requireNonNull(text, "text");
         Objects.requireNonNull(pattern, "pattern");
         if (pattern.isEmpty()) {
@@ -53,12 +53,11 @@ public class KMPMatching {
     /**
      * Finds all starting indices of {@code pattern} in {@code text}.
      *
-     * @param <T>     concrete character sequence type (both arguments share it)
      * @param text    text to search; not null
      * @param pattern substring to find; not null (empty pattern yields an empty result)
      * @return mutable list of zero-based start indices, in ascending order
      */
-    public static <T extends CharSequence> List<Integer> performKMPSearch(T text, T pattern) {
+    public static List<Integer> performKMPSearch(CharSequence text, CharSequence pattern) {
         Objects.requireNonNull(text, "text");
         Objects.requireNonNull(pattern, "pattern");
         if (pattern.isEmpty()) {

@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Test;
 
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
@@ -43,6 +44,20 @@ class ResultSetStreamSqliteTest {
                 assertTrue(it.hasNext());
                 Map<String, Object> row = it.next();
                 assertEquals(1, row.get("id"));
+            }
+        }
+    }
+
+    @Test
+    void forEachRowIterable() throws Exception {
+        try (Connection c = SqliteMemory.open()) {
+            SqliteMemory.bootstrapDemoSchema(c);
+            try (ResultSetIterator it = new ResultSetIterator(c, "SELECT id FROM demo ORDER BY id")) {
+                List<Integer> ids = new ArrayList<>();
+                for (Map<String, Object> row : it) {
+                    ids.add(((Number) row.get("id")).intValue());
+                }
+                assertEquals(List.of(1, 2), ids);
             }
         }
     }

@@ -19,10 +19,9 @@ public class WildKMPMatching {
      *
      * @param text    source text; not null
      * @param pattern wildcard pattern; not null
-     * @param <T>     concrete character sequence type shared by both arguments
      * @return {@code true} when at least one match exists in {@code text}
      */
-    public static <T extends CharSequence> boolean isMatch(T text, T pattern) {
+    public static boolean isMatch(CharSequence text, CharSequence pattern) {
         Objects.requireNonNull(text, "text");
         Objects.requireNonNull(pattern, "pattern");
 
@@ -74,7 +73,7 @@ public class WildKMPMatching {
      * @param pattern The pattern to search for in the text
      * @return The starting index of the pattern in the text. If not found, -1 is returned.
      */
-    public static <T extends CharSequence> int search(T text, T pattern) {
+    public static int search(CharSequence text, CharSequence pattern) {
         Objects.requireNonNull(text, "text");
         Objects.requireNonNull(pattern, "pattern");
 

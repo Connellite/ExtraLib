@@ -15,10 +15,14 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 
 /**
- * Forward-only iterator over JDBC query rows;
- * Closing releases the result set, statement from construction.
+ * Forward-only iterator over JDBC query rows.
+ * Implements {@link Iterable} so you can use {@code for (Map<String, Object> row : it)} together with
+ * try-with-resources. {@link #iterator()} returns {@code this}; the cursor is single-pass, so a second
+ * enhanced for-loop on the same instance will not replay rows from the start.
+ * <p>
+ * Closing releases the result set and statement from construction.
  */
-public class ResultSetIterator implements Iterator<Map<String, Object>>, AutoCloseable {
+public class ResultSetIterator implements Iterator<Map<String, Object>>, Iterable<Map<String, Object>>, AutoCloseable {
 
     private final Statement statement;
     private final ResultSet resultSet;
@@ -46,6 +50,16 @@ public class ResultSetIterator implements Iterator<Map<String, Object>>, AutoClo
             }
         }
         return names;
+    }
+
+    /**
+     * {@inheritDoc}
+     * <p>
+     * Returns {@code this} as the only iterator; one traversal consumes the {@link ResultSet}.
+     */
+    @Override
+    public Iterator<Map<String, Object>> iterator() {
+        return this;
     }
 
     @Override

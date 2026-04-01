@@ -19,12 +19,11 @@ public class WildcardMatching {
     /**
      * Returns whether {@code text} matches {@code pattern}.
      *
-     * @param <T>     concrete character sequence type shared by both arguments
      * @param text    text to match; not null
      * @param pattern pattern with {@code '?'} and {@code '*'} wildcards; not null
      * @return {@code true} if the whole {@code text} matches the whole {@code pattern}
      */
-    public static <T extends CharSequence> boolean isMatch(T text, T pattern) {
+    public static boolean isMatch(CharSequence text, CharSequence pattern) {
         Objects.requireNonNull(text, "text");
         Objects.requireNonNull(pattern, "pattern");
 
