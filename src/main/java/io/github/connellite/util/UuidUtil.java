@@ -21,6 +21,13 @@ public class UuidUtil {
     /**
      * 550e8400-e29b-41d4-a716-446655440000 -> 550e8400e29b41d4a716446655440000
      */
+    public static String compactUuid(UUID uuid) {
+        return compactUuid(uuid.toString());
+    }
+
+    /**
+     * 550e8400-e29b-41d4-a716-446655440000 -> 550e8400e29b41d4a716446655440000
+     */
     public static String compactUuid(String uuid) {
         return uuid.replace("-", "");
     }
@@ -148,6 +155,15 @@ public class UuidUtil {
         long mostSigBits = bb.getLong();
         long leastSigBits = bb.getLong();
         return new UUID(mostSigBits, leastSigBits);
+    }
+
+    public static boolean isUuid(String uuid) {
+        try {
+            UUID.fromString(uuid);
+            return true;
+        } catch (IllegalArgumentException e) {
+            return false;
+        }
     }
 
     public static BigInteger convertToBigInteger(UUID id) {
