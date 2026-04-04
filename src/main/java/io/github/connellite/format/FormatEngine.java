@@ -10,7 +10,7 @@ import java.util.Locale;
 
 @UtilityClass
 class FormatEngine {
-    static String format(String pattern, Object[] args, Locale locale) {
+    static String format(CharSequence pattern, Object[] args, Locale locale) {
         if (pattern == null) {
             throw new FormatException("format string is null");
         }
@@ -19,7 +19,7 @@ class FormatEngine {
         return sb.toString();
     }
 
-    static void formatTo(StringBuilder out, String pattern, Object[] args, Locale locale) {
+    static void formatTo(StringBuilder out, CharSequence pattern, Object[] args, Locale locale) {
         if (pattern == null) {
             throw new FormatException("format string is null");
         }
@@ -30,7 +30,7 @@ class FormatEngine {
         }
     }
 
-    private static void formatToImpl(Appendable out, String pattern, Object[] args, Locale locale) throws IOException {
+    private static void formatToImpl(Appendable out, CharSequence pattern, Object[] args, Locale locale) throws IOException {
         ArgPack pack = ArgPack.of(args);
         int i = 0;
         int n = pattern.length();
@@ -43,11 +43,11 @@ class FormatEngine {
                     i += 2;
                     continue;
                 }
-                int close = pattern.indexOf('}', i + 1);
+                int close = indexOf(pattern, '}', i + 1);
                 if (close < 0) {
                     throw new FormatException("unclosed '{' in format string");
                 }
-                String inside = pattern.substring(i + 1, close);
+                String inside = pattern.subSequence(i + 1, close).toString();
                 ReplacementField field = parseField(inside, nextAuto);
                 nextAuto = field.nextAutoIndex();
                 Object arg = pack.resolve(field.id());
@@ -146,5 +146,16 @@ class FormatEngine {
             }
         }
         return true;
+    }
+
+    @SuppressWarnings("SameParameterValue")
+    private static int indexOf(CharSequence s, char ch, int from) {
+        int n = s.length();
+        for (int i = Math.max(0, from); i < n; i++) {
+            if (s.charAt(i) == ch) {
+                return i;
+            }
+        }
+        return -1;
     }
 }

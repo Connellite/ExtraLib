@@ -24,43 +24,43 @@ public final class Fmt {
         return new Named(name, value);
     }
 
-    public static String format(String pattern, Object... args) {
+    public static String format(CharSequence pattern, Object... args) {
         return FormatEngine.format(pattern, args, Locale.getDefault());
     }
 
-    public static String format(Locale locale, String pattern, Object... args) {
+    public static String format(Locale locale, CharSequence pattern, Object... args) {
         return FormatEngine.format(pattern, args, locale);
     }
 
-    public static void print(String pattern, Object... args) {
+    public static void print(CharSequence pattern, Object... args) {
         System.out.print(format(pattern, args));
     }
 
-    public static void println(String pattern, Object... args) {
+    public static void println(CharSequence pattern, Object... args) {
         System.out.println(format(pattern, args));
     }
 
-    public static void print(PrintStream out, String pattern, Object... args) {
+    public static void print(PrintStream out, CharSequence pattern, Object... args) {
         out.print(format(pattern, args));
     }
 
-    public static void println(PrintStream out, String pattern, Object... args) {
+    public static void println(PrintStream out, CharSequence pattern, Object... args) {
         out.println(format(pattern, args));
     }
 
-    public static void print(PrintWriter out, String pattern, Object... args) {
+    public static void print(PrintWriter out, CharSequence pattern, Object... args) {
         out.print(format(pattern, args));
     }
 
-    public static void println(PrintWriter out, String pattern, Object... args) {
+    public static void println(PrintWriter out, CharSequence pattern, Object... args) {
         out.println(format(pattern, args));
     }
 
-    public static void format_to(StringBuilder out, String pattern, Object... args) {
+    public static void format_to(StringBuilder out, CharSequence pattern, Object... args) {
         FormatEngine.formatTo(out, pattern, args, Locale.getDefault());
     }
 
-    public static void format_to(StringBuilder out, Locale locale, String pattern, Object... args) {
+    public static void format_to(StringBuilder out, Locale locale, CharSequence pattern, Object... args) {
         FormatEngine.formatTo(out, pattern, args, locale);
     }
 }
