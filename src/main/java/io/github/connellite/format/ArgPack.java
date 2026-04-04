@@ -5,6 +5,7 @@ import io.github.connellite.exception.FormatException;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 
 final class ArgPack {
 
@@ -27,6 +28,26 @@ final class ArgPack {
             }
         }
         return new ArgPack(args, map);
+    }
+
+    /**
+     * Named arguments only: no positional {@code {}} / {@code {0}} — use {@link #of} with varargs for
+     * mixed or positional formatting.
+     */
+    static ArgPack named(Map<String, ?> named) {
+        Objects.requireNonNull(named, "named");
+        if (named.isEmpty()) {
+            return new ArgPack(new Object[0], Collections.emptyMap());
+        }
+        Map<String, Object> map = new HashMap<>();
+        for (Map.Entry<String, ?> e : named.entrySet()) {
+            String key = e.getKey();
+            if (key == null) {
+                throw new FormatException("named map key is null");
+            }
+            map.put(key, e.getValue());
+        }
+        return new ArgPack(new Object[0], map);
     }
 
     Object resolve(ArgId id) {

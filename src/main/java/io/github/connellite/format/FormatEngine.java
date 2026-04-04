@@ -7,6 +7,7 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.util.IllegalFormatException;
 import java.util.Locale;
+import java.util.Map;
 
 @UtilityClass
 class FormatEngine {
@@ -19,19 +20,38 @@ class FormatEngine {
         return sb.toString();
     }
 
+    static String format(CharSequence pattern, Map<String, ?> named, Locale locale) {
+        if (pattern == null) {
+            throw new FormatException("format string is null");
+        }
+        StringBuilder sb = new StringBuilder(pattern.length() + 32);
+        formatTo(sb, pattern, named, locale);
+        return sb.toString();
+    }
+
     static void formatTo(StringBuilder out, CharSequence pattern, Object[] args, Locale locale) {
         if (pattern == null) {
             throw new FormatException("format string is null");
         }
         try {
-            formatToImpl(out, pattern, args, locale);
+            formatToImpl(out, pattern, ArgPack.of(args), locale);
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
     }
 
-    private static void formatToImpl(Appendable out, CharSequence pattern, Object[] args, Locale locale) throws IOException {
-        ArgPack pack = ArgPack.of(args);
+    static void formatTo(StringBuilder out, CharSequence pattern, Map<String, ?> named, Locale locale) {
+        if (pattern == null) {
+            throw new FormatException("format string is null");
+        }
+        try {
+            formatToImpl(out, pattern, ArgPack.named(named), locale);
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+    }
+
+    private static void formatToImpl(Appendable out, CharSequence pattern, ArgPack pack, Locale locale) throws IOException {
         int i = 0;
         int n = pattern.length();
         int nextAuto = 0;
@@ -79,6 +99,11 @@ class FormatEngine {
         }
         if (spec.indexOf('%') >= 0) {
             throw new FormatException("'%' is not allowed inside format specifier");
+        }
+        String bridged = BraceSpec.tryFormat(locale, value, spec);
+        if (bridged != null) {
+            out.append(bridged);
+            return;
         }
         try {
             out.append(String.format(locale, "%" + spec, value));

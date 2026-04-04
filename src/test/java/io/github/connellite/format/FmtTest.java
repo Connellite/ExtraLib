@@ -9,6 +9,7 @@ import java.io.PrintStream;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.Locale;
+import java.util.Map;
 
 import io.github.connellite.exception.FormatException;
 import org.junit.jupiter.api.Test;
@@ -41,6 +42,11 @@ class FmtTest {
     @Test
     void named() {
         assertEquals("a=1 b=2", Fmt.format("a={a} b={b}", Fmt.arg("a", 1), Fmt.arg("b", 2)));
+    }
+
+    @Test
+    void namedFromMap() {
+        assertEquals("1 + 2", Fmt.format("{a} + {b}", Map.of("a", 1, "b", 2)));
     }
 
     @Test
@@ -165,5 +171,25 @@ class FmtTest {
     @Test
     void fmtFormattableWithSpec() {
         assertEquals("AB", Fmt.format(Locale.ROOT, "{:S}", new StringProxy("ab")));
+    }
+
+    @Test
+    void fmtStyleAlignRightAndLeft() {
+        assertEquals("         a b         ", Fmt.format("{0:>10} {1:<10}", "a", "b"));
+    }
+
+    @Test
+    void fmtStyleAlternateHex() {
+        assertEquals("0x2a", Fmt.format("{:#x}", 42));
+    }
+
+    @Test
+    void fmtStyleCenter() {
+        assertEquals("  hi   ", Fmt.format("{:^7}", "hi"));
+    }
+
+    @Test
+    void fmtStyleFillAlign() {
+        assertEquals("*****hi", Fmt.format("{:*>7}", "hi"));
     }
 }

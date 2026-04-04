@@ -6,6 +6,7 @@ import lombok.experimental.UtilityClass;
 import java.io.PrintStream;
 import java.io.PrintWriter;
 import java.util.Locale;
+import java.util.Map;
 
 /**
  * Minimal Java-only "fmt-style" formatting: {@code String} in UTF-16, no wide-string layer.
@@ -32,12 +33,32 @@ public final class Fmt {
         return FormatEngine.format(pattern, args, locale);
     }
 
+    /**
+     * Named arguments from a map (e.g. {@code Map.of("a", 1, "b", 2)} for {@code "{a} + {b}"}).
+     * Positional fields {@code {}} / {@code {0}} are not supplied — use {@link #format(CharSequence, Object...)} for that.
+     */
+    public static String format(CharSequence pattern, Map<String, ?> named) {
+        return FormatEngine.format(pattern, named, Locale.getDefault());
+    }
+
+    public static String format(Locale locale, CharSequence pattern, Map<String, ?> named) {
+        return FormatEngine.format(pattern, named, locale);
+    }
+
     public static void print(CharSequence pattern, Object... args) {
         System.out.print(format(pattern, args));
     }
 
     public static void println(CharSequence pattern, Object... args) {
         System.out.println(format(pattern, args));
+    }
+
+    public static void print(CharSequence pattern, Map<String, ?> named) {
+        System.out.print(format(pattern, named));
+    }
+
+    public static void println(CharSequence pattern, Map<String, ?> named) {
+        System.out.println(format(pattern, named));
     }
 
     public static void print(PrintStream out, CharSequence pattern, Object... args) {
@@ -48,6 +69,14 @@ public final class Fmt {
         out.println(format(pattern, args));
     }
 
+    public static void print(PrintStream out, CharSequence pattern, Map<String, ?> named) {
+        out.print(format(pattern, named));
+    }
+
+    public static void println(PrintStream out, CharSequence pattern, Map<String, ?> named) {
+        out.println(format(pattern, named));
+    }
+
     public static void print(PrintWriter out, CharSequence pattern, Object... args) {
         out.print(format(pattern, args));
     }
@@ -56,11 +85,27 @@ public final class Fmt {
         out.println(format(pattern, args));
     }
 
+    public static void print(PrintWriter out, CharSequence pattern, Map<String, ?> named) {
+        out.print(format(pattern, named));
+    }
+
+    public static void println(PrintWriter out, CharSequence pattern, Map<String, ?> named) {
+        out.println(format(pattern, named));
+    }
+
     public static void format_to(StringBuilder out, CharSequence pattern, Object... args) {
         FormatEngine.formatTo(out, pattern, args, Locale.getDefault());
     }
 
     public static void format_to(StringBuilder out, Locale locale, CharSequence pattern, Object... args) {
         FormatEngine.formatTo(out, pattern, args, locale);
+    }
+
+    public static void format_to(StringBuilder out, CharSequence pattern, Map<String, ?> named) {
+        FormatEngine.formatTo(out, pattern, named, Locale.getDefault());
+    }
+
+    public static void format_to(StringBuilder out, Locale locale, CharSequence pattern, Map<String, ?> named) {
+        FormatEngine.formatTo(out, pattern, named, locale);
     }
 }
