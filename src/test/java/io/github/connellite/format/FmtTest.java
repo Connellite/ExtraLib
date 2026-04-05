@@ -9,6 +9,9 @@ import java.io.PrintStream;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDateTime;
+import java.util.Calendar;
+import java.util.Date;
 import java.util.Locale;
 import java.util.Map;
 
@@ -17,12 +20,7 @@ import org.junit.jupiter.api.Test;
 
 class FmtTest {
 
-    private static final class StringProxy implements FmtFormattable {
-        private final CharSequence data;
-
-        StringProxy(CharSequence data) {
-            this.data = data;
-        }
+    private record StringProxy(CharSequence data) implements FmtFormattable {
 
         @Override
         public void appendFormatted(Appendable out, Locale locale, String spec) throws IOException {
@@ -38,6 +36,80 @@ class FmtTest {
     @Test
     void basic() {
         assertEquals("hello 123\n", Fmt.format("hello {}\n", 123));
+    }
+
+    @Test
+    void formatArrayDefaultAndNested() {
+        assertEquals("[1, 2, 3]", Fmt.format("{}", (Object) new int[] {1, 2, 3}));
+        // int[][] is an Object[] for varargs — cast so one argument is the matrix, not two rows.
+        assertEquals("[[1, 2], [3]]", Fmt.format("{}", (Object) new int[][] {{1, 2}, {3}}));
+        assertEquals(
+                "[a, null, b]",
+                Fmt.format("{}", (Object) new String[] {"a", null, "b"}));
+        assertEquals("[1, 2, 3]", Fmt.format("{:s}", (Object) new int[] {1, 2, 3}));
+    }
+
+    @Test
+    void boxTableDynamicWidth() {
+        String expected =
+                """
+                        ┌────────────────────┐
+                        │   Hello, world!    │
+                        └────────────────────┘
+                        """;
+        assertEquals(
+                expected,
+                Fmt.format("┌{0:─^{2}}┐\n│{1: ^{2}}│\n└{0:─^{2}}┘\n", "", "Hello, world!", 20));
+    }
+
+    @Test
+    void formatBinary() {
+        assertEquals("101010", Fmt.format("{:b}", 42));
+    }
+
+    @Test
+    void formatDynamicPrecision() {
+        assertEquals("3.1", Fmt.format(Locale.US, "{:.{}f}", 3.1415, 1));
+    }
+
+    @Test
+    void formatFloatSignFlags() {
+        assertEquals(
+                "+3.140000; -3.140000",
+                Fmt.format(Locale.US, "{:+f}; {:+f}", 3.14, -3.14));
+        assertEquals(
+                " 3.140000; -3.140000",
+                Fmt.format(Locale.US, "{: f}; {: f}", 3.14, -3.14));
+        assertEquals(
+                "3.140000; -3.140000",
+                Fmt.format(Locale.US, "{:-f}; {:-f}", 3.14, -3.14));
+    }
+
+    @Test
+    void formatRadixLine() {
+        assertEquals(
+                "int: 42;  hex: 2a;  oct: 52; bin: 101010",
+                Fmt.format("int: {0:d};  hex: {0:x};  oct: {0:o}; bin: {0:b}", 42));
+    }
+
+    @Test
+    void formatRadixAlternate() {
+        assertEquals(
+                "int: 42;  hex: 0x2a;  oct: 052;  bin: 0b101010",
+                Fmt.format("int: {0:d};  hex: {0:#x};  oct: {0:#o};  bin: {0:#b}", 42));
+    }
+
+    @Test
+    void formatDatePercent() {
+        LocalDateTime t = LocalDateTime.of(2024, 6, 15, 14, 30, 45);
+        assertEquals("2024-06-15 14:30:45", Fmt.format("{:%Y-%m-%d %H:%M:%S}", t));
+    }
+
+    @Test
+    void formatDatePercentUtilDate() {
+        @SuppressWarnings("deprecation")
+        Date d = new Date(124, Calendar.JUNE, 15, 14, 30, 45);
+        assertEquals("2024-06-15 14:30:45", Fmt.format("{:%Y-%m-%d %H:%M:%S}", d));
     }
 
     @Test

@@ -36,7 +36,7 @@ class FormatEngine {
                     pieces.add(lit.toString());
                     lit.setLength(0);
                 }
-                int close = indexOf(pattern, '}', i + 1);
+                int close = findClosingBrace(pattern, i);
                 if (close < 0) {
                     throw new FormatException("unclosed '{' in format string");
                 }
@@ -137,7 +137,11 @@ class FormatEngine {
                 sink.accept(s);
             } else if (piece instanceof ReplacementField field) {
                 StringBuilder buf = new StringBuilder();
-                append(buf, pack.resolve(field.id()), field.spec(), locale);
+                append(
+                        buf,
+                        pack.resolve(field.id()),
+                        expandDynamicSpec(field.spec(), pack, field.nextAutoIndex()),
+                        locale);
                 sink.accept(buf);
             } else {
                 throw new FormatException("internal error");
@@ -152,11 +156,106 @@ class FormatEngine {
                 out.append(s);
             } else if (piece instanceof ReplacementField field) {
                 Object arg = pack.resolve(field.id());
-                append(out, arg, field.spec(), locale);
+                append(out, arg, expandDynamicSpec(field.spec(), pack, field.nextAutoIndex()), locale);
             } else {
                 throw new FormatException("internal error");
             }
         }
+    }
+
+    private static String expandDynamicSpec(String spec, ArgPack pack, int nextAutoStart) {
+        if (spec == null || spec.isEmpty() || spec.indexOf('{') < 0) {
+            return spec;
+        }
+        StringBuilder out = new StringBuilder();
+        int i = 0;
+        int[] counter = {nextAutoStart};
+        int n = spec.length();
+        while (i < n) {
+            char c = spec.charAt(i);
+            if (c == '{' && i + 1 < n && spec.charAt(i + 1) == '{') {
+                out.append('{');
+                i += 2;
+                continue;
+            }
+            if (c == '}' && i + 1 < n && spec.charAt(i + 1) == '}') {
+                out.append('}');
+                i += 2;
+                continue;
+            }
+            if (c == '{') {
+                int close = findClosingBrace(spec, i);
+                if (close < 0) {
+                    throw new FormatException("unclosed '{' in format specifier");
+                }
+                String inner = spec.substring(i + 1, close).trim();
+                Object v = resolveSpecPlaceholder(inner, pack, counter);
+                out.append(FormatStrings.defaultArgString(v));
+                i = close + 1;
+                continue;
+            }
+            out.append(c);
+            i++;
+        }
+        return out.toString();
+    }
+
+    private static Object resolveSpecPlaceholder(String inner, ArgPack pack, int[] counter) {
+        if (inner.isEmpty()) {
+            return pack.resolve(new AutoArgId(counter[0]++));
+        }
+        if (isAllDigits(inner)) {
+            try {
+                int idx = Integer.parseInt(inner);
+                if (idx < 0) {
+                    throw new FormatException("negative argument index: " + idx);
+                }
+                return pack.resolve(new IndexArgId(idx));
+            } catch (NumberFormatException e) {
+                throw new FormatException("invalid argument index: " + inner);
+            }
+        }
+        if (isIdentifier(inner)) {
+            return pack.resolve(new NameArgId(inner));
+        }
+        throw new FormatException("invalid nested replacement in specifier: {" + inner + "}");
+    }
+
+    /**
+     * {@code open} is the index of '{'; returns the index of the matching '}' or {@code -1}.
+     * Doubled {@code {{}} and {@code }}} are literal braces and do not affect nesting depth.
+     */
+    private static int findClosingBrace(CharSequence s, int open) {
+        if (open < 0 || open >= s.length() || s.charAt(open) != '{') {
+            return -1;
+        }
+        int depth = 1;
+        int i = open + 1;
+        int n = s.length();
+        while (i < n) {
+            char c = s.charAt(i);
+            if (c == '{' && i + 1 < n && s.charAt(i + 1) == '{') {
+                i += 2;
+                continue;
+            }
+            // Do not treat "}}" as one escape here: in "{0:─^{2}}" the two "}" close nested "{2" then the field.
+            // Literal "}}" in pattern text is handled in compile()'s main loop, not while matching one field.
+            if (c == '{') {
+                depth++;
+                i++;
+                continue;
+            }
+            if (c == '}') {
+                depth--;
+                if (depth == 0) {
+                    return i;
+                }
+                i++;
+                continue;
+            }
+            i++;
+        }
+        return -1;
     }
 
     private static void append(Appendable out, Object value, String spec, Locale locale)
@@ -166,11 +265,12 @@ class FormatEngine {
             return;
         }
         if (spec == null || spec.isEmpty()) {
-            out.append(String.valueOf(value));
+            out.append(FormatStrings.defaultArgString(value));
             return;
         }
         if (spec.indexOf('%') >= 0) {
-            throw new FormatException("'%' is not allowed inside format specifier");
+            out.append(DatePercentSpec.format(locale, value, spec));
+            return;
         }
         String bridged = BraceSpec.tryFormat(locale, value, spec);
         if (bridged != null) {
@@ -194,7 +294,8 @@ class FormatEngine {
             spec = null;
         } else {
             head = s.substring(0, colon).trim();
-            spec = s.substring(colon + 1).trim();
+            // Do not strip leading whitespace: fmt sign " " (space flag) lives there, e.g. "{: f}".
+            spec = s.substring(colon + 1).stripTrailing();
             if (spec.isEmpty()) {
                 spec = null;
             }
@@ -208,7 +309,7 @@ class FormatEngine {
                 if (idx < 0) {
                     throw new FormatException("negative argument index: " + idx);
                 }
-                return new ReplacementField(new IndexArgId(idx), spec, nextAuto);
+                return new ReplacementField(new IndexArgId(idx), spec, Math.max(nextAuto, idx + 1));
             } catch (NumberFormatException e) {
                 throw new FormatException("invalid argument index: " + head);
             }
@@ -245,14 +346,4 @@ class FormatEngine {
         return true;
     }
 
-    @SuppressWarnings("SameParameterValue")
-    private static int indexOf(CharSequence s, char ch, int from) {
-        int n = s.length();
-        for (int i = Math.max(0, from); i < n; i++) {
-            if (s.charAt(i) == ch) {
-                return i;
-            }
-        }
-        return -1;
-    }
 }

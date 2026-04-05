@@ -13,8 +13,23 @@ import java.util.function.Consumer;
  * Minimal Java-only "fmt-style" formatting: {@code String} in UTF-16, no wide-string layer.
  *
  * <p><b>Null arguments</b> (similar in spirit to SLF4J / typical Java logging): with no format spec,
- * {@link String#valueOf(Object)} is used, so a {@code null} reference becomes the text {@code "null"}
- * (no NPE). With a spec, behaviour follows {@link String#format}.
+ * values use a default string form (like {@link String#valueOf(Object)} for non-arrays); {@code null}
+ * becomes {@code "null"} (no NPE). Arrays render as {@code [1, 2, 3]} with nesting, not {@code [I@…}.
+ * With a spec, behaviour follows {@link String#format} (string conversions apply the same array rule).
+ *
+ * <p><b>Radix</b>: types {@code b}/{@code B} produce binary (optional alternate {@code #} → {@code 0b}/{@code 0B});
+ * {@code d}, {@code x}, {@code o} follow Java rules including {@code #} for {@code 0x}, leading {@code 0} on octal, etc.
+ *
+ * <p><b>Sign</b> (after {@code ':'}, before type): {@code +} always; a single leading space flag for positives;
+ * {@code -} default (only minus for negatives), same as omitting a sign flag.
+ *
+ * <p><b>Dynamic spec</b>: nested braces in the part after {@code ':'} pull further arguments, e.g.
+ * {@code Fmt.format(Locale.US, "{:.{}f}", 3.14, 1)} → {@code "3.1"} (decimal separator follows {@link Locale}).
+ *
+ * <p><b>Date/time</b> when the spec contains {@code %}: a small strftime-like subset — {@code %Y} {@code %y} {@code %m}
+ * {@code %d} {@code %H} {@code %M} {@code %S} {@code %%} — for {@link java.util.Date}, {@link java.util.Calendar},
+ * {@link java.time.Instant}, {@link java.time.ZonedDateTime}, {@link java.time.LocalDateTime}, {@link java.time.LocalDate},
+ * etc., in {@link java.time.ZoneId#systemDefault()}.
  *
  * @see FormatException
  * @see Named

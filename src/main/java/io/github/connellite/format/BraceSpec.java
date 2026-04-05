@@ -1,6 +1,7 @@
 package io.github.connellite.format;
 
 import io.github.connellite.exception.FormatException;
+import lombok.experimental.UtilityClass;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
@@ -14,6 +15,7 @@ import java.util.Locale;
  * <p>Grammar (partial): {@code [[fill]align][sign][#][0][width][.precision][L][type]} — same order as
  * <a href="https://fmt.dev/latest/syntax/">fmt format_spec</a>.
  */
+@UtilityClass
 final class BraceSpec {
 
     private enum Align {
@@ -22,8 +24,6 @@ final class BraceSpec {
         RIGHT,
         CENTER
     }
-
-    private BraceSpec() {}
 
     /**
      * @return formatted string, or {@code null} to fall back to legacy {@code "%" + spec}
@@ -70,29 +70,76 @@ final class BraceSpec {
 
         String render(Locale locale, Object value, String spec) {
             char conv = explicitJavaConv != null ? explicitJavaConv : inferJavaConversion(value);
+            if (value == null && (conv == 'b' || conv == 'B')) {
+                return "null";
+            }
+            if (conv == 'b' || conv == 'B') {
+                requireIntegralForBinary(value, spec);
+                String core = formatBinaryCore(value, alternate, conv == 'B');
+                boolean manualPad = align == Align.CENTER || fill != ' ';
+                if (manualPad) {
+                    if (width < 0) {
+                        return core;
+                    }
+                    return pad(core, width, fill, align);
+                }
+                return finishPad(core);
+            }
+
             boolean manualPad = align == Align.CENTER || fill != ' ';
 
             if (!manualPad) {
                 String javaSpec = toJavaPercentSpec(conv);
                 try {
-                    return String.format(locale, javaSpec, unwrapForFormat(value, conv));
+                    return String.format(locale, javaSpec, forPercentArg(value, conv));
                 } catch (IllegalFormatException e) {
                     throw new FormatException("invalid format specifier: " + spec, e);
                 }
             }
 
             String inner = innerJavaPercentSpec(conv);
-            Object arg = unwrapForFormat(value, conv);
+            Object arg = forPercentArg(value, conv);
             String core;
             try {
                 core = String.format(locale, inner, arg);
             } catch (IllegalFormatException e) {
                 throw new FormatException("invalid format specifier: " + spec, e);
             }
+            return finishPad(core);
+        }
+
+        private String finishPad(String core) {
             if (width < 0) {
                 return core;
             }
-            return pad(core, width, fill, align);
+            Align a = align == Align.NONE ? Align.RIGHT : align;
+            return pad(core, width, fill, a);
+        }
+
+        private static void requireIntegralForBinary(Object value, String spec) {
+            if (value instanceof Boolean
+                    || value instanceof Float
+                    || value instanceof Double
+                    || value instanceof BigDecimal) {
+                throw new FormatException("invalid type for binary format: " + spec);
+            }
+        }
+
+        private static String formatBinaryCore(Object value, boolean alternate, boolean upperPrefix) {
+            String bits;
+            if (value instanceof BigInteger bi) {
+                bits = bi.toString(2);
+            } else if (value instanceof Byte || value instanceof Short || value instanceof Integer || value instanceof Long) {
+                bits = Long.toBinaryString(((Number) value).longValue());
+            } else if (value instanceof Character ch) {
+                bits = Integer.toBinaryString(ch);
+            } else {
+                throw new FormatException("invalid type for binary format");
+            }
+            if (!alternate) {
+                return bits;
+            }
+            return (upperPrefix ? "0B" : "0b") + bits;
         }
 
         private String toJavaPercentSpec(char conv) {
@@ -141,6 +188,15 @@ final class BraceSpec {
                 return value;
             }
             return value;
+        }
+
+        /** Pass-through for {@link String#format} except string conversion of arrays. */
+        private static Object forPercentArg(Object value, char conv) {
+            Object u = unwrapForFormat(value, conv);
+            if ((conv == 's' || conv == 'S') && u != null && u.getClass().isArray()) {
+                return FormatStrings.defaultArgString(u);
+            }
+            return u;
         }
 
         private static char inferJavaConversion(Object value) {
@@ -295,6 +351,8 @@ final class BraceSpec {
             case 'x' -> 'x';
             case 'X' -> 'X';
             case 'o' -> 'o';
+            case 'b' -> 'b';
+            case 'B' -> 'B';
             case 'f' -> 'f';
             case 'e' -> 'e';
             case 'E' -> 'E';
