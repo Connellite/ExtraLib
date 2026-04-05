@@ -8,6 +8,7 @@ import java.io.IOException;
 import java.io.PrintStream;
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.nio.charset.StandardCharsets;
 import java.util.Locale;
 import java.util.Map;
 
@@ -96,10 +97,26 @@ class FmtTest {
     }
 
     @Test
-    void printStream() {
+    void printPrintStream() {
         ByteArrayOutputStream buf = new ByteArrayOutputStream();
-        Fmt.print(new PrintStream(buf, true), "v{}", 9);
-        assertEquals("v9", buf.toString());
+        Fmt.print(new PrintStream(buf, true, StandardCharsets.UTF_8), "v{}", 9);
+        assertEquals("v9", buf.toString(StandardCharsets.UTF_8));
+    }
+
+    @Test
+    void formatToStringBuffer() {
+        StringBuffer buf = new StringBuffer(">>");
+        Fmt.format_to(buf, "a{}b", 0);
+        assertEquals(">>a0b", buf.toString());
+    }
+
+    @Test
+    void formatToConsumerMethodRefPrintln() {
+        ByteArrayOutputStream buf = new ByteArrayOutputStream();
+        PrintStream out = new PrintStream(buf, true, StandardCharsets.UTF_8);
+        Fmt.format_to(out::println, "a{}b", 0);
+        String nl = System.lineSeparator();
+        assertEquals("a" + nl + "0" + nl + "b" + nl, buf.toString(StandardCharsets.UTF_8));
     }
 
     @Test

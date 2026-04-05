@@ -10,6 +10,7 @@ import java.util.IllegalFormatException;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.function.Consumer;
 
 @UtilityClass
 class FormatEngine {
@@ -80,7 +81,7 @@ class FormatEngine {
         return sb.toString();
     }
 
-    static void formatTo(StringBuilder out, CompiledFormat compiled, Object[] args, Locale locale) {
+    static void formatTo(Appendable out, CompiledFormat compiled, Object[] args, Locale locale) {
         if (compiled == null) {
             throw new FormatException("compiled format is null");
         }
@@ -91,7 +92,7 @@ class FormatEngine {
         }
     }
 
-    static void formatTo(StringBuilder out, CompiledFormat compiled, Map<String, ?> named, Locale locale) {
+    static void formatTo(Appendable out, CompiledFormat compiled, Map<String, ?> named, Locale locale) {
         if (compiled == null) {
             throw new FormatException("compiled format is null");
         }
@@ -99,6 +100,48 @@ class FormatEngine {
             formatToImpl(out, compiled, ArgPack.named(named), locale);
         } catch (IOException e) {
             throw new UncheckedIOException(e);
+        }
+    }
+
+    static void formatTo(Consumer<CharSequence> chunkSink, CompiledFormat compiled, Object[] args, Locale locale) {
+        if (compiled == null) {
+            throw new FormatException("compiled format is null");
+        }
+        if (chunkSink == null) {
+            throw new FormatException("chunk sink is null");
+        }
+        try {
+            formatToImplConsumer(chunkSink, compiled, ArgPack.of(args), locale);
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+    }
+
+    static void formatTo(Consumer<CharSequence> chunkSink, CompiledFormat compiled, Map<String, ?> named, Locale locale) {
+        if (compiled == null) {
+            throw new FormatException("compiled format is null");
+        }
+        if (chunkSink == null) {
+            throw new FormatException("chunk sink is null");
+        }
+        try {
+            formatToImplConsumer(chunkSink, compiled, ArgPack.named(named), locale);
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+    }
+
+    private static void formatToImplConsumer(Consumer<CharSequence> sink, CompiledFormat compiled, ArgPack pack, Locale locale) throws IOException {
+        for (Object piece : compiled.segments()) {
+            if (piece instanceof String s) {
+                sink.accept(s);
+            } else if (piece instanceof ReplacementField field) {
+                StringBuilder buf = new StringBuilder();
+                append(buf, pack.resolve(field.id()), field.spec(), locale);
+                sink.accept(buf);
+            } else {
+                throw new FormatException("internal error");
+            }
         }
     }
 
