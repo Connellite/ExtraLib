@@ -28,7 +28,7 @@ public abstract class AbstractResultSetIterator<V> implements Iterator<Map<Strin
     protected final List<String> columnNames;
     protected boolean hasNextValue;
 
-    AbstractResultSetIterator(Connection conn, String query) throws SQLException {
+    public AbstractResultSetIterator(Connection conn, String query) throws SQLException {
         // Prefer forward-only read-only cursors; fall back to default statement if the driver rejects that type/concurrency.
         try {
             this.statement = conn.createStatement(ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY);
@@ -81,14 +81,7 @@ public abstract class AbstractResultSetIterator<V> implements Iterator<Map<Strin
 
     @Override
     public void close() throws Exception {
-        try {
-            if (resultSet != null) resultSet.close();
-        } catch (Exception ignore) {
-        }
-
-        try {
-            if (statement != null) statement.close();
-        } catch (Exception ignore) {
-        }
+        if (resultSet != null) resultSet.close();
+        if (statement != null) statement.close();
     }
 }

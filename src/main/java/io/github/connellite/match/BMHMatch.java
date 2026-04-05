@@ -114,7 +114,7 @@ public class BMHMatch {
             } else {
                 int bc = badchar[text.charAt(s + j)];
                 int v = j - bc;
-                s += v < 1 ? 1 : v;
+                s += Math.max(v, 1);
             }
         }
         return found;

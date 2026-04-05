@@ -20,7 +20,7 @@ import java.util.Objects;
  */
 public class ResultSetStringIterator extends AbstractResultSetIterator<String> {
 
-    ResultSetStringIterator(Connection conn, String query) throws SQLException {
+    public ResultSetStringIterator(Connection conn, String query) throws SQLException {
         super(conn, query);
     }
 

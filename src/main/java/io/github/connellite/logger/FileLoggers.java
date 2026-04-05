@@ -39,9 +39,7 @@ public final class FileLoggers {
      * {@code Logger.getLogger(loggerName)} plus a single {@link FileLogHandler} for {@code logFile} (no parent handlers).
      */
     public static Logger forLogFile(String loggerName, Path logFile, FileLogHandlerConfig config) {
-        if (loggerName == null) {
-            throw new IllegalArgumentException("loggerName");
-        }
+        Objects.requireNonNull(loggerName,  "loggerName must not be null");
         Path normalized = logFile.toAbsolutePath().normalize();
         Logger logger = Logger.getLogger(loggerName);
         logger.setUseParentHandlers(false);

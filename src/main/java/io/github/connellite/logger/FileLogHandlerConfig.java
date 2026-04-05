@@ -16,15 +16,9 @@ public record FileLogHandlerConfig(
      * @param maxBackupFiles number of rotated segments kept ({@code name.log.0} …); {@code 0} means no backups (main file is dropped on rotate)
      */
     public FileLogHandlerConfig {
-        if (bufferSize < 256) {
-            bufferSize = 256;
-        }
-        if (maxFileBytes < 0) {
-            maxFileBytes = 0;
-        }
-        if (maxBackupFiles < 0) {
-            maxBackupFiles = 0;
-        }
+        bufferSize = Math.max(bufferSize, 256);
+        maxFileBytes = Math.max(maxFileBytes, 0);
+        maxBackupFiles = Math.max(maxBackupFiles, 0);
     }
 
     /** Buffered writes, no rotation. */

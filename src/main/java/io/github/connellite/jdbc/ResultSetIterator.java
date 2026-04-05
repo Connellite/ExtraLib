@@ -18,7 +18,7 @@ import java.util.NoSuchElementException;
  */
 public class ResultSetIterator extends AbstractResultSetIterator<Object> {
 
-    ResultSetIterator(Connection conn, String query) throws SQLException {
+    public ResultSetIterator(Connection conn, String query) throws SQLException {
         super(conn, query);
     }
 
