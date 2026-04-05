@@ -50,6 +50,13 @@ class FmtTest {
     }
 
     @Test
+    void compileReuse() {
+        CompiledFormat c = Fmt.compile("{} = {:d}");
+        assertEquals("x = 1", Fmt.format(c, "x", 1));
+        assertEquals("y = 2", Fmt.format(c, "y", 2));
+    }
+
+    @Test
     void mixed() {
         assertEquals("1 then 2", Fmt.format("{} then {x}", 1, Fmt.arg("x", 2)));
     }
@@ -119,7 +126,7 @@ class FmtTest {
 
     @Test
     void nullPatternThrows() {
-        assertThrows(FormatException.class, () -> Fmt.format(null, 1));
+        assertThrows(FormatException.class, () -> Fmt.format((CharSequence) null, 1));
     }
 
     @Test

@@ -5,63 +5,35 @@ import lombok.experimental.UtilityClass;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.util.ArrayList;
 import java.util.IllegalFormatException;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
 @UtilityClass
 class FormatEngine {
-    static String format(CharSequence pattern, Object[] args, Locale locale) {
+
+    static CompiledFormat compile(CharSequence pattern) {
         if (pattern == null) {
             throw new FormatException("format string is null");
         }
-        StringBuilder sb = new StringBuilder(pattern.length() + 32);
-        formatTo(sb, pattern, args, locale);
-        return sb.toString();
-    }
-
-    static String format(CharSequence pattern, Map<String, ?> named, Locale locale) {
-        if (pattern == null) {
-            throw new FormatException("format string is null");
-        }
-        StringBuilder sb = new StringBuilder(pattern.length() + 32);
-        formatTo(sb, pattern, named, locale);
-        return sb.toString();
-    }
-
-    static void formatTo(StringBuilder out, CharSequence pattern, Object[] args, Locale locale) {
-        if (pattern == null) {
-            throw new FormatException("format string is null");
-        }
-        try {
-            formatToImpl(out, pattern, ArgPack.of(args), locale);
-        } catch (IOException e) {
-            throw new UncheckedIOException(e);
-        }
-    }
-
-    static void formatTo(StringBuilder out, CharSequence pattern, Map<String, ?> named, Locale locale) {
-        if (pattern == null) {
-            throw new FormatException("format string is null");
-        }
-        try {
-            formatToImpl(out, pattern, ArgPack.named(named), locale);
-        } catch (IOException e) {
-            throw new UncheckedIOException(e);
-        }
-    }
-
-    private static void formatToImpl(Appendable out, CharSequence pattern, ArgPack pack, Locale locale) throws IOException {
-        int i = 0;
         int n = pattern.length();
+        List<Object> pieces = new ArrayList<>();
+        StringBuilder lit = new StringBuilder();
+        int i = 0;
         int nextAuto = 0;
         while (i < n) {
             char c = pattern.charAt(i);
             if (c == '{') {
                 if (i + 1 < n && pattern.charAt(i + 1) == '{') {
-                    out.append('{');
+                    lit.append('{');
                     i += 2;
                     continue;
+                }
+                if (!lit.isEmpty()) {
+                    pieces.add(lit.toString());
+                    lit.setLength(0);
                 }
                 int close = indexOf(pattern, '}', i + 1);
                 if (close < 0) {
@@ -70,19 +42,76 @@ class FormatEngine {
                 String inside = pattern.subSequence(i + 1, close).toString();
                 ReplacementField field = parseField(inside, nextAuto);
                 nextAuto = field.nextAutoIndex();
-                Object arg = pack.resolve(field.id());
-                append(out, arg, field.spec(), locale);
+                pieces.add(field);
                 i = close + 1;
             } else if (c == '}') {
                 if (i + 1 < n && pattern.charAt(i + 1) == '}') {
-                    out.append('}');
+                    lit.append('}');
                     i += 2;
                     continue;
                 }
                 throw new FormatException("unmatched '}' in format string");
             } else {
-                out.append(c);
+                lit.append(c);
                 i++;
+            }
+        }
+        if (!lit.isEmpty()) {
+            pieces.add(lit.toString());
+        }
+        return new CompiledFormat(pieces, n);
+    }
+
+    static String format(CompiledFormat compiled, Object[] args, Locale locale) {
+        if (compiled == null) {
+            throw new FormatException("compiled format is null");
+        }
+        StringBuilder sb = new StringBuilder(compiled.patternLength() + 32);
+        formatTo(sb, compiled, args, locale);
+        return sb.toString();
+    }
+
+    static String format(CompiledFormat compiled, Map<String, ?> named, Locale locale) {
+        if (compiled == null) {
+            throw new FormatException("compiled format is null");
+        }
+        StringBuilder sb = new StringBuilder(compiled.patternLength() + 32);
+        formatTo(sb, compiled, named, locale);
+        return sb.toString();
+    }
+
+    static void formatTo(StringBuilder out, CompiledFormat compiled, Object[] args, Locale locale) {
+        if (compiled == null) {
+            throw new FormatException("compiled format is null");
+        }
+        try {
+            formatToImpl(out, compiled, ArgPack.of(args), locale);
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+    }
+
+    static void formatTo(StringBuilder out, CompiledFormat compiled, Map<String, ?> named, Locale locale) {
+        if (compiled == null) {
+            throw new FormatException("compiled format is null");
+        }
+        try {
+            formatToImpl(out, compiled, ArgPack.named(named), locale);
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+    }
+
+    private static void formatToImpl(Appendable out, CompiledFormat compiled, ArgPack pack, Locale locale)
+            throws IOException {
+        for (Object piece : compiled.segments()) {
+            if (piece instanceof String s) {
+                out.append(s);
+            } else if (piece instanceof ReplacementField field) {
+                Object arg = pack.resolve(field.id());
+                append(out, arg, field.spec(), locale);
+            } else {
+                throw new FormatException("internal error");
             }
         }
     }
