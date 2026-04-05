@@ -12,8 +12,9 @@ import java.util.Map;
 
 /**
  * Forward-only iterator over JDBC query rows. Subclasses map the current {@link ResultSet} row.
- * Implements {@link Iterable} so you can use {@code for (Map<String, V> row : it)} with try-with-resources.
- * {@link #iterator()} returns {@code this}; the cursor is single-pass.
+ * This type implements only {@link Iterator} (not {@link Iterable}) so APIs with overloads for both
+ * (for example {@code org.jooq.lambda.Seq.seq}) remain unambiguous when passed this instance.
+ * For enhanced for-loops use {@link #asIterable()}; it is single-pass and delegates to this iterator.
  * <p>
  * Closing releases the result set and statement from construction.
  *
@@ -21,7 +22,7 @@ import java.util.Map;
  * @see ResultSetIterator
  * @see ResultSetStringIterator
  */
-public abstract class AbstractResultSetIterator<V> implements Iterator<Map<String, V>>, Iterable<Map<String, V>>, AutoCloseable {
+public abstract class AbstractResultSetIterator<V> implements Iterator<Map<String, V>>, AutoCloseable {
 
     private Statement statement;
     protected final ResultSet resultSet;
@@ -62,13 +63,11 @@ public abstract class AbstractResultSetIterator<V> implements Iterator<Map<Strin
     }
 
     /**
-     * {@inheritDoc}
-     * <p>
-     * Returns {@code this} as the only iterator; one traversal consumes the {@link ResultSet}.
+     * Single-pass {@link Iterable} view for enhanced for-loops. {@link Iterable#iterator()} returns
+     * {@code this}; one traversal consumes the {@link ResultSet}.
      */
-    @Override
-    public Iterator<Map<String, V>> iterator() {
-        return this;
+    public Iterable<Map<String, V>> asIterable() {
+        return () -> AbstractResultSetIterator.this;
     }
 
     @Override

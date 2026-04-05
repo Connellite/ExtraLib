@@ -54,7 +54,7 @@ class ResultSetStreamSqliteTest {
             SqliteMemory.bootstrapDemoSchema(c);
             try (ResultSetIterator it = new ResultSetIterator(c, "SELECT id FROM demo ORDER BY id")) {
                 List<Integer> ids = new ArrayList<>();
-                for (Map<String, Object> row : it) {
+                for (Map<String, Object> row : it.asIterable()) {
                     ids.add(((Number) row.get("id")).intValue());
                 }
                 assertEquals(List.of(1, 2), ids);

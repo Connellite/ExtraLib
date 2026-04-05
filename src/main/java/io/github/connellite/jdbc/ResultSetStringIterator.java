@@ -12,9 +12,8 @@ import java.util.Objects;
 
 /**
  * Forward-only iterator over JDBC query rows.
- * Implements {@link Iterable} so you can use {@code for (Map<String, String> row : it)} together with
- * try-with-resources. {@link #iterator()} returns {@code this}; the cursor is single-pass, so a second
- * enhanced for-loop on the same instance will not replay rows from the start.
+ * Use {@link #asIterable()} for {@code for (Map<String, String> row : ...)} together with try-with-resources;
+ * the cursor is single-pass, so a second loop on the same instance will not replay rows from the start.
  * <p>
  * Closing releases the result set and statement from construction.
  */
