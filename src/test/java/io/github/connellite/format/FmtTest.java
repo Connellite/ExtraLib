@@ -36,6 +36,10 @@ class FmtTest {
     @Test
     void basic() {
         assertEquals("hello 123\n", Fmt.format("hello {}\n", 123));
+        ByteArrayOutputStream buf = new ByteArrayOutputStream();
+        PrintStream out = new PrintStream(buf, true, StandardCharsets.UTF_8);
+        Fmt.format_to(out::println, "User {} logged in", "Alice");
+        assertEquals("User Alice logged in" + System.lineSeparator(), buf.toString(StandardCharsets.UTF_8));
     }
 
     @Test
@@ -188,7 +192,7 @@ class FmtTest {
         PrintStream out = new PrintStream(buf, true, StandardCharsets.UTF_8);
         Fmt.format_to(out::println, "a{}b", 0);
         String nl = System.lineSeparator();
-        assertEquals("a" + nl + "0" + nl + "b" + nl, buf.toString(StandardCharsets.UTF_8));
+        assertEquals("a0b" + nl, buf.toString(StandardCharsets.UTF_8));
     }
 
     @Test

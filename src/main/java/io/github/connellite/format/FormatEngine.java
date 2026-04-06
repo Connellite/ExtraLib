@@ -103,50 +103,38 @@ class FormatEngine {
         }
     }
 
-    static void formatTo(Consumer<CharSequence> chunkSink, CompiledFormat compiled, Object[] args, Locale locale) {
+    static void formatTo(Consumer<CharSequence> sink, CompiledFormat compiled, Object[] args, Locale locale) {
         if (compiled == null) {
             throw new FormatException("compiled format is null");
         }
-        if (chunkSink == null) {
-            throw new FormatException("chunk sink is null");
+        if (sink == null) {
+            throw new FormatException("sink is null");
         }
         try {
-            formatToImplConsumer(chunkSink, compiled, ArgPack.of(args), locale);
+            formatToImplConsumer(sink, compiled, ArgPack.of(args), locale);
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
     }
 
-    static void formatTo(Consumer<CharSequence> chunkSink, CompiledFormat compiled, Map<String, ?> named, Locale locale) {
+    static void formatTo(Consumer<CharSequence> sink, CompiledFormat compiled, Map<String, ?> named, Locale locale) {
         if (compiled == null) {
             throw new FormatException("compiled format is null");
         }
-        if (chunkSink == null) {
-            throw new FormatException("chunk sink is null");
+        if (sink == null) {
+            throw new FormatException("sink is null");
         }
         try {
-            formatToImplConsumer(chunkSink, compiled, ArgPack.named(named), locale);
+            formatToImplConsumer(sink, compiled, ArgPack.named(named), locale);
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
     }
 
     private static void formatToImplConsumer(Consumer<CharSequence> sink, CompiledFormat compiled, ArgPack pack, Locale locale) throws IOException {
-        for (Object piece : compiled.segments()) {
-            if (piece instanceof String s) {
-                sink.accept(s);
-            } else if (piece instanceof ReplacementField field) {
-                StringBuilder buf = new StringBuilder();
-                append(
-                        buf,
-                        pack.resolve(field.id()),
-                        expandDynamicSpec(field.spec(), pack, field.nextAutoIndex()),
-                        locale);
-                sink.accept(buf);
-            } else {
-                throw new FormatException("internal error");
-            }
-        }
+        StringBuilder sb = new StringBuilder(compiled.patternLength() + 32);
+        formatToImpl(sb, compiled, pack, locale);
+        sink.accept(sb);
     }
 
     private static void formatToImpl(Appendable out, CompiledFormat compiled, ArgPack pack, Locale locale)
