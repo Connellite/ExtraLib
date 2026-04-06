@@ -180,67 +180,67 @@ public final class Fmt {
         out.println(format(compiled, named));
     }
 
-    public static void format_to(Appendable out, CharSequence pattern, Object... args) {
+    public static void formatTo(Appendable out, CharSequence pattern, Object... args) {
         FormatEngine.formatTo(out, compile(pattern), args, Locale.getDefault());
     }
 
-    public static void format_to(Appendable out, Locale locale, CharSequence pattern, Object... args) {
+    public static void formatTo(Appendable out, Locale locale, CharSequence pattern, Object... args) {
         FormatEngine.formatTo(out, compile(pattern), args, locale);
     }
 
-    public static void format_to(Appendable out, CompiledFormat compiled, Object... args) {
+    public static void formatTo(Appendable out, CompiledFormat compiled, Object... args) {
         FormatEngine.formatTo(out, compiled, args, Locale.getDefault());
     }
 
-    public static void format_to(Appendable out, Locale locale, CompiledFormat compiled, Object... args) {
+    public static void formatTo(Appendable out, Locale locale, CompiledFormat compiled, Object... args) {
         FormatEngine.formatTo(out, compiled, args, locale);
     }
 
-    public static void format_to(Appendable out, CharSequence pattern, Map<String, ?> named) {
+    public static void formatTo(Appendable out, CharSequence pattern, Map<String, ?> named) {
         FormatEngine.formatTo(out, compile(pattern), named, Locale.getDefault());
     }
 
-    public static void format_to(Appendable out, Locale locale, CharSequence pattern, Map<String, ?> named) {
+    public static void formatTo(Appendable out, Locale locale, CharSequence pattern, Map<String, ?> named) {
         FormatEngine.formatTo(out, compile(pattern), named, locale);
     }
 
-    public static void format_to(Appendable out, CompiledFormat compiled, Map<String, ?> named) {
+    public static void formatTo(Appendable out, CompiledFormat compiled, Map<String, ?> named) {
         FormatEngine.formatTo(out, compiled, named, Locale.getDefault());
     }
 
-    public static void format_to(Appendable out, Locale locale, CompiledFormat compiled, Map<String, ?> named) {
+    public static void formatTo(Appendable out, Locale locale, CompiledFormat compiled, Map<String, ?> named) {
         FormatEngine.formatTo(out, compiled, named, locale);
     }
 
-    public static void format_to(Consumer<CharSequence> sink, CharSequence pattern, Object... args) {
+    public static void formatTo(Consumer<CharSequence> sink, CharSequence pattern, Object... args) {
         FormatEngine.formatTo(sink, compile(pattern), args, Locale.getDefault());
     }
 
-    public static void format_to(Consumer<CharSequence> sink, Locale locale, CharSequence pattern, Object... args) {
+    public static void formatTo(Consumer<CharSequence> sink, Locale locale, CharSequence pattern, Object... args) {
         FormatEngine.formatTo(sink, compile(pattern), args, locale);
     }
 
-    public static void format_to(Consumer<CharSequence> sink, CompiledFormat compiled, Object... args) {
+    public static void formatTo(Consumer<CharSequence> sink, CompiledFormat compiled, Object... args) {
         FormatEngine.formatTo(sink, compiled, args, Locale.getDefault());
     }
 
-    public static void format_to(Consumer<CharSequence> sink, Locale locale, CompiledFormat compiled, Object... args) {
+    public static void formatTo(Consumer<CharSequence> sink, Locale locale, CompiledFormat compiled, Object... args) {
         FormatEngine.formatTo(sink, compiled, args, locale);
     }
 
-    public static void format_to(Consumer<CharSequence> sink, CharSequence pattern, Map<String, ?> named) {
+    public static void formatTo(Consumer<CharSequence> sink, CharSequence pattern, Map<String, ?> named) {
         FormatEngine.formatTo(sink, compile(pattern), named, Locale.getDefault());
     }
 
-    public static void format_to(Consumer<CharSequence> sink, Locale locale, CharSequence pattern, Map<String, ?> named) {
+    public static void formatTo(Consumer<CharSequence> sink, Locale locale, CharSequence pattern, Map<String, ?> named) {
         FormatEngine.formatTo(sink, compile(pattern), named, locale);
     }
 
-    public static void format_to(Consumer<CharSequence> sink, CompiledFormat compiled, Map<String, ?> named) {
+    public static void formatTo(Consumer<CharSequence> sink, CompiledFormat compiled, Map<String, ?> named) {
         FormatEngine.formatTo(sink, compiled, named, Locale.getDefault());
     }
 
-    public static void format_to(Consumer<CharSequence> sink, Locale locale, CompiledFormat compiled, Map<String, ?> named) {
+    public static void formatTo(Consumer<CharSequence> sink, Locale locale, CompiledFormat compiled, Map<String, ?> named) {
         FormatEngine.formatTo(sink, compiled, named, locale);
     }
 }

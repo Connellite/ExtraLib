@@ -38,7 +38,7 @@ class FmtTest {
         assertEquals("hello 123\n", Fmt.format("hello {}\n", 123));
         ByteArrayOutputStream buf = new ByteArrayOutputStream();
         PrintStream out = new PrintStream(buf, true, StandardCharsets.UTF_8);
-        Fmt.format_to(out::println, "User {} logged in", "Alice");
+        Fmt.formatTo(out::println, "User {} logged in", "Alice");
         assertEquals("User Alice logged in" + System.lineSeparator(), buf.toString(StandardCharsets.UTF_8));
     }
 
@@ -151,14 +151,14 @@ class FmtTest {
     @Test
     void formatTo() {
         StringBuilder sb = new StringBuilder(">>");
-        Fmt.format_to(sb, "a{}b", 0);
+        Fmt.formatTo(sb, "a{}b", 0);
         assertEquals(">>a0b", sb.toString());
     }
 
     @Test
     void formatToLocale() {
         StringBuilder sb = new StringBuilder();
-        Fmt.format_to(sb, Locale.US, "x={:.1f}", 2.25);
+        Fmt.formatTo(sb, Locale.US, "x={:.1f}", 2.25);
         assertEquals("x=2.3", sb.toString());
     }
 
@@ -182,7 +182,7 @@ class FmtTest {
     @Test
     void formatToStringBuffer() {
         StringBuffer buf = new StringBuffer(">>");
-        Fmt.format_to(buf, "a{}b", 0);
+        Fmt.formatTo(buf, "a{}b", 0);
         assertEquals(">>a0b", buf.toString());
     }
 
@@ -190,7 +190,7 @@ class FmtTest {
     void formatToConsumerMethodRefPrintln() {
         ByteArrayOutputStream buf = new ByteArrayOutputStream();
         PrintStream out = new PrintStream(buf, true, StandardCharsets.UTF_8);
-        Fmt.format_to(out::println, "a{}b", 0);
+        Fmt.formatTo(out::println, "a{}b", 0);
         String nl = System.lineSeparator();
         assertEquals("a0b" + nl, buf.toString(StandardCharsets.UTF_8));
     }

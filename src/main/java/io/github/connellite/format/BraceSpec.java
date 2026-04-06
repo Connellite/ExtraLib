@@ -180,23 +180,12 @@ final class BraceSpec {
             return sb.toString();
         }
 
-        private static Object unwrapForFormat(Object value, char conv) {
-            if (value == null) {
-                return null;
-            }
-            if ((conv == 'd' || conv == 'x' || conv == 'X' || conv == 'o') && value instanceof Long) {
-                return value;
-            }
-            return value;
-        }
-
         /** Pass-through for {@link String#format} except string conversion of arrays. */
         private static Object forPercentArg(Object value, char conv) {
-            Object u = unwrapForFormat(value, conv);
-            if ((conv == 's' || conv == 'S') && u != null && u.getClass().isArray()) {
-                return FormatStrings.defaultArgString(u);
+            if ((conv == 's' || conv == 'S') && value != null && value.getClass().isArray()) {
+                return FormatStrings.defaultArgString(value);
             }
-            return u;
+            return value;
         }
 
         private static char inferJavaConversion(Object value) {
@@ -212,9 +201,6 @@ final class BraceSpec {
             }
             if (value instanceof Float || value instanceof Double || value instanceof BigDecimal) {
                 return 'f';
-            }
-            if (value instanceof Boolean || value instanceof Character) {
-                return 's';
             }
             return 's';
         }

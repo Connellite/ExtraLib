@@ -17,6 +17,6 @@ Small Java 17 utility library: JDBC helpers, collections, date/UUID parsing, and
 <dependency>
     <groupId>io.github.connellite</groupId>
     <artifactId>ExtraLib</artifactId>
-    <version>0.18.1</version>
+    <version>0.18.2</version>
 </dependency>
 ```
