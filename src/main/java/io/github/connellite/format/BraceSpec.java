@@ -5,6 +5,7 @@ import lombok.experimental.UtilityClass;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.text.NumberFormat;
 import java.util.IllegalFormatException;
 import java.util.Locale;
 
@@ -23,6 +24,11 @@ final class BraceSpec {
         LEFT,
         RIGHT,
         CENTER
+    }
+
+    private enum SpecialConversion {
+        NONE,
+        IEEE754_BITS
     }
 
     /**
@@ -47,6 +53,8 @@ final class BraceSpec {
         final boolean zero;
         final int width;
         final int precision;
+        final boolean localeAware;
+        final SpecialConversion specialConversion;
         final Character explicitJavaConv;
 
         Parsed(
@@ -57,6 +65,8 @@ final class BraceSpec {
                 boolean zero,
                 int width,
                 int precision,
+                boolean localeAware,
+                SpecialConversion specialConversion,
                 Character explicitJavaConv) {
             this.fill = fill;
             this.align = align;
@@ -65,11 +75,19 @@ final class BraceSpec {
             this.zero = zero;
             this.width = width;
             this.precision = precision;
+            this.localeAware = localeAware;
+            this.specialConversion = specialConversion;
             this.explicitJavaConv = explicitJavaConv;
         }
 
         String render(Locale locale, Object value, String spec) {
+            if (specialConversion == SpecialConversion.IEEE754_BITS) {
+                return finishPad(formatIeee754Bits(value, spec));
+            }
             char conv = explicitJavaConv != null ? explicitJavaConv : inferJavaConversion(value);
+            if (localeAware && isLocaleNumeric(conv, value)) {
+                return finishPad(formatLocaleNumeric(locale, value, conv));
+            }
             if (value == null && (conv == 'b' || conv == 'B')) {
                 return "null";
             }
@@ -205,6 +223,51 @@ final class BraceSpec {
             return 's';
         }
 
+        private static boolean isLocaleNumeric(char conv, Object value) {
+            if (!(value instanceof Number) && !(value instanceof Character)) {
+                return false;
+            }
+            return conv == 'd' || conv == 'f' || conv == 'e' || conv == 'E' || conv == 'g' || conv == 'G';
+        }
+
+        private String formatLocaleNumeric(Locale locale, Object value, char conv) {
+            Number number = value instanceof Character ch ? (int) ch : (Number) value;
+            NumberFormat nf;
+            if (conv == 'd') {
+                nf = NumberFormat.getIntegerInstance(locale);
+            } else {
+                nf = NumberFormat.getNumberInstance(locale);
+                if (precision >= 0) {
+                    nf.setMinimumFractionDigits(precision);
+                    nf.setMaximumFractionDigits(precision);
+                }
+            }
+            nf.setGroupingUsed(true);
+            String s = nf.format(number);
+            if (!signFlags.isEmpty() && number.doubleValue() >= 0) {
+                if (signFlags.indexOf('+') >= 0) {
+                    s = "+" + s;
+                } else if (signFlags.indexOf(' ') >= 0) {
+                    s = " " + s;
+                }
+            }
+            return s;
+        }
+
+        private static String formatIeee754Bits(Object value, String spec) {
+            if (value instanceof Float f) {
+                int bits = Float.floatToIntBits(f);
+                String raw = Integer.toBinaryString(bits);
+                return "0".repeat(Math.max(0, 32 - raw.length())) + raw;
+            }
+            if (value instanceof Double d) {
+                long bits = Double.doubleToLongBits(d);
+                String raw = Long.toBinaryString(bits);
+                return "0".repeat(Math.max(0, 64 - raw.length())) + raw;
+            }
+            throw new FormatException("invalid type for IEEE-754 bits format: " + spec);
+        }
+
         private String pad(String s, int w, char f, Align a) {
             int len = s.length();
             if (len >= w) {
@@ -288,6 +351,12 @@ final class BraceSpec {
             width = w;
         }
 
+        boolean localeAware = false;
+        if (i < n && spec.charAt(i) == 'L') {
+            localeAware = true;
+            i++;
+        }
+
         int precision = -1;
         if (i < n && spec.charAt(i) == '.') {
             i++;
@@ -302,28 +371,38 @@ final class BraceSpec {
             precision = p;
         }
 
-        if (i < n && spec.charAt(i) == 'L') {
+        if (!localeAware && i < n && spec.charAt(i) == 'L') {
+            localeAware = true;
             i++;
         }
 
         Character explicitJavaConv = null;
+        SpecialConversion specialConversion = SpecialConversion.NONE;
         if (i < n) {
-            char t = spec.charAt(i);
-            if (!Character.isLetter(t)) {
-                return null;
+            if (spec.startsWith("bits", i)) {
+                specialConversion = SpecialConversion.IEEE754_BITS;
+                i += 4;
+            } else if (spec.startsWith("Bf", i)) {
+                specialConversion = SpecialConversion.IEEE754_BITS;
+                i += 2;
+            } else {
+                char t = spec.charAt(i);
+                if (!Character.isLetter(t)) {
+                    return null;
+                }
+                explicitJavaConv = toJavaConversion(t);
+                if (explicitJavaConv == null) {
+                    return null;
+                }
+                i++;
             }
-            explicitJavaConv = toJavaConversion(t);
-            if (explicitJavaConv == null) {
-                return null;
-            }
-            i++;
         }
 
         if (i != n) {
             return null;
         }
 
-        return new Parsed(fill, align, signFlags.toString(), alternate, zero, width, precision, explicitJavaConv);
+        return new Parsed(fill, align, signFlags.toString(), alternate, zero, width, precision, localeAware, specialConversion, explicitJavaConv);
     }
 
     /**
@@ -344,6 +423,8 @@ final class BraceSpec {
             case 'E' -> 'E';
             case 'g' -> 'g';
             case 'G' -> 'G';
+            case 'a' -> 'a';
+            case 'A' -> 'A';
             default -> null;
         };
     }

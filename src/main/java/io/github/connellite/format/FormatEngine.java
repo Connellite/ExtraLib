@@ -20,7 +20,7 @@ class FormatEngine {
             throw new FormatException("format string is null");
         }
         int n = pattern.length();
-        List<Object> pieces = new ArrayList<>();
+        List<FormatSegment> pieces = new ArrayList<>();
         StringBuilder lit = new StringBuilder();
         int i = 0;
         int nextAuto = 0;
@@ -33,7 +33,7 @@ class FormatEngine {
                     continue;
                 }
                 if (!lit.isEmpty()) {
-                    pieces.add(lit.toString());
+                    pieces.add(new LiteralSegment(lit.toString()));
                     lit.setLength(0);
                 }
                 int close = findClosingBrace(pattern, i);
@@ -43,7 +43,7 @@ class FormatEngine {
                 String inside = pattern.subSequence(i + 1, close).toString();
                 ReplacementField field = parseField(inside, nextAuto);
                 nextAuto = field.nextAutoIndex();
-                pieces.add(field);
+                pieces.add(new FieldSegment(field));
                 i = close + 1;
             } else if (c == '}') {
                 if (i + 1 < n && pattern.charAt(i + 1) == '}') {
@@ -58,7 +58,7 @@ class FormatEngine {
             }
         }
         if (!lit.isEmpty()) {
-            pieces.add(lit.toString());
+            pieces.add(new LiteralSegment(lit.toString()));
         }
         return new CompiledFormat(pieces, n);
     }
@@ -139,14 +139,13 @@ class FormatEngine {
 
     private static void formatToImpl(Appendable out, CompiledFormat compiled, ArgPack pack, Locale locale)
             throws IOException {
-        for (Object piece : compiled.segments()) {
-            if (piece instanceof String s) {
-                out.append(s);
-            } else if (piece instanceof ReplacementField field) {
+        for (FormatSegment piece : compiled.segments()) {
+            if (piece instanceof LiteralSegment literal) {
+                out.append(literal.value());
+            } else if (piece instanceof FieldSegment fieldSegment) {
+                ReplacementField field = fieldSegment.field();
                 Object arg = pack.resolve(field.id());
                 append(out, arg, expandDynamicSpec(field.spec(), pack, field.nextAutoIndex()), locale);
-            } else {
-                throw new FormatException("internal error");
             }
         }
     }

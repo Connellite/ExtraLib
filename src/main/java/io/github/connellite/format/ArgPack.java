@@ -52,13 +52,13 @@ final class ArgPack {
 
     Object resolve(ArgId id) {
         if (id instanceof AutoArgId) {
-            return valueAtPositional(((AutoArgId) id).slot);
+            return valueAtPositional(((AutoArgId) id).slot());
         }
         if (id instanceof IndexArgId) {
             return valueAtIndex(((IndexArgId) id).index);
         }
         if (id instanceof NameArgId) {
-            String name = ((NameArgId) id).name;
+            String name = ((NameArgId) id).name();
             if (!named.containsKey(name)) {
                 throw new FormatException("named argument not found: " + name);
             }

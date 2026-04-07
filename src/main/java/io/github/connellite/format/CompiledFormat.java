@@ -9,16 +9,16 @@ import java.util.Collection;
 public final class CompiledFormat {
 
     /** Alternating literal strings and pre-parsed replacement fields. */
-    private final Collection<Object> segments;
+    private final Collection<FormatSegment> segments;
 
     private final int patternLength;
 
-    CompiledFormat(Collection<Object> segments, int patternLength) {
+    CompiledFormat(Collection<FormatSegment> segments, int patternLength) {
         this.segments = segments;
         this.patternLength = patternLength;
     }
 
-    Collection<Object> segments() {
+    Collection<FormatSegment> segments() {
         return segments;
     }
 

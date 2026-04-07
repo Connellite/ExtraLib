@@ -1,6 +1,6 @@
 package io.github.connellite.format;
 
-final class IndexArgId extends ArgId {
+final class IndexArgId implements ArgId {
 
     final int index;
 

@@ -1,12 +1,14 @@
 package io.github.connellite.format;
 
 import io.github.connellite.exception.FormatException;
+import lombok.Getter;
 import lombok.experimental.UtilityClass;
 
 import java.io.PrintStream;
 import java.io.PrintWriter;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.function.Consumer;
 
 /**
@@ -26,10 +28,12 @@ import java.util.function.Consumer;
  * <p><b>Dynamic spec</b>: nested braces in the part after {@code ':'} pull further arguments, e.g.
  * {@code Fmt.format(Locale.US, "{:.{}f}", 3.14, 1)} → {@code "3.1"} (decimal separator follows {@link Locale}).
  *
- * <p><b>Date/time</b> when the spec contains {@code %}: a small strftime-like subset — {@code %Y} {@code %y} {@code %m}
- * {@code %d} {@code %H} {@code %M} {@code %S} {@code %%} — for {@link java.util.Date}, {@link java.util.Calendar},
- * {@link java.time.Instant}, {@link java.time.ZonedDateTime}, {@link java.time.LocalDateTime}, {@link java.time.LocalDate},
- * etc., in {@link java.time.ZoneId#systemDefault()}.
+ * <p><b>Date/time</b> when the spec contains {@code %}: strftime-like conversions (including names, week/date variants and
+ * timezone forms such as {@code %Y} {@code %m} {@code %d} {@code %H} {@code %M} {@code %S} {@code %F} {@code %T}
+ * {@code %a}/{@code %A} {@code %b}/{@code %B} {@code %I} {@code %p} {@code %U} {@code %W} {@code %V} {@code %z}
+ * {@code %Z} {@code %%}) for {@link java.util.Date}, {@link java.util.Calendar}, {@link java.time.Instant},
+ * {@link java.time.ZonedDateTime}, {@link java.time.LocalDateTime}, {@link java.time.LocalDate}, etc., in
+ * {@link java.time.ZoneId#systemDefault()}.
  *
  * @see FormatException
  * @see Named
@@ -38,8 +42,23 @@ import java.util.function.Consumer;
  */
 @UtilityClass
 public final class Fmt {
+    @Getter
+    private static volatile Locale defaultLocale = Locale.getDefault();
+
+    private static final class SingleArgFormatHolder {
+        private static final CompiledFormat ONE_ARG = compile("{}");
+    }
+
     public static Named arg(String name, Object value) {
         return new Named(name, value);
+    }
+
+    public static void setDefaultLocale(Locale locale) {
+        defaultLocale = Objects.requireNonNull(locale, "locale");
+    }
+
+    public static String toString(Object value) {
+        return format(SingleArgFormatHolder.ONE_ARG, value);
     }
 
     /** Parses {@code pattern} once; reuse the result with {@link #format(CompiledFormat, Object...)} etc. */
@@ -48,7 +67,7 @@ public final class Fmt {
     }
 
     public static String format(CharSequence pattern, Object... args) {
-        return FormatEngine.format(compile(pattern), args, Locale.getDefault());
+        return FormatEngine.format(compile(pattern), args, defaultLocale);
     }
 
     public static String format(Locale locale, CharSequence pattern, Object... args) {
@@ -57,7 +76,7 @@ public final class Fmt {
 
     /** Reuse a parsed pattern from {@link #compile(CharSequence)}. */
     public static String format(CompiledFormat compiled, Object... args) {
-        return FormatEngine.format(compiled, args, Locale.getDefault());
+        return FormatEngine.format(compiled, args, defaultLocale);
     }
 
     public static String format(Locale locale, CompiledFormat compiled, Object... args) {
@@ -69,7 +88,7 @@ public final class Fmt {
      * Positional fields {@code {}} / {@code {0}} are not supplied — use {@link #format(CharSequence, Object...)} for that.
      */
     public static String format(CharSequence pattern, Map<String, ?> named) {
-        return FormatEngine.format(compile(pattern), named, Locale.getDefault());
+        return FormatEngine.format(compile(pattern), named, defaultLocale);
     }
 
     public static String format(Locale locale, CharSequence pattern, Map<String, ?> named) {
@@ -77,7 +96,7 @@ public final class Fmt {
     }
 
     public static String format(CompiledFormat compiled, Map<String, ?> named) {
-        return FormatEngine.format(compiled, named, Locale.getDefault());
+        return FormatEngine.format(compiled, named, defaultLocale);
     }
 
     public static String format(Locale locale, CompiledFormat compiled, Map<String, ?> named) {
@@ -181,7 +200,7 @@ public final class Fmt {
     }
 
     public static void formatTo(Appendable out, CharSequence pattern, Object... args) {
-        FormatEngine.formatTo(out, compile(pattern), args, Locale.getDefault());
+        FormatEngine.formatTo(out, compile(pattern), args, defaultLocale);
     }
 
     public static void formatTo(Appendable out, Locale locale, CharSequence pattern, Object... args) {
@@ -189,7 +208,7 @@ public final class Fmt {
     }
 
     public static void formatTo(Appendable out, CompiledFormat compiled, Object... args) {
-        FormatEngine.formatTo(out, compiled, args, Locale.getDefault());
+        FormatEngine.formatTo(out, compiled, args, defaultLocale);
     }
 
     public static void formatTo(Appendable out, Locale locale, CompiledFormat compiled, Object... args) {
@@ -197,7 +216,7 @@ public final class Fmt {
     }
 
     public static void formatTo(Appendable out, CharSequence pattern, Map<String, ?> named) {
-        FormatEngine.formatTo(out, compile(pattern), named, Locale.getDefault());
+        FormatEngine.formatTo(out, compile(pattern), named, defaultLocale);
     }
 
     public static void formatTo(Appendable out, Locale locale, CharSequence pattern, Map<String, ?> named) {
@@ -205,7 +224,7 @@ public final class Fmt {
     }
 
     public static void formatTo(Appendable out, CompiledFormat compiled, Map<String, ?> named) {
-        FormatEngine.formatTo(out, compiled, named, Locale.getDefault());
+        FormatEngine.formatTo(out, compiled, named, defaultLocale);
     }
 
     public static void formatTo(Appendable out, Locale locale, CompiledFormat compiled, Map<String, ?> named) {
@@ -213,7 +232,7 @@ public final class Fmt {
     }
 
     public static void formatTo(Consumer<CharSequence> sink, CharSequence pattern, Object... args) {
-        FormatEngine.formatTo(sink, compile(pattern), args, Locale.getDefault());
+        FormatEngine.formatTo(sink, compile(pattern), args, defaultLocale);
     }
 
     public static void formatTo(Consumer<CharSequence> sink, Locale locale, CharSequence pattern, Object... args) {
@@ -221,7 +240,7 @@ public final class Fmt {
     }
 
     public static void formatTo(Consumer<CharSequence> sink, CompiledFormat compiled, Object... args) {
-        FormatEngine.formatTo(sink, compiled, args, Locale.getDefault());
+        FormatEngine.formatTo(sink, compiled, args, defaultLocale);
     }
 
     public static void formatTo(Consumer<CharSequence> sink, Locale locale, CompiledFormat compiled, Object... args) {
@@ -229,7 +248,7 @@ public final class Fmt {
     }
 
     public static void formatTo(Consumer<CharSequence> sink, CharSequence pattern, Map<String, ?> named) {
-        FormatEngine.formatTo(sink, compile(pattern), named, Locale.getDefault());
+        FormatEngine.formatTo(sink, compile(pattern), named, defaultLocale);
     }
 
     public static void formatTo(Consumer<CharSequence> sink, Locale locale, CharSequence pattern, Map<String, ?> named) {
@@ -237,7 +256,7 @@ public final class Fmt {
     }
 
     public static void formatTo(Consumer<CharSequence> sink, CompiledFormat compiled, Map<String, ?> named) {
-        FormatEngine.formatTo(sink, compiled, named, Locale.getDefault());
+        FormatEngine.formatTo(sink, compiled, named, defaultLocale);
     }
 
     public static void formatTo(Consumer<CharSequence> sink, Locale locale, CompiledFormat compiled, Map<String, ?> named) {

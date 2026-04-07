@@ -1,3 +1,4 @@
 package io.github.connellite.format;
 
-abstract class ArgId {}
+sealed interface ArgId permits AutoArgId, IndexArgId, NameArgId {
+}
