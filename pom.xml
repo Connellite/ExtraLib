@@ -6,7 +6,7 @@
 
     <groupId>io.github.connellite</groupId>
     <artifactId>ExtraLib</artifactId>
-    <version>0.19</version>
+    <version>0.20</version>
     <packaging>jar</packaging>
 
     <name>ExtraLib</name>

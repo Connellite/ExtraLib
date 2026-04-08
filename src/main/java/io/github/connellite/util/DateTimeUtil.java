@@ -128,6 +128,25 @@ public class DateTimeUtil {
         throw new IllegalArgumentException("Unparseable date-time: '" + text + "'");
     }
 
+    /**
+     * @return {@link Date} at start of {@code localDate} in the system default time zone
+     */
+    public static Date toDate(LocalDate localDate) {
+        if (localDate == null) return null;
+        return Date.from(localDate.atStartOfDay(SYSTEM_ZONE).toInstant());
+    }
+
+    /**
+     * @return {@link Date} for {@code localDateTime} interpreted in the system default time zone
+     */
+    public static Date toDate(LocalDateTime localDateTime) {
+        if (localDateTime == null) return null;
+        return Date.from(localDateTime.atZone(SYSTEM_ZONE).toInstant());
+    }
+
+    /**
+     * @return {@link Date} at start of the local calendar day of {@code date} in the system default time zone
+     */
     public static Date startOfDay(Date date) {
         if (date == null) return null;
 
@@ -135,6 +154,9 @@ public class DateTimeUtil {
         return Date.from(localDate.atStartOfDay(SYSTEM_ZONE).toInstant());
     }
 
+    /**
+     * @return {@link Date} at end of the local calendar day of {@code date} in the system default time zone (23:59:59.999)
+     */
     public static Date endOfDay(Date date) {
         if (date == null) return null;
 
@@ -143,6 +165,9 @@ public class DateTimeUtil {
         return Date.from(endOfDay.atZone(SYSTEM_ZONE).toInstant());
     }
 
+    /**
+     * @return {@link java.sql.Date} for the local date of {@code date} in the system default time zone
+     */
     public static java.sql.Date toSqlDate(Date date) {
         if (date == null) return null;
 
@@ -150,6 +175,9 @@ public class DateTimeUtil {
         return java.sql.Date.valueOf(localDate);
     }
 
+    /**
+     * @return {@link java.sql.Time} for the local time-of-day of {@code date} in the system default time zone
+     */
     public static java.sql.Time toSqlTime(Date date) {
         if (date == null) return null;
 
@@ -157,6 +185,9 @@ public class DateTimeUtil {
         return java.sql.Time.valueOf(localTime);
     }
 
+    /**
+     * @return {@link java.sql.Timestamp} with the same instant as {@code date}
+     */
     public static java.sql.Timestamp toSqlTimestamp(Date date) {
         if (date == null) return null;
 

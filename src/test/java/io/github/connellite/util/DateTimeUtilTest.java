@@ -88,4 +88,20 @@ class DateTimeUtilTest {
         assertEquals(LocalTime.of(7, 8, 9), DateTimeUtil.toSqlTime(source).toLocalTime());
         assertEquals(source.toInstant(), DateTimeUtil.toSqlTimestamp(source).toInstant());
     }
+
+    @Test
+    void toDateFromLocalDateAndLocalDateTime() {
+        LocalDate localDate = LocalDate.of(2026, 3, 31);
+        assertEquals(
+                Date.from(localDate.atStartOfDay(SYSTEM_ZONE).toInstant()),
+                DateTimeUtil.toDate(localDate));
+
+        LocalDateTime localDateTime = LocalDateTime.of(2026, 3, 31, 15, 30, 45, 123_000_000);
+        assertEquals(
+                Date.from(localDateTime.atZone(SYSTEM_ZONE).toInstant()),
+                DateTimeUtil.toDate(localDateTime));
+
+        assertNull(DateTimeUtil.toDate((LocalDate) null));
+        assertNull(DateTimeUtil.toDate((LocalDateTime) null));
+    }
 }
