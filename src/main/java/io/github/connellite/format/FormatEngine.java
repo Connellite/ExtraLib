@@ -103,7 +103,7 @@ class FormatEngine {
         }
     }
 
-    static void formatTo(Consumer<CharSequence> sink, CompiledFormat compiled, Object[] args, Locale locale) {
+    static void formatTo(Consumer<? super String> sink, CompiledFormat compiled, Object[] args, Locale locale) {
         if (compiled == null) {
             throw new FormatException("compiled format is null");
         }
@@ -117,7 +117,7 @@ class FormatEngine {
         }
     }
 
-    static void formatTo(Consumer<CharSequence> sink, CompiledFormat compiled, Map<String, ?> named, Locale locale) {
+    static void formatTo(Consumer<? super String> sink, CompiledFormat compiled, Map<String, ?> named, Locale locale) {
         if (compiled == null) {
             throw new FormatException("compiled format is null");
         }
@@ -131,10 +131,10 @@ class FormatEngine {
         }
     }
 
-    private static void formatToImplConsumer(Consumer<CharSequence> sink, CompiledFormat compiled, ArgPack pack, Locale locale) throws IOException {
+    private static void formatToImplConsumer(Consumer<? super String> sink, CompiledFormat compiled, ArgPack pack, Locale locale) throws IOException {
         StringBuilder sb = new StringBuilder(compiled.patternLength() + 32);
         formatToImpl(sb, compiled, pack, locale);
-        sink.accept(sb);
+        sink.accept(sb.toString());
     }
 
     private static void formatToImpl(Appendable out, CompiledFormat compiled, ArgPack pack, Locale locale)
