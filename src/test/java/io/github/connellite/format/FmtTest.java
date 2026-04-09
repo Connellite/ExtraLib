@@ -279,6 +279,10 @@ class FmtTest {
     @Test
     void spec() {
         assertEquals("3.14", Fmt.format(Locale.US, "{:.2f}", 3.14159));
+        assertEquals("   +3.14", Fmt.format(Locale.US, "{:+8.2f}", 3.14));
+        assertEquals("    42", Fmt.format("{:{}}", 42, 6));
+        assertEquals("+42", Fmt.format("{:+}", 42));
+        assertEquals("+42", Fmt.format("{:+d}", 42));
     }
 
     @Test
