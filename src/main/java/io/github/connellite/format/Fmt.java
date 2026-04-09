@@ -7,7 +7,6 @@ import lombok.experimental.UtilityClass;
 import java.io.PrintStream;
 import java.io.PrintWriter;
 import java.util.Locale;
-import java.util.Map;
 import java.util.Objects;
 import java.util.function.Consumer;
 
@@ -34,6 +33,8 @@ import java.util.function.Consumer;
  * {@code %Z} {@code %%}) for {@link java.util.Date}, {@link java.util.Calendar}, {@link java.time.Instant},
  * {@link java.time.ZonedDateTime}, {@link java.time.LocalDateTime}, {@link java.time.LocalDate}, etc., in
  * {@link java.time.ZoneId#systemDefault()}.
+ *
+ * <p>Named fields ({@code {name}}) are supplied with {@link #arg(String, Object)} in the varargs list.
  *
  * @see FormatException
  * @see Named
@@ -83,26 +84,6 @@ public final class Fmt {
         return FormatEngine.format(compiled, args, locale);
     }
 
-    /**
-     * Named arguments from a map (e.g. {@code Map.of("a", 1, "b", 2)} for {@code "{a} + {b}"}).
-     * Positional fields {@code {}} / {@code {0}} are not supplied — use {@link #format(CharSequence, Object...)} for that.
-     */
-    public static String format(CharSequence pattern, Map<String, ?> named) {
-        return FormatEngine.format(compile(pattern), named, defaultLocale);
-    }
-
-    public static String format(Locale locale, CharSequence pattern, Map<String, ?> named) {
-        return FormatEngine.format(compile(pattern), named, locale);
-    }
-
-    public static String format(CompiledFormat compiled, Map<String, ?> named) {
-        return FormatEngine.format(compiled, named, defaultLocale);
-    }
-
-    public static String format(Locale locale, CompiledFormat compiled, Map<String, ?> named) {
-        return FormatEngine.format(compiled, named, locale);
-    }
-
     public static void print(CharSequence pattern, Object... args) {
         System.out.print(format(pattern, args));
     }
@@ -117,22 +98,6 @@ public final class Fmt {
 
     public static void println(CompiledFormat compiled, Object... args) {
         System.out.println(format(compiled, args));
-    }
-
-    public static void print(CharSequence pattern, Map<String, ?> named) {
-        System.out.print(format(pattern, named));
-    }
-
-    public static void println(CharSequence pattern, Map<String, ?> named) {
-        System.out.println(format(pattern, named));
-    }
-
-    public static void print(CompiledFormat compiled, Map<String, ?> named) {
-        System.out.print(format(compiled, named));
-    }
-
-    public static void println(CompiledFormat compiled, Map<String, ?> named) {
-        System.out.println(format(compiled, named));
     }
 
     public static void print(PrintStream out, CharSequence pattern, Object... args) {
@@ -151,22 +116,6 @@ public final class Fmt {
         out.println(format(compiled, args));
     }
 
-    public static void print(PrintStream out, CharSequence pattern, Map<String, ?> named) {
-        out.print(format(pattern, named));
-    }
-
-    public static void println(PrintStream out, CharSequence pattern, Map<String, ?> named) {
-        out.println(format(pattern, named));
-    }
-
-    public static void print(PrintStream out, CompiledFormat compiled, Map<String, ?> named) {
-        out.print(format(compiled, named));
-    }
-
-    public static void println(PrintStream out, CompiledFormat compiled, Map<String, ?> named) {
-        out.println(format(compiled, named));
-    }
-
     public static void print(PrintWriter out, CharSequence pattern, Object... args) {
         out.print(format(pattern, args));
     }
@@ -181,22 +130,6 @@ public final class Fmt {
 
     public static void println(PrintWriter out, CompiledFormat compiled, Object... args) {
         out.println(format(compiled, args));
-    }
-
-    public static void print(PrintWriter out, CharSequence pattern, Map<String, ?> named) {
-        out.print(format(pattern, named));
-    }
-
-    public static void println(PrintWriter out, CharSequence pattern, Map<String, ?> named) {
-        out.println(format(pattern, named));
-    }
-
-    public static void print(PrintWriter out, CompiledFormat compiled, Map<String, ?> named) {
-        out.print(format(compiled, named));
-    }
-
-    public static void println(PrintWriter out, CompiledFormat compiled, Map<String, ?> named) {
-        out.println(format(compiled, named));
     }
 
     public static void formatTo(Appendable out, CharSequence pattern, Object... args) {
@@ -215,22 +148,6 @@ public final class Fmt {
         FormatEngine.formatTo(out, compiled, args, locale);
     }
 
-    public static void formatTo(Appendable out, CharSequence pattern, Map<String, ?> named) {
-        FormatEngine.formatTo(out, compile(pattern), named, defaultLocale);
-    }
-
-    public static void formatTo(Appendable out, Locale locale, CharSequence pattern, Map<String, ?> named) {
-        FormatEngine.formatTo(out, compile(pattern), named, locale);
-    }
-
-    public static void formatTo(Appendable out, CompiledFormat compiled, Map<String, ?> named) {
-        FormatEngine.formatTo(out, compiled, named, defaultLocale);
-    }
-
-    public static void formatTo(Appendable out, Locale locale, CompiledFormat compiled, Map<String, ?> named) {
-        FormatEngine.formatTo(out, compiled, named, locale);
-    }
-
     public static void formatTo(Consumer<? super String> sink, CharSequence pattern, Object... args) {
         FormatEngine.formatTo(sink, compile(pattern), args, defaultLocale);
     }
@@ -245,21 +162,5 @@ public final class Fmt {
 
     public static void formatTo(Consumer<? super String> sink, Locale locale, CompiledFormat compiled, Object... args) {
         FormatEngine.formatTo(sink, compiled, args, locale);
-    }
-
-    public static void formatTo(Consumer<? super String> sink, CharSequence pattern, Map<String, ?> named) {
-        FormatEngine.formatTo(sink, compile(pattern), named, defaultLocale);
-    }
-
-    public static void formatTo(Consumer<? super String> sink, Locale locale, CharSequence pattern, Map<String, ?> named) {
-        FormatEngine.formatTo(sink, compile(pattern), named, locale);
-    }
-
-    public static void formatTo(Consumer<? super String> sink, CompiledFormat compiled, Map<String, ?> named) {
-        FormatEngine.formatTo(sink, compiled, named, defaultLocale);
-    }
-
-    public static void formatTo(Consumer<? super String> sink, Locale locale, CompiledFormat compiled, Map<String, ?> named) {
-        FormatEngine.formatTo(sink, compiled, named, locale);
     }
 }

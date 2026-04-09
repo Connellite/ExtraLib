@@ -10,14 +10,18 @@ import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.nio.charset.StandardCharsets;
 import java.time.DayOfWeek;
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.FormatStyle;
 import java.time.temporal.TemporalAdjusters;
 import java.time.temporal.WeekFields;
+import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
@@ -256,11 +260,6 @@ class FmtTest {
     }
 
     @Test
-    void namedFromMap() {
-        assertEquals("1 + 2", Fmt.format("{a} + {b}", Map.of("a", 1, "b", 2)));
-    }
-
-    @Test
     void compileReuse() {
         CompiledFormat c = Fmt.compile("{} = {:d}");
         assertEquals("x = 1", Fmt.format(c, "x", 1));
@@ -327,6 +326,78 @@ class FmtTest {
         Fmt.formatTo(out::println, "a{}b", 0);
         String nl = System.lineSeparator();
         assertEquals("a0b" + nl, buf.toString(StandardCharsets.UTF_8));
+    }
+
+    /** {@code {}} → {@link AutoArgId}; consumer path must match {@link Fmt#format} for positional args. */
+    @Test
+    void formatToConsumer_autoArgIds_zeroThroughFive() {
+        List<String> sink = new ArrayList<>();
+
+        Fmt.formatTo(sink::add, "no placeholders");
+        assertEquals(List.of("no placeholders"), sink);
+        sink.clear();
+
+        Fmt.formatTo(sink::add, "{}", "only");
+        assertEquals(List.of("only"), sink);
+        sink.clear();
+
+        Fmt.formatTo(sink::add, "{} {}", 1, 2);
+        assertEquals(List.of("1 2"), sink);
+        sink.clear();
+
+        Fmt.formatTo(sink::add, "{}|{}|{}", "a", "b", "c");
+        assertEquals(List.of("a|b|c"), sink);
+        sink.clear();
+
+        Fmt.formatTo(sink::add, "{} {} {} {}", 10, 20, 30, 40);
+        assertEquals(List.of("10 20 30 40"), sink);
+        sink.clear();
+
+        Fmt.formatTo(sink::add, "{} {} {} {} {}", 'p', 'q', 'r', 's', 't');
+        assertEquals(List.of("p q r s t"), sink);
+        sink.clear();
+    }
+
+    @Test
+    void formatToConsumer_autoArgIds_emptyPlaceholderWithoutArgsThrows() {
+        List<String> sink = new ArrayList<>();
+        FormatException ex = assertThrows(FormatException.class, () -> Fmt.formatTo(sink::add, "{}"));
+        assertEquals("argument not found: 0", ex.getMessage());
+        assertEquals(List.of(), sink);
+    }
+
+    @Test
+    void formatToConsumer_autoArgIds_notEnoughPositionalArgsThrows() {
+        List<String> sink = new ArrayList<>();
+        FormatException ex = assertThrows(FormatException.class, () -> Fmt.formatTo(sink::add, "{} {}", 1));
+        assertEquals("argument not found: 1", ex.getMessage());
+    }
+
+    @Test
+    void formatToConsumer_autoArgIds_skipsNamedInVarargs() {
+        List<String> sink = new ArrayList<>();
+        Fmt.formatTo(sink::add, "{}{x}{}", 1, Fmt.arg("x", "mid"), 2);
+        assertEquals(List.of("1mid2"), sink);
+    }
+
+    @Test
+    void formatToConsumer_mapAsPositionalArg() {
+        Map<String, List<String>> map = new LinkedHashMap<>();
+        map.put("k-a", List.of("u1", "u2"));
+        map.put("k-b", List.of());
+
+        List<String> sink = new ArrayList<>();
+        Fmt.formatTo(sink::add, "map: {}", map);
+
+        assertEquals(List.of("map: " + map), sink);
+    }
+
+    @Test
+    void formatToConsumer_instantAsPositionalArg() {
+        Instant t = Instant.parse("2024-06-15T10:30:00Z");
+        List<String> sink = new ArrayList<>();
+        Fmt.formatTo(sink::add, "at: {}", t);
+        assertEquals(List.of("at: " + t), sink);
     }
 
     @Test

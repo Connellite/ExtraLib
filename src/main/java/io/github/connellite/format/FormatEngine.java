@@ -9,7 +9,6 @@ import java.util.ArrayList;
 import java.util.IllegalFormatException;
 import java.util.List;
 import java.util.Locale;
-import java.util.Map;
 import java.util.function.Consumer;
 
 @UtilityClass
@@ -72,32 +71,12 @@ class FormatEngine {
         return sb.toString();
     }
 
-    static String format(CompiledFormat compiled, Map<String, ?> named, Locale locale) {
-        if (compiled == null) {
-            throw new FormatException("compiled format is null");
-        }
-        StringBuilder sb = new StringBuilder(compiled.patternLength() + 32);
-        formatTo(sb, compiled, named, locale);
-        return sb.toString();
-    }
-
     static void formatTo(Appendable out, CompiledFormat compiled, Object[] args, Locale locale) {
         if (compiled == null) {
             throw new FormatException("compiled format is null");
         }
         try {
             formatToImpl(out, compiled, ArgPack.of(args), locale);
-        } catch (IOException e) {
-            throw new UncheckedIOException(e);
-        }
-    }
-
-    static void formatTo(Appendable out, CompiledFormat compiled, Map<String, ?> named, Locale locale) {
-        if (compiled == null) {
-            throw new FormatException("compiled format is null");
-        }
-        try {
-            formatToImpl(out, compiled, ArgPack.named(named), locale);
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
@@ -112,20 +91,6 @@ class FormatEngine {
         }
         try {
             formatToImplConsumer(sink, compiled, ArgPack.of(args), locale);
-        } catch (IOException e) {
-            throw new UncheckedIOException(e);
-        }
-    }
-
-    static void formatTo(Consumer<? super String> sink, CompiledFormat compiled, Map<String, ?> named, Locale locale) {
-        if (compiled == null) {
-            throw new FormatException("compiled format is null");
-        }
-        if (sink == null) {
-            throw new FormatException("sink is null");
-        }
-        try {
-            formatToImplConsumer(sink, compiled, ArgPack.named(named), locale);
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
