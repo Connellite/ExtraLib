@@ -55,6 +55,9 @@ final class BraceSpec {
                 return finishPad(formatIeee754Bits(value, spec));
             }
             char conv = explicitJavaConv != null ? explicitJavaConv : inferJavaConversion(value);
+            if (conv == 'c') {
+                return finishPad(formatAsChar(value, spec));
+            }
             if (localeAware && isLocaleNumeric(conv, value)) {
                 return finishPad(formatLocaleNumeric(locale, value, conv));
             }
@@ -224,6 +227,36 @@ final class BraceSpec {
                 }
             }
             return s;
+        }
+
+        private static String formatAsChar(Object value, String spec) {
+            if (value == null) {
+                throw new FormatException("invalid type for character format: " + spec);
+            }
+            if (value instanceof Character ch) {
+                return String.valueOf(ch);
+            }
+            int cp;
+            if (value instanceof Byte || value instanceof Short || value instanceof Integer) {
+                cp = ((Number) value).intValue();
+            } else if (value instanceof Long l) {
+                if (l < Integer.MIN_VALUE || l > Integer.MAX_VALUE) {
+                    throw new FormatException("code point out of range for character format: " + spec);
+                }
+                cp = l.intValue();
+            } else if (value instanceof BigInteger bi) {
+                try {
+                    cp = bi.intValueExact();
+                } catch (ArithmeticException e) {
+                    throw new FormatException("code point out of range for character format: " + spec, e);
+                }
+            } else {
+                throw new FormatException("invalid type for character format: " + spec);
+            }
+            if (!Character.isValidCodePoint(cp)) {
+                throw new FormatException("invalid Unicode code point for character format: " + spec);
+            }
+            return new String(Character.toChars(cp));
         }
 
         private static String formatIeee754Bits(Object value, String spec) {
@@ -397,6 +430,7 @@ final class BraceSpec {
             case 'G' -> 'G';
             case 'a' -> 'a';
             case 'A' -> 'A';
+            case 'c' -> 'c';
             default -> null;
         };
     }

@@ -3,6 +3,7 @@ package io.github.connellite.format;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
+import java.math.BigInteger;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.PrintStream;
@@ -122,6 +123,22 @@ class FmtTest {
     void formatHexScientificFloatDouble() {
         assertEquals(String.format(Locale.US, "%a", 3.5), Fmt.format(Locale.US, "{:a}", 3.5));
         assertEquals(String.format(Locale.US, "%A", 3.5), Fmt.format(Locale.US, "{:A}", 3.5));
+    }
+
+    @Test
+    void formatCharacterFromCode() {
+        assertEquals("A", Fmt.format("{:c}", 65));
+        assertEquals("A", Fmt.format("{:c}", (byte) 65));
+        assertEquals("A", Fmt.format("{:c}", 'A'));
+        assertEquals("\uD83D\uDE00", Fmt.format("{:c}", 0x1F600));
+        assertEquals("\uD83D\uDE00", Fmt.format("{:c}", BigInteger.valueOf(0x1F600)));
+    }
+
+    @Test
+    void formatCharacterFromCodeInvalidThrows() {
+        assertThrows(FormatException.class, () -> Fmt.format("{:c}", 0x110000));
+        assertThrows(FormatException.class, () -> Fmt.format("{:c}", "x"));
+        assertThrows(FormatException.class, () -> Fmt.format("{:c}", 3.14));
     }
 
     @Test
