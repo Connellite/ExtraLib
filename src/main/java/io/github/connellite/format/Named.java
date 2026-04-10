@@ -1,15 +1,8 @@
 package io.github.connellite.format;
 
-import java.util.Objects;
+import lombok.NonNull;
 
 /** Named format argument; use {@link Fmt#arg(String, Object)}. */
-public final class Named {
+public record Named (@NonNull String name, Object value) {
 
-    public final String name;
-    public final Object value;
-
-    Named(String name, Object value) {
-        this.name = Objects.requireNonNull(name, "name");
-        this.value = value;
-    }
 }

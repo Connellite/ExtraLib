@@ -23,7 +23,7 @@ final class ArgPack {
         Map<String, Object> map = new HashMap<>();
         for (Object a : args) {
             if (a instanceof Named n) {
-                map.put(n.name, n.value);
+                map.put(n.name(), n.value());
             }
         }
         return new ArgPack(args, map);
@@ -34,7 +34,7 @@ final class ArgPack {
             return valueAtPositional(((AutoArgId) id).slot());
         }
         if (id instanceof IndexArgId) {
-            return valueAtIndex(((IndexArgId) id).index);
+            return valueAtIndex(((IndexArgId) id).index());
         }
         if (id instanceof NameArgId) {
             String name = ((NameArgId) id).name();
@@ -67,6 +67,6 @@ final class ArgPack {
     }
 
     private static Object unwrap(Object a) {
-        return a instanceof Named ? ((Named) a).value : a;
+        return a instanceof Named ? ((Named) a).value() : a;
     }
 }

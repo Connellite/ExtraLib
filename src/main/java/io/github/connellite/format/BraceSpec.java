@@ -6,6 +6,7 @@ import lombok.experimental.UtilityClass;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.text.NumberFormat;
+import java.util.Arrays;
 import java.util.IllegalFormatException;
 import java.util.Locale;
 
@@ -45,40 +46,9 @@ final class BraceSpec {
         return p.render(locale, value, spec);
     }
 
-    private static final class Parsed {
-        final char fill;
-        final Align align;
-        final String signFlags;
-        final boolean alternate;
-        final boolean zero;
-        final int width;
-        final int precision;
-        final boolean localeAware;
-        final SpecialConversion specialConversion;
-        final Character explicitJavaConv;
-
-        Parsed(
-                char fill,
-                Align align,
-                String signFlags,
-                boolean alternate,
-                boolean zero,
-                int width,
-                int precision,
-                boolean localeAware,
-                SpecialConversion specialConversion,
-                Character explicitJavaConv) {
-            this.fill = fill;
-            this.align = align;
-            this.signFlags = signFlags;
-            this.alternate = alternate;
-            this.zero = zero;
-            this.width = width;
-            this.precision = precision;
-            this.localeAware = localeAware;
-            this.specialConversion = specialConversion;
-            this.explicitJavaConv = explicitJavaConv;
-        }
+    private record Parsed(char fill, Align align, String signFlags, boolean alternate, boolean zero, int width,
+                          int precision, boolean localeAware, SpecialConversion specialConversion,
+                          Character explicitJavaConv) {
 
         String render(Locale locale, Object value, String spec) {
             if (specialConversion == SpecialConversion.IEEE754_BITS) {
@@ -198,7 +168,9 @@ final class BraceSpec {
             return sb.toString();
         }
 
-        /** Pass-through for {@link String#format} except string conversion of arrays. */
+        /**
+         * Pass-through for {@link String#format} except string conversion of arrays.
+         */
         private static Object forPercentArg(Object value, char conv) {
             if ((conv == 's' || conv == 'S') && value != null && value.getClass().isArray()) {
                 return FormatStrings.defaultArgString(value);
@@ -293,7 +265,7 @@ final class BraceSpec {
                 return "";
             }
             char[] buf = new char[n];
-            java.util.Arrays.fill(buf, c);
+            Arrays.fill(buf, c);
             return new String(buf);
         }
     }
