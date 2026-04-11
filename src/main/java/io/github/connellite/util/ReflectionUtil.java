@@ -9,7 +9,12 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * Small helpers around {@link Field}, {@link Method}, and {@link Constructor}: accessibility,
@@ -238,6 +243,71 @@ public class ReflectionUtil {
     public static <T> T getInstance(Class<T> t, Class<?>[] parameterTypes, Object... initargs)
             throws InstantiationException, IllegalAccessException, InvocationTargetException, NoSuchMethodException {
         return getConstructor(t, parameterTypes).newInstance(initargs);
+    }
+
+    /**
+     * Collects every interface type implemented (directly or indirectly) by {@code cls}: interfaces
+     * declared on {@code cls}, super-interfaces of those, and the same closure for each superclass
+     * up to {@link Object}. Each interface appears at most once; order is not specified.
+     *
+     * @param cls the class; must not be {@code null}
+     * @return an immutable list of distinct interface {@link Class} objects
+     * @throws NullPointerException if {@code cls} is {@code null}
+     */
+    public static List<Class<?>> getAllInterfaces(Class<?> cls) {
+        return Stream.concat(
+                Arrays.stream(cls.getInterfaces()).flatMap(intf ->
+                        Stream.concat(Stream.of(intf), getAllInterfaces(intf).stream())),
+                cls.getSuperclass() == null ? Stream.empty() : getAllInterfaces(cls.getSuperclass()).stream()
+        ).distinct().toList();
+    }
+
+    /**
+     * Returns whether {@code cls} is a nested type with a lexically enclosing class, i.e.
+     * {@link Class#getEnclosingClass()} is non-null (member classes, local classes, anonymous classes).
+     *
+     * @param cls the class to test, or {@code null}
+     * @return {@code false} if {@code cls} is {@code null} or top-level; otherwise the result of
+     *         {@code cls.getEnclosingClass() != null}
+     */
+    public static boolean isInnerClass(final Class<?> cls) {
+        return cls != null && cls.getEnclosingClass() != null;
+    }
+
+    /**
+     * Builds a map from each enum constant's {@linkplain Enum#name() name} to that constant.
+     * <p>Equivalent to {@link #getEnumMap(Class, Function) getEnumMap(enumClass, Enum::name)}.</p>
+     *
+     * @param enumClass the enum class; must not be {@code null} and must be an enum type
+     * @return a new map (typically a {@link java.util.HashMap}, per {@link Collectors#toMap})
+     * @throws NullPointerException if {@code enumClass} or {@link Class#getEnumConstants()} is {@code null}
+     */
+    public static <E extends Enum<E>> Map<String, E> getEnumMap(final Class<E> enumClass) {
+        return getEnumMap(enumClass, Enum::name);
+    }
+
+    /**
+     * Builds a map from a derived key (per constant) to the enum constant, for example a numeric
+     * {@code type} field exposed by a getter.
+     * <pre>{@code
+     * private static final Map<Integer, ValueType> BY_TYPE =
+     *         getEnumMap(ValueType.class, ValueType::getType);
+     * }</pre>
+     * <p>Duplicate keys produce {@link IllegalStateException} from {@link Collectors#toMap}.</p>
+     *
+     * @param enumClass    the enum class; must not be {@code null} and must be an enum type
+     * @param keyExtractor function producing the map key for each constant; must not be {@code null}
+     * @param <E>          enum type
+     * @param <K>          key type (e.g. {@link Integer} for an {@code int} code)
+     * @return a new map from extracted key to constant (see {@link Collectors#toMap})
+     * @throws NullPointerException  if {@code enumClass}, {@code keyExtractor}, or enum constants are {@code null}
+     * @throws IllegalStateException if two constants map to the same key
+     */
+    public static <E extends Enum<E>, K> Map<K, E> getEnumMap(
+            final Class<E> enumClass,
+            final Function<? super E, ? extends K> keyExtractor) {
+        return Arrays.stream(enumClass.getEnumConstants())
+                .collect(Collectors.toMap(keyExtractor, Function.identity()));
     }
 
     private static Class<?> reflectParameterType(Object arg, int index) {

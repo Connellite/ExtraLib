@@ -2,15 +2,18 @@ package io.github.connellite.util;
 
 import lombok.experimental.UtilityClass;
 
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeFormatterBuilder;
 import java.time.format.DateTimeParseException;
 import java.time.temporal.ChronoField;
+import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
@@ -129,7 +132,11 @@ public class DateTimeUtil {
     }
 
     /**
-     * @return {@link Date} at start of {@code localDate} in the system default time zone
+     * Converts {@code localDate} to a {@link Date} at the start of that calendar day in the
+     * {@linkplain ZoneId#systemDefault() system default} time zone.
+     *
+     * @param localDate the local date, or {@code null}
+     * @return {@code java.util.Date} at start of day in the system default zone, or {@code null} if {@code localDate} is {@code null}
      */
     public static Date toDate(LocalDate localDate) {
         if (localDate == null) return null;
@@ -137,11 +144,216 @@ public class DateTimeUtil {
     }
 
     /**
-     * @return {@link Date} for {@code localDateTime} interpreted in the system default time zone
+     * Converts {@code localDateTime} to a {@link Date} by placing {@code localDateTime} in the
+     * {@linkplain ZoneId#systemDefault() system default} time zone.
+     *
+     * @param localDateTime the local date-time without zone, or {@code null}
+     * @return the corresponding {@code java.util.Date}, or {@code null} if {@code localDateTime} is {@code null}
      */
     public static Date toDate(LocalDateTime localDateTime) {
         if (localDateTime == null) return null;
         return Date.from(localDateTime.atZone(SYSTEM_ZONE).toInstant());
+    }
+
+    /**
+     * Converts {@code instant} to a {@link Date} (same instant on the time-line).
+     *
+     * @param instant the instant, or {@code null}
+     * @return the corresponding {@code java.util.Date}, or {@code null} if {@code instant} is {@code null}
+     */
+    public static Date toDate(Instant instant) {
+        if (instant == null) return null;
+        return Date.from(instant);
+    }
+
+    /**
+     * Converts {@code zonedDateTime} to a {@link Date} (same instant on the time-line).
+     *
+     * @param zonedDateTime the zoned date-time, or {@code null}
+     * @return the corresponding {@code java.util.Date}, or {@code null} if {@code zonedDateTime} is {@code null}
+     */
+    public static Date toDate(ZonedDateTime zonedDateTime) {
+        if (zonedDateTime == null) return null;
+        return Date.from(zonedDateTime.toInstant());
+    }
+
+    /**
+     * Converts {@code offsetDateTime} to a {@link Date} (same instant on the time-line).
+     *
+     * @param offsetDateTime the offset date-time, or {@code null}
+     * @return the corresponding {@code java.util.Date}, or {@code null} if {@code offsetDateTime} is {@code null}
+     */
+    public static Date toDate(OffsetDateTime offsetDateTime) {
+        if (offsetDateTime == null) return null;
+        return Date.from(offsetDateTime.toInstant());
+    }
+
+    /**
+     * Converts {@code calendar} to a {@link Date} (same instant on the time-line).
+     *
+     * @param calendar the calendar, or {@code null}
+     * @return the corresponding {@code java.util.Date}, or {@code null} if {@code calendar} is {@code null}
+     */
+    public static Date toDate(Calendar calendar) {
+        if (calendar == null) return null;
+        return Date.from(calendar.toInstant());
+    }
+
+    /**
+     * Returns {@code localDateTime} unchanged (null-safe).
+     *
+     * @param localDateTime the local date-time, or {@code null}
+     * @return {@code localDateTime}, or {@code null} if {@code localDateTime} is {@code null}
+     */
+    public static LocalDateTime toLocalDateTime(LocalDateTime localDateTime) {
+        return localDateTime;
+    }
+
+    /**
+     * Converts {@code localDate} to {@link LocalDateTime} at the start of that calendar day in the
+     * {@linkplain ZoneId#systemDefault() system default} time zone.
+     *
+     * @param localDate the local date, or {@code null}
+     * @return start of day in the system default zone as {@code LocalDateTime}, or {@code null} if {@code localDate} is {@code null}
+     */
+    public static LocalDateTime toLocalDateTime(LocalDate localDate) {
+        if (localDate == null) return null;
+        return localDate.atStartOfDay(SYSTEM_ZONE).toLocalDateTime();
+    }
+
+    /**
+     * Converts {@code instant} to {@link LocalDateTime} in the {@linkplain ZoneId#systemDefault() system default} time zone.
+     *
+     * @param instant the instant, or {@code null}
+     * @return local date-time in the system default zone, or {@code null} if {@code instant} is {@code null}
+     */
+    public static LocalDateTime toLocalDateTime(Instant instant) {
+        if (instant == null) return null;
+        return instant.atZone(SYSTEM_ZONE).toLocalDateTime();
+    }
+
+    /**
+     * Converts {@code zonedDateTime} to {@link LocalDateTime} in the {@linkplain ZoneId#systemDefault() system default} time zone
+     * (same instant on the time-line).
+     *
+     * @param zonedDateTime the zoned date-time, or {@code null}
+     * @return local date-time in the system default zone, or {@code null} if {@code zonedDateTime} is {@code null}
+     */
+    public static LocalDateTime toLocalDateTime(ZonedDateTime zonedDateTime) {
+        if (zonedDateTime == null) return null;
+        return zonedDateTime.withZoneSameInstant(SYSTEM_ZONE).toLocalDateTime();
+    }
+
+    /**
+     * Converts {@code offsetDateTime} to {@link LocalDateTime} in the {@linkplain ZoneId#systemDefault() system default} time zone
+     * (same instant on the time-line).
+     *
+     * @param offsetDateTime the offset date-time, or {@code null}
+     * @return local date-time in the system default zone, or {@code null} if {@code offsetDateTime} is {@code null}
+     */
+    public static LocalDateTime toLocalDateTime(OffsetDateTime offsetDateTime) {
+        if (offsetDateTime == null) return null;
+        return offsetDateTime.atZoneSameInstant(SYSTEM_ZONE).toLocalDateTime();
+    }
+
+    /**
+     * Converts {@code date} to {@link LocalDateTime} in the {@linkplain ZoneId#systemDefault() system default} time zone.
+     *
+     * @param date the legacy date, or {@code null}
+     * @return local date-time in the system default zone, or {@code null} if {@code date} is {@code null}
+     */
+    public static LocalDateTime toLocalDateTime(Date date) {
+        if (date == null) return null;
+        return date.toInstant().atZone(SYSTEM_ZONE).toLocalDateTime();
+    }
+
+    /**
+     * Converts {@code calendar} to {@link LocalDateTime} in the {@linkplain ZoneId#systemDefault() system default} time zone.
+     *
+     * @param calendar the calendar, or {@code null}
+     * @return local date-time in the system default zone, or {@code null} if {@code calendar} is {@code null}
+     */
+    public static LocalDateTime toLocalDateTime(Calendar calendar) {
+        if (calendar == null) return null;
+        return calendar.toInstant().atZone(SYSTEM_ZONE).toLocalDateTime();
+    }
+
+    /**
+     * Returns {@code localDate} unchanged (null-safe).
+     *
+     * @param localDate the local date, or {@code null}
+     * @return {@code localDate}, or {@code null} if {@code localDate} is {@code null}
+     */
+    public static LocalDate toLocalDate(LocalDate localDate) {
+        return localDate;
+    }
+
+    /**
+     * Extracts the calendar date from {@code localDateTime} (date part only; no time zone).
+     *
+     * @param localDateTime the local date-time, or {@code null}
+     * @return {@link LocalDate} part of {@code localDateTime}, or {@code null} if {@code localDateTime} is {@code null}
+     */
+    public static LocalDate toLocalDate(LocalDateTime localDateTime) {
+        if (localDateTime == null) return null;
+        return localDateTime.toLocalDate();
+    }
+
+    /**
+     * Converts {@code instant} to {@link LocalDate} in the {@linkplain ZoneId#systemDefault() system default} time zone.
+     *
+     * @param instant the instant, or {@code null}
+     * @return the local calendar date in the system default zone, or {@code null} if {@code instant} is {@code null}
+     */
+    public static LocalDate toLocalDate(Instant instant) {
+        if (instant == null) return null;
+        return instant.atZone(SYSTEM_ZONE).toLocalDate();
+    }
+
+    /**
+     * Converts {@code zonedDateTime} to {@link LocalDate} in the {@linkplain ZoneId#systemDefault() system default} time zone
+     * (same instant on the time-line).
+     *
+     * @param zonedDateTime the zoned date-time, or {@code null}
+     * @return the local calendar date in the system default zone, or {@code null} if {@code zonedDateTime} is {@code null}
+     */
+    public static LocalDate toLocalDate(ZonedDateTime zonedDateTime) {
+        if (zonedDateTime == null) return null;
+        return zonedDateTime.withZoneSameInstant(SYSTEM_ZONE).toLocalDate();
+    }
+
+    /**
+     * Converts {@code offsetDateTime} to {@link LocalDate} in the {@linkplain ZoneId#systemDefault() system default} time zone
+     * (same instant on the time-line).
+     *
+     * @param offsetDateTime the offset date-time, or {@code null}
+     * @return the local calendar date in the system default zone, or {@code null} if {@code offsetDateTime} is {@code null}
+     */
+    public static LocalDate toLocalDate(OffsetDateTime offsetDateTime) {
+        if (offsetDateTime == null) return null;
+        return offsetDateTime.atZoneSameInstant(SYSTEM_ZONE).toLocalDate();
+    }
+
+    /**
+     * Converts {@code date} to {@link LocalDate} in the {@linkplain ZoneId#systemDefault() system default} time zone.
+     *
+     * @param date the legacy date, or {@code null}
+     * @return the local calendar date in the system default zone, or {@code null} if {@code date} is {@code null}
+     */
+    public static LocalDate toLocalDate(Date date) {
+        if (date == null) return null;
+        return date.toInstant().atZone(SYSTEM_ZONE).toLocalDate();
+    }
+
+    /**
+     * Converts {@code calendar} to {@link LocalDate} in the {@linkplain ZoneId#systemDefault() system default} time zone.
+     *
+     * @param calendar the calendar, or {@code null}
+     * @return the local calendar date in the system default zone, or {@code null} if {@code calendar} is {@code null}
+     */
+    public static LocalDate toLocalDate(Calendar calendar) {
+        if (calendar == null) return null;
+        return calendar.toInstant().atZone(SYSTEM_ZONE).toLocalDate();
     }
 
     /**
@@ -192,5 +404,89 @@ public class DateTimeUtil {
         if (date == null) return null;
 
         return java.sql.Timestamp.from(date.toInstant());
+    }
+
+    /**
+     * Converts {@code zdt} to the same instant expressed in {@code zone}.
+     *
+     * @param zdt  the zoned date-time, or {@code null}
+     * @param zone the target zone; must not be {@code null} when {@code zdt} is non-null
+     * @return {@code zdt} with zone replaced by {@code zone}, or {@code null} if {@code zdt} is {@code null}
+     */
+    public static ZonedDateTime toZonedDateTime(ZonedDateTime zdt, ZoneId zone) {
+        if (zdt == null) return null;
+        return zdt.withZoneSameInstant(zone);
+    }
+
+    /**
+     * Converts {@code odt} to a {@link ZonedDateTime} at the same instant in {@code zone}.
+     *
+     * @param odt  the offset date-time, or {@code null}
+     * @param zone the target zone; must not be {@code null} when {@code odt} is non-null
+     * @return zoned date-time in {@code zone}, or {@code null} if {@code odt} is {@code null}
+     */
+    public static ZonedDateTime toZonedDateTime(OffsetDateTime odt, ZoneId zone) {
+        if (odt == null) return null;
+        return odt.atZoneSameInstant(zone);
+    }
+
+    /**
+     * Converts {@code instant} to a {@link ZonedDateTime} in {@code zone}.
+     *
+     * @param instant the instant, or {@code null}
+     * @param zone    the zone; must not be {@code null} when {@code instant} is non-null
+     * @return {@code instant} at {@code zone}, or {@code null} if {@code instant} is {@code null}
+     */
+    public static ZonedDateTime toZonedDateTime(Instant instant, ZoneId zone) {
+        if (instant == null) return null;
+        return instant.atZone(zone);
+    }
+
+    /**
+     * Converts {@code date} to a {@link ZonedDateTime} in {@code zone} (same instant on the time-line).
+     *
+     * @param date the legacy date, or {@code null}
+     * @param zone the zone; must not be {@code null} when {@code date} is non-null
+     * @return zoned date-time in {@code zone}, or {@code null} if {@code date} is {@code null}
+     */
+    public static ZonedDateTime toZonedDateTime(Date date, ZoneId zone) {
+        if (date == null) return null;
+        return date.toInstant().atZone(zone);
+    }
+
+    /**
+     * Converts {@code calendar} to a {@link ZonedDateTime} in {@code zone} (same instant on the time-line).
+     *
+     * @param calendar the calendar, or {@code null}
+     * @param zone     the zone; must not be {@code null} when {@code calendar} is non-null
+     * @return zoned date-time in {@code zone}, or {@code null} if {@code calendar} is {@code null}
+     */
+    public static ZonedDateTime toZonedDateTime(Calendar calendar, ZoneId zone) {
+        if (calendar == null) return null;
+        return calendar.toInstant().atZone(zone);
+    }
+
+    /**
+     * Interprets {@code ldt} as local date-time in {@code zone} (no offset shift of the clock fields).
+     *
+     * @param ldt  the local date-time, or {@code null}
+     * @param zone the zone; must not be {@code null} when {@code ldt} is non-null
+     * @return {@code ldt} at {@code zone}, or {@code null} if {@code ldt} is {@code null}
+     */
+    public static ZonedDateTime toZonedDateTime(LocalDateTime ldt, ZoneId zone) {
+        if (ldt == null) return null;
+        return ldt.atZone(zone);
+    }
+
+    /**
+     * Converts {@code localDate} to start of that calendar day in {@code zone}.
+     *
+     * @param localDate the local date, or {@code null}
+     * @param zone      the zone; must not be {@code null} when {@code localDate} is non-null
+     * @return midnight at {@code localDate} in {@code zone}, or {@code null} if {@code localDate} is {@code null}
+     */
+    public static ZonedDateTime toZonedDateTime(LocalDate localDate, ZoneId zone) {
+        if (localDate == null) return null;
+        return localDate.atStartOfDay(zone);
     }
 }

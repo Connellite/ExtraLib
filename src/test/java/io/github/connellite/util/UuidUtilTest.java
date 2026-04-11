@@ -19,6 +19,7 @@ class UuidUtilTest {
     @Test
     void convertFromString() {
         UUID u = UUID.fromString("550e8400-e29b-41d4-a716-446655440000");
+        assertEquals(u, UuidUtil.convert2Uuid(u));
         assertEquals(u, UuidUtil.convert2Uuid("550e8400-e29b-41d4-a716-446655440000"));
         assertEquals(u, UuidUtil.convert2Uuid("550e8400e29b41d4a716446655440000"));
     }
@@ -32,6 +33,9 @@ class UuidUtilTest {
 
     @Test
     void convertNullReturnsNull() {
-        assertNull(UuidUtil.convert2Uuid(null));
+        assertNull(UuidUtil.convert2Uuid((Object) null));
+        assertNull(UuidUtil.convert2Uuid((UUID) null));
+        assertNull(UuidUtil.convert2Uuid((String) null));
+        assertNull(UuidUtil.convert2Uuid((byte[]) null));
     }
 }

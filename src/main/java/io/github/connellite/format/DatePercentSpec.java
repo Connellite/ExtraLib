@@ -1,6 +1,7 @@
 package io.github.connellite.format;
 
 import io.github.connellite.exception.FormatException;
+import io.github.connellite.util.DateTimeUtil;
 import lombok.experimental.UtilityClass;
 
 import java.time.DayOfWeek;
@@ -122,25 +123,25 @@ final class DatePercentSpec {
 
     private static ZonedDateTime toZonedDateTime(Object value, ZoneId zone) {
         if (value instanceof ZonedDateTime z) {
-            return z.withZoneSameInstant(zone);
+            return DateTimeUtil.toZonedDateTime(z, zone);
         }
         if (value instanceof OffsetDateTime o) {
-            return o.atZoneSameInstant(zone);
+            return DateTimeUtil.toZonedDateTime(o, zone);
         }
         if (value instanceof Instant ins) {
-            return ins.atZone(zone);
+            return DateTimeUtil.toZonedDateTime(ins, zone);
         }
         if (value instanceof Date d) {
-            return d.toInstant().atZone(zone);
+            return DateTimeUtil.toZonedDateTime(d, zone);
         }
         if (value instanceof Calendar cal) {
-            return cal.toInstant().atZone(zone);
+            return DateTimeUtil.toZonedDateTime(cal, zone);
         }
         if (value instanceof LocalDateTime ldt) {
-            return ldt.atZone(zone);
+            return DateTimeUtil.toZonedDateTime(ldt, zone);
         }
         if (value instanceof LocalDate ld) {
-            return ld.atStartOfDay(zone);
+            return DateTimeUtil.toZonedDateTime(ld, zone);
         }
         return null;
     }
