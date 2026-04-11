@@ -121,21 +121,22 @@ public class ReflectionUtil {
     }
 
     /**
-     * Reads a field value, opening access when the field is private or protected.
+     * Reads a field value, calling {@link Field#trySetAccessible()} when {@link Field#canAccess(Object)}
+     * is false (private, protected, package-private from another package, etc.).
      *
      * @param obj   instance for an instance field, or {@code null} for a static field
      * @param field field to read; not null
      */
     public static Object getValueField(Object obj, Field field) throws IllegalAccessException {
-        int modifier = field.getModifiers();
-        if (Modifier.isPrivate(modifier) || Modifier.isProtected(modifier)) {
-            field.setAccessible(true);
+        if (!field.canAccess(obj)) {
+            field.trySetAccessible();
         }
         return field.get(obj);
     }
 
     /**
-     * Writes a field value, opening access when the field is private or protected.
+     * Writes a field value, calling {@link Field#trySetAccessible()} when {@link Field#canAccess(Object)}
+     * is false.
      *
      * @throws IllegalStateException if the field is {@code final}
      */
@@ -144,8 +145,8 @@ public class ReflectionUtil {
         if (Modifier.isFinal(modifier)) {
             throw new IllegalStateException("Field " + field.getName() + " is final.");
         }
-        if (Modifier.isPrivate(modifier) || Modifier.isProtected(modifier)) {
-            field.setAccessible(true);
+        if (!field.canAccess(obj)) {
+            field.trySetAccessible();
         }
         field.set(obj, value);
     }

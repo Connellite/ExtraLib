@@ -14,5 +14,6 @@ module io.github.connellite.ExtraLib {
     exports io.github.connellite.logger;
     exports io.github.connellite.match;
     exports io.github.connellite.system;
+    exports io.github.connellite.cloner;
     exports io.github.connellite.util;
 }
