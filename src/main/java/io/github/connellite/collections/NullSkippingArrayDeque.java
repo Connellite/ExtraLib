@@ -24,6 +24,12 @@ public class NullSkippingArrayDeque<E> extends ArrayDeque<E> {
         addAll(c);
     }
 
+    /**
+     * Appends a non-null element to the deque tail.
+     *
+     * @param e element to add
+     * @return {@code true} if element was added; {@code false} for {@code null}
+     */
     @Override
     public boolean add(E e) {
         if (e == null) {
@@ -32,6 +38,11 @@ public class NullSkippingArrayDeque<E> extends ArrayDeque<E> {
         return super.add(e);
     }
 
+    /**
+     * Inserts a non-null element at deque head.
+     *
+     * @param e element to insert
+     */
     @Override
     public void addFirst(E e) {
         if (e == null) {
@@ -40,6 +51,11 @@ public class NullSkippingArrayDeque<E> extends ArrayDeque<E> {
         super.addFirst(e);
     }
 
+    /**
+     * Inserts a non-null element at deque tail.
+     *
+     * @param e element to insert
+     */
     @Override
     public void addLast(E e) {
         if (e == null) {
@@ -48,6 +64,12 @@ public class NullSkippingArrayDeque<E> extends ArrayDeque<E> {
         super.addLast(e);
     }
 
+    /**
+     * Adds all non-null elements from the input collection.
+     *
+     * @param c source collection
+     * @return {@code true} if at least one element was added
+     */
     @Override
     public boolean addAll(Collection<? extends E> c) {
         boolean changed = false;
@@ -59,6 +81,12 @@ public class NullSkippingArrayDeque<E> extends ArrayDeque<E> {
         return changed;
     }
 
+    /**
+     * Offers a non-null element at deque head.
+     *
+     * @param e element to offer
+     * @return {@code true} if accepted; {@code false} for {@code null}
+     */
     @Override
     public boolean offerFirst(E e) {
         if (e == null) {
@@ -67,6 +95,12 @@ public class NullSkippingArrayDeque<E> extends ArrayDeque<E> {
         return super.offerFirst(e);
     }
 
+    /**
+     * Offers a non-null element at deque tail.
+     *
+     * @param e element to offer
+     * @return {@code true} if accepted; {@code false} for {@code null}
+     */
     @Override
     public boolean offerLast(E e) {
         if (e == null) {
@@ -75,6 +109,11 @@ public class NullSkippingArrayDeque<E> extends ArrayDeque<E> {
         return super.offerLast(e);
     }
 
+    /**
+     * Pushes a non-null element onto the stack view of this deque.
+     *
+     * @param e element to push
+     */
     @Override
     public void push(E e) {
         if (e == null) {

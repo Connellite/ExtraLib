@@ -31,6 +31,12 @@ public class NullSkippingTreeSet<E> extends TreeSet<E> {
         addAll(s);
     }
 
+    /**
+     * Adds a non-null element to the set.
+     *
+     * @param e element to add
+     * @return {@code true} if element was added; {@code false} for {@code null}
+     */
     @Override
     public boolean add(E e) {
         if (e == null) {
@@ -39,6 +45,12 @@ public class NullSkippingTreeSet<E> extends TreeSet<E> {
         return super.add(e);
     }
 
+    /**
+     * Adds all non-null elements from the source collection.
+     *
+     * @param c source collection
+     * @return {@code true} if at least one element was added
+     */
     @Override
     public boolean addAll(Collection<? extends E> c) {
         boolean changed = false;

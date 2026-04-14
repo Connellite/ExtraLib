@@ -98,7 +98,8 @@ public class CaseInsensitiveHashMap<V> extends HashMap<String, V> implements Ser
             return super.containsKey(null);
         }
         if (key instanceof String s) {
-            return caseInsensitiveKeys.containsKey(convertKey(s));
+            String canonical = caseInsensitiveKeys.get(convertKey(s));
+            return canonical != null && super.containsKey(canonical);
         }
         return false;
     }
@@ -150,16 +151,15 @@ public class CaseInsensitiveHashMap<V> extends HashMap<String, V> implements Ser
         if (key == null) {
             return super.putIfAbsent(null, value);
         }
-        String norm = convertKey(key);
-        String canonical = caseInsensitiveKeys.get(norm);
+        String canonical = caseInsensitiveKeys.putIfAbsent(convertKey(key), key);
         if (canonical != null) {
-            return super.putIfAbsent(canonical, value);
+            V existingValue = super.get(canonical);
+            if (existingValue != null) {
+                return existingValue;
+            }
+            key = canonical;
         }
-        V prev = super.putIfAbsent(key, value);
-        if (prev == null && super.containsKey(key)) {
-            caseInsensitiveKeys.put(norm, key);
-        }
-        return prev;
+        return super.putIfAbsent(key, value);
     }
 
     @Override
@@ -168,22 +168,15 @@ public class CaseInsensitiveHashMap<V> extends HashMap<String, V> implements Ser
         if (key == null) {
             return super.computeIfAbsent(null, mappingFunction);
         }
-        String norm = convertKey(key);
-        String existing = caseInsensitiveKeys.get(norm);
-        if (existing != null) {
-            V current = super.get(existing);
-            if (current != null) {
-                return current;
+        String canonical = caseInsensitiveKeys.putIfAbsent(convertKey(key), key);
+        if (canonical != null) {
+            V existingValue = super.get(canonical);
+            if (existingValue != null) {
+                return existingValue;
             }
-            return super.computeIfAbsent(existing, mappingFunction);
+            key = canonical;
         }
-        return super.computeIfAbsent(key, k -> {
-            V v = mappingFunction.apply(k);
-            if (v != null) {
-                caseInsensitiveKeys.put(norm, k);
-            }
-            return v;
-        });
+        return super.computeIfAbsent(key, mappingFunction);
     }
 
     @Override
@@ -211,17 +204,16 @@ public class CaseInsensitiveHashMap<V> extends HashMap<String, V> implements Ser
         if (key == null) {
             return super.compute(null, remappingFunction);
         }
-        String norm = convertKey(key);
-        String canonical = caseInsensitiveKeys.get(norm);
-        String opKey = canonical != null ? canonical : key;
-        return super.compute(opKey, (k, v) -> {
+        String canonical = caseInsensitiveKeys.putIfAbsent(convertKey(key), key);
+        if (canonical != null) {
+            key = canonical;
+        }
+        return super.compute(key, (k, v) -> {
             V nv = remappingFunction.apply(k, v);
             if (nv == null) {
-                if (v != null) {
+                if (v != null || super.containsKey(k)) {
                     caseInsensitiveKeys.remove(convertKey(k));
                 }
-            } else if (v == null) {
-                caseInsensitiveKeys.put(convertKey(k), k);
             }
             return nv;
         });
@@ -234,21 +226,18 @@ public class CaseInsensitiveHashMap<V> extends HashMap<String, V> implements Ser
         if (key == null) {
             return super.merge(null, value, remappingFunction);
         }
-        String norm = convertKey(key);
-        String canonical = caseInsensitiveKeys.get(norm);
-        String mergeKey = canonical != null ? canonical : key;
-        boolean absent = canonical == null;
-        V result = super.merge(mergeKey, value, (oldVal, newVal) -> {
+        String canonical = caseInsensitiveKeys.putIfAbsent(convertKey(key), key);
+        if (canonical != null) {
+            key = canonical;
+        }
+        final String mergeKey = key;
+        return super.merge(mergeKey, value, (oldVal, newVal) -> {
             V nv = remappingFunction.apply(oldVal, newVal);
             if (nv == null) {
                 caseInsensitiveKeys.remove(convertKey(mergeKey));
             }
             return nv;
         });
-        if (absent && result != null) {
-            caseInsensitiveKeys.put(norm, mergeKey);
-        }
-        return result;
     }
 
     @Override

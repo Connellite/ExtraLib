@@ -33,6 +33,12 @@ public class NullSkippingPriorityQueue<E> extends PriorityQueue<E> {
         addAll(c);
     }
 
+    /**
+     * Adds a non-null element to the queue.
+     *
+     * @param e element to add
+     * @return {@code true} if element was added; {@code false} for {@code null}
+     */
     @Override
     public boolean add(E e) {
         if (e == null) {
@@ -41,6 +47,12 @@ public class NullSkippingPriorityQueue<E> extends PriorityQueue<E> {
         return super.add(e);
     }
 
+    /**
+     * Offers a non-null element to the queue.
+     *
+     * @param e element to offer
+     * @return {@code true} if accepted; {@code false} for {@code null}
+     */
     @Override
     public boolean offer(E e) {
         if (e == null) {
@@ -49,6 +61,12 @@ public class NullSkippingPriorityQueue<E> extends PriorityQueue<E> {
         return super.offer(e);
     }
 
+    /**
+     * Adds all non-null elements from the source collection.
+     *
+     * @param c source collection
+     * @return {@code true} if at least one element was added
+     */
     @Override
     public boolean addAll(Collection<? extends E> c) {
         boolean changed = false;

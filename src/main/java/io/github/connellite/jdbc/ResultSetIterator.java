@@ -1,6 +1,6 @@
 package io.github.connellite.jdbc;
 
-import io.github.connellite.exception.JdbcResultSetException;
+import io.github.connellite.exception.ResultSetException;
 
 import java.sql.Connection;
 import java.sql.SQLException;
@@ -21,6 +21,13 @@ public class ResultSetIterator extends AbstractResultSetIterator<Object> {
         super(conn, query);
     }
 
+    /**
+     * Returns the current row as a column-to-value map and advances the cursor.
+     *
+     * @return ordered map of column name to value for the current row
+     * @throws NoSuchElementException if no more rows are available
+     * @throws ResultSetException if row extraction fails
+     */
     @Override
     public Map<String, Object> next() {
         if (!hasNextValue) {
@@ -36,7 +43,7 @@ public class ResultSetIterator extends AbstractResultSetIterator<Object> {
             hasNextValue = resultSet.next();
         } catch (Exception e) {
             hasNextValue = false;
-            throw new JdbcResultSetException(e);
+            throw new ResultSetException(e);
         }
 
         return row;

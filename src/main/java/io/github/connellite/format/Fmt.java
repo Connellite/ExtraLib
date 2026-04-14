@@ -50,116 +50,308 @@ public final class Fmt {
         private static final CompiledFormat ONE_ARG = compile("{}");
     }
 
+    /**
+     * Creates a named argument that can be referenced from a template as {@code {name}}.
+     *
+     * @param name argument name used in the template
+     * @param value argument value
+     * @return immutable named argument wrapper
+     */
     public static Named arg(String name, Object value) {
         return new Named(name, value);
     }
 
+    /**
+     * Sets the locale used by overloads that do not accept a locale parameter.
+     *
+     * @param locale new default locale, must not be {@code null}
+     */
     public static void setDefaultLocale(Locale locale) {
         defaultLocale = Objects.requireNonNull(locale, "locale");
     }
 
+    /**
+     * Converts a value to text using the library formatting pipeline.
+     *
+     * @param value value to render
+     * @return formatted value string
+     */
     public static String toString(Object value) {
         return format(SingleArgFormatHolder.ONE_ARG, value);
     }
 
-    /** Parses {@code pattern} once; reuse the result with {@link #format(CompiledFormat, Object...)} etc. */
+    /**
+     * Parses a template and returns a reusable compiled representation.
+     *
+     * @param pattern template text
+     * @return compiled template
+     */
     public static CompiledFormat compile(CharSequence pattern) {
         return FormatEngine.compile(pattern);
     }
 
+    /**
+     * Formats a template with positional and named arguments using the current default locale.
+     *
+     * @param pattern template text
+     * @param args formatting arguments
+     * @return rendered text
+     */
     public static String format(CharSequence pattern, Object... args) {
         return FormatEngine.format(compile(pattern), args, defaultLocale);
     }
 
+    /**
+     * Formats a template with an explicit locale.
+     *
+     * @param locale locale for locale-sensitive conversions
+     * @param pattern template text
+     * @param args formatting arguments
+     * @return rendered text
+     */
     public static String format(Locale locale, CharSequence pattern, Object... args) {
         return FormatEngine.format(compile(pattern), args, locale);
     }
 
-    /** Reuse a parsed pattern from {@link #compile(CharSequence)}. */
+    /**
+     * Formats with a precompiled template using the current default locale.
+     *
+     * @param compiled precompiled template
+     * @param args formatting arguments
+     * @return rendered text
+     */
     public static String format(CompiledFormat compiled, Object... args) {
         return FormatEngine.format(compiled, args, defaultLocale);
     }
 
+    /**
+     * Formats with a precompiled template and an explicit locale.
+     *
+     * @param locale locale for locale-sensitive conversions
+     * @param compiled precompiled template
+     * @param args formatting arguments
+     * @return rendered text
+     */
     public static String format(Locale locale, CompiledFormat compiled, Object... args) {
         return FormatEngine.format(compiled, args, locale);
     }
 
+    /**
+     * Formats and prints to {@link System#out} without a trailing newline.
+     *
+     * @param pattern template text
+     * @param args formatting arguments
+     */
     public static void print(CharSequence pattern, Object... args) {
         System.out.print(format(pattern, args));
     }
 
+    /**
+     * Formats and prints to {@link System#out} with a trailing newline.
+     *
+     * @param pattern template text
+     * @param args formatting arguments
+     */
     public static void println(CharSequence pattern, Object... args) {
         System.out.println(format(pattern, args));
     }
 
+    /**
+     * Formats with a precompiled template and prints to {@link System#out} without newline.
+     *
+     * @param compiled precompiled template
+     * @param args formatting arguments
+     */
     public static void print(CompiledFormat compiled, Object... args) {
         System.out.print(format(compiled, args));
     }
 
+    /**
+     * Formats with a precompiled template and prints to {@link System#out} with newline.
+     *
+     * @param compiled precompiled template
+     * @param args formatting arguments
+     */
     public static void println(CompiledFormat compiled, Object... args) {
         System.out.println(format(compiled, args));
     }
 
+    /**
+     * Formats and prints to a {@link PrintStream} without a trailing newline.
+     *
+     * @param out destination stream
+     * @param pattern template text
+     * @param args formatting arguments
+     */
     public static void print(PrintStream out, CharSequence pattern, Object... args) {
         out.print(format(pattern, args));
     }
 
+    /**
+     * Formats and prints to a {@link PrintStream} with a trailing newline.
+     *
+     * @param out destination stream
+     * @param pattern template text
+     * @param args formatting arguments
+     */
     public static void println(PrintStream out, CharSequence pattern, Object... args) {
         out.println(format(pattern, args));
     }
 
+    /**
+     * Formats with a precompiled template and prints to a {@link PrintStream}.
+     *
+     * @param out destination stream
+     * @param compiled precompiled template
+     * @param args formatting arguments
+     */
     public static void print(PrintStream out, CompiledFormat compiled, Object... args) {
         out.print(format(compiled, args));
     }
 
+    /**
+     * Formats with a precompiled template and prints to a {@link PrintStream} with newline.
+     *
+     * @param out destination stream
+     * @param compiled precompiled template
+     * @param args formatting arguments
+     */
     public static void println(PrintStream out, CompiledFormat compiled, Object... args) {
         out.println(format(compiled, args));
     }
 
+    /**
+     * Formats and prints to a {@link PrintWriter} without a trailing newline.
+     *
+     * @param out destination writer
+     * @param pattern template text
+     * @param args formatting arguments
+     */
     public static void print(PrintWriter out, CharSequence pattern, Object... args) {
         out.print(format(pattern, args));
     }
 
+    /**
+     * Formats and prints to a {@link PrintWriter} with a trailing newline.
+     *
+     * @param out destination writer
+     * @param pattern template text
+     * @param args formatting arguments
+     */
     public static void println(PrintWriter out, CharSequence pattern, Object... args) {
         out.println(format(pattern, args));
     }
 
+    /**
+     * Formats with a precompiled template and prints to a {@link PrintWriter}.
+     *
+     * @param out destination writer
+     * @param compiled precompiled template
+     * @param args formatting arguments
+     */
     public static void print(PrintWriter out, CompiledFormat compiled, Object... args) {
         out.print(format(compiled, args));
     }
 
+    /**
+     * Formats with a precompiled template and prints to a {@link PrintWriter} with newline.
+     *
+     * @param out destination writer
+     * @param compiled precompiled template
+     * @param args formatting arguments
+     */
     public static void println(PrintWriter out, CompiledFormat compiled, Object... args) {
         out.println(format(compiled, args));
     }
 
+    /**
+     * Formats and appends output to an {@link Appendable} using the default locale.
+     *
+     * @param out destination appendable
+     * @param pattern template text
+     * @param args formatting arguments
+     */
     public static void formatTo(Appendable out, CharSequence pattern, Object... args) {
         FormatEngine.formatTo(out, compile(pattern), args, defaultLocale);
     }
 
+    /**
+     * Formats and appends output to an {@link Appendable} with an explicit locale.
+     *
+     * @param out destination appendable
+     * @param locale locale for locale-sensitive conversions
+     * @param pattern template text
+     * @param args formatting arguments
+     */
     public static void formatTo(Appendable out, Locale locale, CharSequence pattern, Object... args) {
         FormatEngine.formatTo(out, compile(pattern), args, locale);
     }
 
+    /**
+     * Formats with a precompiled template and appends output using the default locale.
+     *
+     * @param out destination appendable
+     * @param compiled precompiled template
+     * @param args formatting arguments
+     */
     public static void formatTo(Appendable out, CompiledFormat compiled, Object... args) {
         FormatEngine.formatTo(out, compiled, args, defaultLocale);
     }
 
+    /**
+     * Formats with a precompiled template and appends output with an explicit locale.
+     *
+     * @param out destination appendable
+     * @param locale locale for locale-sensitive conversions
+     * @param compiled precompiled template
+     * @param args formatting arguments
+     */
     public static void formatTo(Appendable out, Locale locale, CompiledFormat compiled, Object... args) {
         FormatEngine.formatTo(out, compiled, args, locale);
     }
 
+    /**
+     * Formats and passes result chunks to a string sink using the default locale.
+     *
+     * @param sink destination consumer
+     * @param pattern template text
+     * @param args formatting arguments
+     */
     public static void formatTo(Consumer<? super String> sink, CharSequence pattern, Object... args) {
         FormatEngine.formatTo(sink, compile(pattern), args, defaultLocale);
     }
 
+    /**
+     * Formats and passes result chunks to a string sink with an explicit locale.
+     *
+     * @param sink destination consumer
+     * @param locale locale for locale-sensitive conversions
+     * @param pattern template text
+     * @param args formatting arguments
+     */
     public static void formatTo(Consumer<? super String> sink, Locale locale, CharSequence pattern, Object... args) {
         FormatEngine.formatTo(sink, compile(pattern), args, locale);
     }
 
+    /**
+     * Formats with a precompiled template and passes output chunks to a string sink.
+     *
+     * @param sink destination consumer
+     * @param compiled precompiled template
+     * @param args formatting arguments
+     */
     public static void formatTo(Consumer<? super String> sink, CompiledFormat compiled, Object... args) {
         FormatEngine.formatTo(sink, compiled, args, defaultLocale);
     }
 
+    /**
+     * Formats with a precompiled template and passes output chunks to a sink with explicit locale.
+     *
+     * @param sink destination consumer
+     * @param locale locale for locale-sensitive conversions
+     * @param compiled precompiled template
+     * @param args formatting arguments
+     */
     public static void formatTo(Consumer<? super String> sink, Locale locale, CompiledFormat compiled, Object... args) {
         FormatEngine.formatTo(sink, compiled, args, locale);
     }

@@ -1,6 +1,6 @@
 package io.github.connellite.jdbc;
 
-import io.github.connellite.exception.JdbcResultSetException;
+import io.github.connellite.exception.ResultSetException;
 
 import java.math.BigDecimal;
 import java.sql.Connection;
@@ -42,7 +42,7 @@ public class ResultSetStringIterator extends AbstractResultSetIterator<String> {
             hasNextValue = resultSet.next();
         } catch (Exception e) {
             hasNextValue = false;
-            throw new JdbcResultSetException(e);
+            throw new ResultSetException(e);
         }
 
         return row;

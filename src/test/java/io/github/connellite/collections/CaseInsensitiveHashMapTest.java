@@ -273,6 +273,16 @@ class CaseInsensitiveHashMapTest {
     }
 
     @Test
+    void compute_absentThenDifferentSpelling_keepsSingleCanonicalKey() {
+        Map<String, Integer> m = new CaseInsensitiveHashMap<>();
+        assertEquals(1, m.compute("Hello", (k, v) -> v == null ? 1 : v + 1));
+        assertEquals(2, m.compute("HELLO", (k, v) -> v + 1));
+        assertEquals(1, m.size());
+        assertEquals(Set.of("Hello"), m.keySet());
+        assertEquals(2, m.get("hello"));
+    }
+
+    @Test
     void compute_nullKey() {
         Map<String, Integer> m = new CaseInsensitiveHashMap<>();
         assertEquals(3, m.compute(null, (k, v) -> v == null ? 3 : v + 10));
@@ -287,6 +297,16 @@ class CaseInsensitiveHashMapTest {
         assertEquals(3, m.merge("A", 2, Integer::sum));
         assertNull(m.merge("a", 0, (old, val) -> null));
         assertFalse(m.containsKey("a"));
+    }
+
+    @Test
+    void merge_absentThenDifferentSpelling_keepsSingleCanonicalKey() {
+        Map<String, Integer> m = new CaseInsensitiveHashMap<>();
+        assertEquals(1, m.merge("Hello", 1, Integer::sum));
+        assertEquals(3, m.merge("HELLO", 2, Integer::sum));
+        assertEquals(1, m.size());
+        assertEquals(Set.of("Hello"), m.keySet());
+        assertEquals(3, m.get("hello"));
     }
 
     @Test

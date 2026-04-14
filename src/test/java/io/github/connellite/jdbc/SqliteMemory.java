@@ -14,6 +14,7 @@ import java.sql.Statement;
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public final class SqliteMemory {
 
+    /** Opens a fresh in-memory SQLite connection. */
     public static Connection open() throws SQLException {
         return DriverManager.getConnection("jdbc:sqlite::memory:");
     }

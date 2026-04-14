@@ -59,14 +59,29 @@ public class OSystem {
         return null;
     }
 
+    /**
+     * Checks whether the running OS appears to be Windows.
+     *
+     * @return {@code true} when {@code os.name} contains {@code "win"}
+     */
     public static boolean isWindows() {
         return System.getProperty("os.name", "").toLowerCase().contains("win");
     }
 
+    /**
+     * Checks whether the running OS appears to be macOS.
+     *
+     * @return {@code true} when {@code os.name} contains {@code "mac"}
+     */
     public static boolean isMac() {
         return System.getProperty("os.name", "").toLowerCase().contains("mac");
     }
 
+    /**
+     * Checks whether the running OS appears to be Unix/Linux.
+     *
+     * @return {@code true} when {@code os.name} contains {@code "nix"} or {@code "nux"}
+     */
     public static boolean isUnix() {
         String os = System.getProperty("os.name", "").toLowerCase();
         return os.contains("nix") || os.contains("nux");
@@ -79,6 +94,11 @@ public class OSystem {
         return System.getProperty("os.version");
     }
 
+    /**
+     * Returns the number of logical CPU cores visible to the JVM.
+     *
+     * @return logical processor count
+     */
     public static int getCpuCores() {
         return RUNTIME.availableProcessors();
     }
@@ -97,14 +117,29 @@ public class OSystem {
         return classifyOsType(getOsName());
     }
 
+    /**
+     * Returns currently free JVM heap bytes.
+     *
+     * @return free heap size in bytes
+     */
     public static long getJvmFreeMemory() {
         return RUNTIME.freeMemory();
     }
 
+    /**
+     * Returns the maximum heap size configured for the current JVM.
+     *
+     * @return max heap size in bytes
+     */
     public static long getJvmMaxMemory() {
         return RUNTIME.maxMemory();
     }
 
+    /**
+     * Returns total heap bytes currently allocated by the JVM.
+     *
+     * @return allocated heap size in bytes
+     */
     public static long getJvmTotalMemory() {
         return RUNTIME.totalMemory();
     }

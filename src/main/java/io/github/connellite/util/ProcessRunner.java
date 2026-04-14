@@ -9,6 +9,14 @@ import java.util.concurrent.TimeUnit;
 
 @UtilityClass
 public class ProcessRunner {
+    /**
+     * Executes an OS command, waits for process completion, and returns captured standard output.
+     *
+     * @param command command line to execute
+     * @return process stdout text
+     * @throws IOException if process startup or stream reading fails
+     * @throws InterruptedException if the waiting thread is interrupted
+     */
     public static String runAndWaitFor(String command) throws IOException, InterruptedException {
         Process p = Runtime.getRuntime().exec(command);
         p.waitFor();
@@ -16,8 +24,17 @@ public class ProcessRunner {
         return getProcessOutput(p);
     }
 
-    public static String runAndWaitFor(String command, long timeout, TimeUnit unit)
-            throws IOException, InterruptedException {
+    /**
+     * Executes an OS command, waits up to the provided timeout, and returns captured standard output.
+     *
+     * @param command command line to execute
+     * @param timeout maximum wait duration
+     * @param unit timeout unit
+     * @return process stdout text
+     * @throws IOException if process startup or stream reading fails
+     * @throws InterruptedException if the waiting thread is interrupted
+     */
+    public static String runAndWaitFor(String command, long timeout, TimeUnit unit) throws IOException, InterruptedException {
         Process p = Runtime.getRuntime().exec(command);
         p.waitFor(timeout, unit);
 
