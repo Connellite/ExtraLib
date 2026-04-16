@@ -27,6 +27,20 @@ class QueryUtilsSqliteTest {
     }
 
     @Test
+    void selectQueryCachedReturnsDetachedRowsAfterConnectionClosed() throws Exception {
+        ResultSet rs;
+        try (Connection c = SqliteMemory.open()) {
+            SqliteMemory.bootstrapDemoSchema(c);
+            rs = QueryUtils.selectQueryCached(c, "SELECT name FROM demo WHERE id = ?", 1);
+        }
+        try (rs) {
+            assertTrue(rs.next());
+            assertEquals("one", rs.getString("name"));
+            assertFalse(rs.next());
+        }
+    }
+
+    @Test
     void executeQueryUpdatesRow() throws Exception {
         try (Connection c = SqliteMemory.open()) {
             SqliteMemory.bootstrapDemoSchema(c);
@@ -44,6 +58,7 @@ class QueryUtilsSqliteTest {
             SqliteMemory.bootstrapDemoSchema(c);
 
             assertThrows(SQLException.class, () -> QueryUtils.selectQuery(c, "SELECT * FROM missing_table", (Object) null));
+            assertThrows(SQLException.class, () -> QueryUtils.selectQueryCached(c, "SELECT * FROM missing_table", (Object) null));
             assertThrows(SQLException.class, () -> QueryUtils.executeQuery(c, "UPDATE missing_table SET x = 1", (Object) null));
         }
     }

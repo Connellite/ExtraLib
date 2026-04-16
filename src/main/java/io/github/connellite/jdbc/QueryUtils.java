@@ -17,9 +17,30 @@ import java.sql.SQLException;
 public class QueryUtils {
 
     /**
-     * Executes a SELECT query and returns detached rows.
+     * Executes a SELECT query and returns a result set wrapper that closes both {@link java.sql.Statement} and {@link ResultSet}.
      */
     public static ResultSet selectQuery(Connection connection, String query, Object... params) throws SQLException {
+        Object[] safeParams = params == null ? new Object[0] : params;
+        PreparedStatement statement = connection.prepareStatement(query);
+        try {
+            for (int i = 0; i < safeParams.length; i++) {
+                statement.setObject(i + 1, safeParams[i]);
+            }
+            ResultSet rs = statement.executeQuery();
+            return new ResultSetWrapper(statement, rs);
+        } catch (SQLException e) {
+            statement.close();
+            throw e;
+        }
+    }
+
+    /**
+     * Executes a SELECT query and returns detached rows as a {@link CachedRowSet}.
+     * Unlike {@link #selectQuery(Connection, String, Object...)}, the returned result is independent from the
+     * underlying JDBC {@link ResultSet} / {@link PreparedStatement}: both are closed before this method returns.
+     * Not recommended for large result sets because all rows are materialized in memory.
+     */
+    public static ResultSet selectQueryCached(Connection connection, String query, Object... params) throws SQLException {
         Object[] safeParams = params == null ? new Object[0] : params;
         try (PreparedStatement statement = connection.prepareStatement(query)) {
             for (int i = 0; i < safeParams.length; i++) {
@@ -81,9 +102,41 @@ public class QueryUtils {
 
     /**
      * Executes a call that returns a result set (first non-null {@link ResultSet} from {@link CallableStatement#execute()} / {@link CallableStatement#getMoreResults()}),
-     * detached as a {@link CachedRowSet}. IN parameters only.
+     * wrapped as a managed {@link ResultSet} that closes both resources. IN parameters only.
      */
     public static ResultSet selectFromCall(Connection connection, String call, Object... inParams) throws SQLException {
+        Object[] safeParams = inParams == null ? new Object[0] : inParams;
+        CallableStatement statement = connection.prepareCall(call);
+        try {
+            for (int i = 0; i < safeParams.length; i++) {
+                statement.setObject(i + 1, safeParams[i]);
+            }
+            boolean hasResult = statement.execute();
+            for (;;) {
+                if (hasResult) {
+                    ResultSet rs = statement.getResultSet();
+                    if (rs != null) {
+                        return new ResultSetWrapper(statement, rs);
+                    }
+                } else if (statement.getUpdateCount() == -1) {
+                    break;
+                }
+                hasResult = statement.getMoreResults();
+            }
+            throw new SQLException("CallableStatement returned no ResultSet");
+        } catch (SQLException e) {
+            statement.close();
+            throw e;
+        }
+    }
+
+    /**
+     * Executes a call that returns a result set (first non-null {@link ResultSet} from {@link CallableStatement#execute()} / {@link CallableStatement#getMoreResults()}),
+     * detached as a {@link CachedRowSet}. Unlike {@link #selectFromCall(Connection, String, Object...)}, the returned
+     * data is fully copied, so the original JDBC {@link ResultSet} and {@link CallableStatement} are closed inside
+     * this method. Not recommended for large result sets because all rows are materialized in memory. IN parameters only.
+     */
+    public static ResultSet selectFromCallCached(Connection connection, String call, Object... inParams) throws SQLException {
         Object[] safeParams = inParams == null ? new Object[0] : inParams;
         try (CallableStatement statement = connection.prepareCall(call)) {
             for (int i = 0; i < safeParams.length; i++) {
