@@ -62,4 +62,40 @@ class StringUtilsTest {
     void join_nullSeparatorThrows() {
         assertThrows(NullPointerException.class, () -> StringUtils.join(List.of(1), null));
     }
+
+    @Test
+    void removeLineBreaks_joinsWrappedLinesWithSpace() {
+        assertEquals("hello world", StringUtils.removeLineBreaks("hello\nworld", false));
+    }
+
+    @Test
+    void removeLineBreaks_stripsIndentationAndTrailingSpacesPerLine() {
+        assertEquals("a b", StringUtils.removeLineBreaks("  a  \n   b  ", false));
+    }
+
+    @Test
+    void removeLineBreaks_rejoinsHyphenatedLineBreak() {
+        assertEquals("super-cal", StringUtils.removeLineBreaks("super-\ncal", false));
+    }
+
+    @Test
+    void removeLineBreaks_doubleNewlineBetweenWords_unchangedMiddleBreak() {
+        // (?<=.) and (?=.) do not treat another newline as a boundary character
+        assertEquals("a\n\nb", StringUtils.removeLineBreaks("a\n\nb", false));
+    }
+
+    @Test
+    void removeLineBreaks_whenTrue_stripsSoftHyphens() {
+        assertEquals("ab", StringUtils.removeLineBreaks("a\u00ADb", true));
+    }
+
+    @Test
+    void removeLineBreaks_whenFalse_preservesSoftHyphens() {
+        assertEquals("a\u00ADb", StringUtils.removeLineBreaks("a\u00ADb", false));
+    }
+
+    @Test
+    void removeLineBreaks_nullTextThrows() {
+        assertThrows(NullPointerException.class, () -> StringUtils.removeLineBreaks(null, false));
+    }
 }

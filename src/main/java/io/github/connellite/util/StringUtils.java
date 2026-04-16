@@ -1,5 +1,6 @@
 package io.github.connellite.util;
 
+import lombok.NonNull;
 import lombok.experimental.UtilityClass;
 
 import java.io.ByteArrayOutputStream;
@@ -14,8 +15,8 @@ import java.util.StringJoiner;
 import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.regex.PatternSyntaxException;
 import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 
 /**
  * String helpers
@@ -78,16 +79,96 @@ public class StringUtils {
     }
 
     /**
-     * Returns whether every character in {@code input} is a Unicode decimal digit ({@link Character#isDigit(char)}).
-     * <p>The empty string is considered numeric ({@code true}).</p>
+     * Normalizes line breaks in {@code text} for a single-line or flowed paragraph style.
+     * <p>Applied in order:</p>
+     * <ol>
+     *   <li>Strips leading spaces and tabs on each line (after a newline or at the start) and
+     *       trailing spaces and tabs before a newline or end of string.</li>
+     *   <li>Removes a newline immediately after a hyphen-like character (ASCII hyphen, Unicode dashes,
+     *       or soft hyphen U+00AD), keeping the hyphen (typical line-break hyphenation in plain text).</li>
+     *   <li>Replaces remaining newlines that sit between two non-newline characters with a single space
+     *       (joins wrapped lines). Newlines adjacent to other line breaks are left as-is because the
+     *       lookahead/lookbehind use {@code .}, which does not match line terminators.</li>
+     * </ol>
+     * <p>If {@code removeSoftHyphens} is {@code true}, all soft hyphens (U+00AD) are removed from the result.</p>
      *
-     * @param input the string; must not be {@code null}
-     * @return {@code true} if all characters are digits
-     * @throws NullPointerException if {@code input} is {@code null}
+     * @param text              source text; must not be {@code null}
+     * @param removeSoftHyphens when {@code true}, strips every U+00AD from the result
+     * @return normalized text with the rules above applied
+     * @throws NullPointerException if {@code text} is {@code null}
      */
-    public static boolean isNumeric(final String input) {
-        return IntStream.range(0, input.length())
-                .allMatch(i -> Character.isDigit(input.charAt(i)));
+    public static String removeLineBreaks(@NonNull String text, boolean removeSoftHyphens) {
+        text = text.replaceAll("(?<=\n|^)[\t ]+|[\t ]+(?=$|\n)", "");
+        text = text.replaceAll("(?<=.)([-‐‑‒–—―\u00AD])\n(?=.)", "$1");
+        text = text.replaceAll("(?<=.)\n(?=.)", " ");
+        if (removeSoftHyphens) {
+            text = text.replaceAll("\u00AD", "");
+        }
+        return text;
+    }
+
+    /**
+     * Returns whether {@code input} looks like a signed decimal integer: an optional leading ASCII
+     * hyphen ({@code '-'}) followed only by characters for which {@link Character#isDigit(char)} is
+     * {@code true}.
+     * <p>{@code null} and the empty sequence return {@code false}. A lone {@code "-"} is not numeric
+     * (there must be at least one digit after an optional sign).</p>
+     *
+     * @param input text to inspect; may be {@code null}
+     * @return {@code true} if non-empty and every character passes the rules above
+     */
+    public static boolean isNumeric(final CharSequence input) {
+        if (input == null || input.isEmpty()) {
+            return false;
+        } else {
+            int sz = input.length();
+
+            for (int i = 0; i < sz; ++i) {
+                char currentChar = input.charAt(i);
+                if (currentChar == '-' && i == 0 && sz > 1)
+                    continue;
+                if (!Character.isDigit(currentChar)) {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+    }
+
+    /**
+     * Builds a {@link Pattern} from a simple match string with shell-style wildcards, then compiles it
+     * with {@link Pattern#CASE_INSENSITIVE} and {@link Pattern#DOTALL}.
+     * <p>Transformations apply only to characters that are not escaped by a preceding backslash
+     * (per-step {@code (?<!\\\\)} rules in the implementation):</p>
+     * <ul>
+     *   <li>Runs of paired backslashes are replaced by a single {@code *}.</li>
+     *   <li>Redundant unescaped {@code ?} / {@code *} clusters (e.g. {@code ?**}) collapse to one {@code *}.</li>
+     *   <li>Remaining regex metacharacters in {@code |[]{}(),.^$+-} are escaped for literal matching.</li>
+     *   <li>Unescaped {@code ?} becomes {@code (.?)} (zero or one of any character, including newlines).</li>
+     *   <li>Unescaped {@code *} becomes {@code (.*)} (any length, including newlines).</li>
+     * </ul>
+     *
+     * @param match user-facing pattern; must not be {@code null}
+     * @return compiled pattern ready for {@link Matcher#matches()}, {@link Matcher#find()}, etc.
+     * @throws NullPointerException     if {@code match} is {@code null}
+     * @throws PatternSyntaxException if the transformed string is not a valid regex
+     */
+    public static Pattern compileMatchPattern(String match) {
+        // replace duplicate stars
+        // match = match.replaceAll("(\\*)\\1+", "*");
+
+        // replace any pair of backslashes by [*]
+        match = match.replaceAll("(?<!\\\\)(\\\\\\\\)+(?!\\\\)", "*");
+        // minimize unescaped redundant wildcards
+        match = match.replaceAll("(?<!\\\\)[?]*[*][*?]+", "*");
+        // escape unescaped regexps special chars, but [\], [?] and [*]
+        match = match.replaceAll("(?<!\\\\)([|\\[\\]{}(),.^$+-])", "\\\\$1");
+        // replace unescaped [?] by [.?]
+        match = match.replaceAll("(?<!\\\\)[?]", "(.?)");
+        // replace unescaped [*] by [.*]
+        match = match.replaceAll("(?<!\\\\)[*]", "(.*)");
+        return Pattern.compile(match, Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
     }
 
     /**

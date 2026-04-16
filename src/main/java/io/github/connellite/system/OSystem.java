@@ -1,6 +1,8 @@
 package io.github.connellite.system;
 
+import io.github.connellite.util.ProcessRunner;
 import lombok.experimental.UtilityClass;
+import lombok.extern.java.Log;
 
 import java.io.File;
 import java.lang.management.ManagementFactory;
@@ -8,8 +10,12 @@ import java.lang.management.MemoryMXBean;
 import java.lang.management.OperatingSystemMXBean;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.List;
+import java.util.regex.Pattern;
 
 /**
  * Snapshot helpers for the operating system, JVM memory, and CPU metrics.
@@ -20,6 +26,7 @@ import java.util.List;
  * {@link com.sun.management.OperatingSystemMXBean#getCpuLoad()} may be {@code -1.0} at runtime
  * when the JVM cannot measure them yet.
  */
+@Log
 @UtilityClass
 public class OSystem {
 
@@ -186,6 +193,81 @@ public class OSystem {
             return -1;
         }
         return (int) Math.round(load * 100.0);
+    }
+
+    /**
+     * Best-effort CPU model detection for the current OS.
+     * <p>
+     * Uses OS-specific sources:
+     * Linux via {@code /proc/cpuinfo}, Windows via {@code reg query}, and macOS via {@code sysctl}.
+     * If detection fails or the OS is unsupported, returns {@code "unknown"}.
+     *
+     * @return detected processor name, or {@code "unknown"} when unavailable
+     */
+    public static String tryGetProcessorName() {
+        try {
+            String osName = getOsName();
+            if (isUnix() && new File("/proc/cpuinfo").canRead()) {
+                return getLinuxProcessorName();
+            } else if (isWindows()) {
+                return getWindowsProcessorName();
+            } else if (isMac()) {
+                return getMacProcessorName();
+            } else {
+                log.warning("Couldn't determine OS to get processor name! The OS name is " + osName);
+                return "unknown";
+            }
+        } catch (Exception e) {
+            log.warning("Couldn't get processor name! " + e.getMessage());
+            return "unknown";
+        }
+    }
+
+    /**
+     * Much of the code here was copied from the OSHI project. This is simply stripped down to only get the CPU model.
+     * <a href="https://github.com/oshi/oshi/">See here</a>
+     */
+    private static String getLinuxProcessorName() throws Exception {
+        List<String> lines = Files.readAllLines(Paths.get("/proc/cpuinfo"), StandardCharsets.UTF_8);
+        Pattern whitespaceColonWhitespace = Pattern.compile("\\s+:\\s");
+        for (String line : lines) {
+            String[] splitLine = whitespaceColonWhitespace.split(line);
+            if ("model name".equals(splitLine[0]) || "Processor".equals(splitLine[0])) {
+                return splitLine[1];
+            }
+        }
+        log.warning("Couldn't parse processor name!");
+        return "unknown";
+    }
+
+    /**
+     * <a href="https://stackoverflow.com/a/6327663">See here</a>
+     */
+    private static String getWindowsProcessorName() throws Exception {
+        final String cpuNameCmd = "reg query \"HKLM\\HARDWARE\\DESCRIPTION\\System\\CentralProcessor\\0\" /v ProcessorNameString";
+        final String regstrToken = "REG_SZ";
+        String result = ProcessRunner.runAndWaitFor(cpuNameCmd);
+        int p = result.indexOf(regstrToken);
+
+        if (p == -1) {
+            log.warning("Couldn't parse processor name!");
+            return "unknown";
+        }
+
+        return result.substring(p + regstrToken.length()).trim();
+    }
+
+    /**
+     * <a href="https://stackoverflow.com/a/62718963">See here</a>
+     */
+    private static String getMacProcessorName() throws Exception {
+        String result = ProcessRunner.runAndWaitFor("sysctl -n machdep.cpu.brand_string").trim();
+        if (!result.isEmpty()) {
+            return result;
+        } else {
+            log.warning("Couldn't parse processor name!");
+            return "unknown";
+        }
     }
 
     private static double round(double value, int scale) {
