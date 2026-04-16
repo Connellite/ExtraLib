@@ -40,6 +40,19 @@ public class DigestUtils {
     }
 
     /**
+     * Computes a message digest for {@code data} using the given algorithm.
+     *
+     * @param data      raw bytes; must not be {@code null}
+     * @param algorithm algorithm name understood by {@link MessageDigest} (e.g. {@code MD5}, {@code SHA-256})
+     * @return digest bytes
+     * @throws NoSuchAlgorithmException if the algorithm is not available
+     */
+    public static byte[] digest(@NonNull byte[] data, @NonNull String algorithm) throws NoSuchAlgorithmException {
+        MessageDigest md = MessageDigest.getInstance(algorithm);
+        return md.digest(data);
+    }
+
+    /**
      * Computes a hex-encoded message digest for all bytes from {@code in} using the given algorithm.
      * <p>Does not close {@code in}.</p>
      *
@@ -54,10 +67,29 @@ public class DigestUtils {
     }
 
     /**
+     * Computes a hex-encoded message digest for {@code data} using the given algorithm.
+     *
+     * @param data      raw bytes; must not be {@code null}
+     * @param algorithm algorithm name understood by {@link MessageDigest} (e.g. {@code MD5}, {@code SHA-256})
+     * @return lowercase hex string of the digest
+     * @throws NoSuchAlgorithmException if the algorithm is not available
+     */
+    public static String digestHex(@NonNull byte[] data, @NonNull String algorithm) throws NoSuchAlgorithmException {
+        return toHex(digest(data, algorithm));
+    }
+
+    /**
      * Convenience method for computing an MD5 digest.
      */
     public static byte[] md5(@NonNull InputStream in) throws IOException, NoSuchAlgorithmException {
         return digest(in, "MD5");
+    }
+
+    /**
+     * Convenience method for computing an MD5 digest.
+     */
+    public static byte[] md5(@NonNull byte[] data) throws NoSuchAlgorithmException {
+        return digest(data, "MD5");
     }
 
     /**
@@ -68,6 +100,13 @@ public class DigestUtils {
     }
 
     /**
+     * Convenience method for computing an MD5 digest as lowercase hex string.
+     */
+    public static String md5Hex(@NonNull byte[] data) throws NoSuchAlgorithmException {
+        return digestHex(data, "MD5");
+    }
+
+    /**
      * Convenience method for computing a SHA-256 digest.
      */
     public static byte[] sha256(@NonNull InputStream in) throws IOException, NoSuchAlgorithmException {
@@ -75,10 +114,24 @@ public class DigestUtils {
     }
 
     /**
+     * Convenience method for computing a SHA-256 digest.
+     */
+    public static byte[] sha256(@NonNull byte[] data) throws NoSuchAlgorithmException {
+        return digest(data, "SHA-256");
+    }
+
+    /**
      * Convenience method for computing a SHA-256 digest as lowercase hex string.
      */
     public static String sha256Hex(@NonNull InputStream in) throws IOException, NoSuchAlgorithmException {
         return digestHex(in, "SHA-256");
+    }
+
+    /**
+     * Convenience method for computing a SHA-256 digest as lowercase hex string.
+     */
+    public static String sha256Hex(@NonNull byte[] data) throws NoSuchAlgorithmException {
+        return digestHex(data, "SHA-256");
     }
 
     // region Base64 of raw content
@@ -96,6 +149,16 @@ public class DigestUtils {
     }
 
     /**
+     * Encodes {@code data} as Base64.
+     *
+     * @param data raw bytes; must not be {@code null}
+     * @return Base64-encoded bytes
+     */
+    public static byte[] base64(@NonNull byte[] data) {
+        return Base64.getEncoder().encode(data);
+    }
+
+    /**
      * Encodes all bytes from {@code in} as a Base64 string.
      * <p>Does not close {@code in}.</p>
      *
@@ -105,6 +168,16 @@ public class DigestUtils {
      */
     public static String base64String(@NonNull InputStream in) throws IOException {
         return Base64.getEncoder().encodeToString(readAllBytes(in));
+    }
+
+    /**
+     * Encodes {@code data} as a Base64 string.
+     *
+     * @param data raw bytes; must not be {@code null}
+     * @return Base64 string
+     */
+    public static String base64String(@NonNull byte[] data) {
+        return Base64.getEncoder().encodeToString(data);
     }
 
     // endregion
@@ -142,6 +215,17 @@ public class DigestUtils {
      * @throws IllegalArgumentException if the input is not valid Base64
      */
     public static byte[] fromBase64(@NonNull String base64) {
+        return Base64.getDecoder().decode(base64);
+    }
+
+    /**
+     * Decodes Base64-encoded bytes into raw bytes.
+     *
+     * @param base64 Base64-encoded data (typically ASCII)
+     * @return decoded bytes
+     * @throws IllegalArgumentException if the input is not valid Base64
+     */
+    public static byte[] fromBase64(@NonNull byte[] base64) {
         return Base64.getDecoder().decode(base64);
     }
 

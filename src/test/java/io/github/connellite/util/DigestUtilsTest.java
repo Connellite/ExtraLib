@@ -3,8 +3,8 @@ package io.github.connellite.util;
 import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayInputStream;
-import java.io.InputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.security.NoSuchAlgorithmException;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
@@ -32,6 +32,7 @@ class DigestUtilsTest {
     @Test
     void digest_throwsForUnknownAlgorithm() {
         assertThrows(NoSuchAlgorithmException.class, () -> DigestUtils.digest(inputOf("hello"), "NO-SUCH-ALG"));
+        assertThrows(NoSuchAlgorithmException.class, () -> DigestUtils.digest("hello".getBytes(), "NO-SUCH-ALG"));
     }
 
     @Test
@@ -67,6 +68,25 @@ class DigestUtilsTest {
     }
 
     @Test
+    void byteArray_overloads_matchInputStream_forSamePayload() throws IOException, NoSuchAlgorithmException {
+        byte[] raw = "hello".getBytes();
+
+        assertArrayEquals(DigestUtils.digest(inputOf("hello"), "MD5"), DigestUtils.digest(raw, "MD5"));
+        assertArrayEquals(DigestUtils.digest(inputOf("hello"), "SHA-256"), DigestUtils.digest(raw, "SHA-256"));
+        assertEquals(DigestUtils.digestHex(inputOf("hello"), "MD5"), DigestUtils.digestHex(raw, "MD5"));
+        assertEquals(DigestUtils.digestHex(inputOf("hello"), "SHA-256"), DigestUtils.digestHex(raw, "SHA-256"));
+
+        assertArrayEquals(DigestUtils.md5(inputOf("hello")), DigestUtils.md5(raw));
+        assertEquals(DigestUtils.md5Hex(inputOf("hello")), DigestUtils.md5Hex(raw));
+
+        assertArrayEquals(DigestUtils.sha256(inputOf("hello")), DigestUtils.sha256(raw));
+        assertEquals(DigestUtils.sha256Hex(inputOf("hello")), DigestUtils.sha256Hex(raw));
+
+        assertArrayEquals(DigestUtils.base64(inputOf("hello")), DigestUtils.base64(raw));
+        assertEquals(DigestUtils.base64String(inputOf("hello")), DigestUtils.base64String(raw));
+    }
+
+    @Test
     void fromHex_decodesValidHex() {
         assertArrayEquals(new byte[]{0x00}, DigestUtils.fromHex("00"));
         assertArrayEquals(new byte[]{(byte) 0xff}, DigestUtils.fromHex("ff"));
@@ -88,8 +108,20 @@ class DigestUtilsTest {
     }
 
     @Test
+    void fromBase64_decodesValidByteArray() {
+        byte[] encoded = "aGVsbG8=".getBytes();
+        byte[] decoded = DigestUtils.fromBase64(encoded);
+        assertArrayEquals("hello".getBytes(), decoded);
+    }
+
+    @Test
     void fromBase64_rejectsInvalidInput() {
         assertThrows(IllegalArgumentException.class, () -> DigestUtils.fromBase64("not-base64!!"));
+    }
+
+    @Test
+    void fromBase64_rejectsInvalidByteArray() {
+        assertThrows(IllegalArgumentException.class, () -> DigestUtils.fromBase64("not-base64!!".getBytes()));
     }
 
     private String bytesToHex(byte[] bytes) {
