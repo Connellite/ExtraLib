@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertIterableEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class StringUtilsTest {
@@ -22,7 +23,7 @@ class StringUtilsTest {
         UUID a = UUID.fromString("550e8400-e29b-41d4-a716-446655440001");
         UUID b = UUID.fromString("550e8400-e29b-41d4-a716-446655440002");
         assertEquals(
-                a.toString() + " | " + b.toString(),
+                a + " | " + b,
                 StringUtils.join(List.of(a, b), " | ", UUID::toString));
     }
 
@@ -97,5 +98,37 @@ class StringUtilsTest {
     @Test
     void removeLineBreaks_nullTextThrows() {
         assertThrows(NullPointerException.class, () -> StringUtils.removeLineBreaks(null, false));
+    }
+
+    @Test
+    void splitAndTrim_commaSeparated_trimsAndDropsBlanks() {
+        assertIterableEquals(
+                List.of("a", "b", "c"),
+                StringUtils.splitAndTrim(" a , b , , c ", ","));
+    }
+
+    @Test
+    void splitAndTrim_adjacentSeparatorsCollapse() {
+        assertIterableEquals(List.of("a", "c"), StringUtils.splitAndTrim("a,,,c", ","));
+    }
+
+    @Test
+    void splitAndTrim_nullString_returnsEmptyList() {
+        assertIterableEquals(List.of(), StringUtils.splitAndTrim(null, ","));
+    }
+
+    @Test
+    void splitAndTrim_whitespaceRegex_trimsAndSplits() {
+        assertIterableEquals(List.of("a", "b"), StringUtils.splitAndTrim("  a \t b  ", "\\s+"));
+    }
+
+    @Test
+    void splitAndTrim_nullRegexThrows() {
+        assertThrows(NullPointerException.class, () -> StringUtils.splitAndTrim("a b", null));
+    }
+
+    @Test
+    void splitAndTrim_multiCharSep_anyCharSplits() {
+        assertIterableEquals(List.of("a", "b"), StringUtils.splitAndTrim("a,;b", ",;"));
     }
 }

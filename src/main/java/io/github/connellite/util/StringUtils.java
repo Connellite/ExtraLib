@@ -9,6 +9,7 @@ import java.io.InputStream;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.StringJoiner;
@@ -76,6 +77,49 @@ public class StringUtils {
      */
     public static String[] splitLines(String input) {
         return input.split("\\r?\\n");
+    }
+
+    /**
+     * Splits {@code string} with {@link String#split(String, int)} using {@code limit} {@code 0}
+     * (trailing empty segments discarded per {@link String#split(String)}), trims each segment with
+     * {@link String#trim()}, and omits segments that are {@linkplain String#isBlank() blank} after trimming.
+     *
+     * @param string text to split; may be {@code null} (returns an empty list)
+     * @param regex  delimiter pattern passed to {@link String#split(String, int)}; must not be {@code null}
+     * @return a new list of non-blank trimmed parts (never {@code null}; may be empty)
+     * @throws NullPointerException if {@code regex} is {@code null}
+     * @see String#split(String, int)
+     */
+    public static List<String> splitAndTrim(String string, String regex) {
+        return splitAndTrim(string, regex, 0);
+    }
+
+    /**
+     * Same as {@link #splitAndTrim(String, String)} but forwards {@code limit} to {@link String#split(String, int)}
+     * so callers can cap splits or preserve trailing empties when {@code limit} is negative or greater than zero,
+     * per {@link String#split(String, int)}.
+     *
+     * @param string text to split; may be {@code null} (returns an empty list)
+     * @param regex  delimiter pattern; must not be {@code null}
+     * @param limit  maximum number of parts; same semantics as {@link String#split(String, int)}
+     * @return a new list of non-blank trimmed parts (never {@code null}; may be empty)
+     * @throws NullPointerException if {@code regex} is {@code null}
+     * @see String#split(String, int)
+     */
+    public static List<String> splitAndTrim(String string, @NonNull String regex, int limit) {
+        if (string == null) {
+            return Collections.emptyList();
+        }
+
+        String[] array = string.split(regex, limit);
+        List<String> result = new ArrayList<>(array.length);
+        for (String item : array) {
+            item = item.trim();
+            if (!item.isEmpty()) {
+                result.add(item);
+            }
+        }
+        return result;
     }
 
     /**
