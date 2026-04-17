@@ -7,15 +7,44 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.logging.Formatter;
 import java.util.logging.Level;
+import java.util.logging.LogRecord;
 import java.util.logging.Logger;
 import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class FileLoggersTest {
+
+    @Test
+    void customFormatterFromConfigIsUsed(@TempDir Path dir) throws IOException {
+        Path log = dir.resolve("custom.log");
+        Formatter fmt = new Formatter() {
+            @Override
+            public String format(LogRecord record) {
+                return "CUSTOM:" + record.getMessage();
+            }
+        };
+        FileLogHandlerConfig cfg = FileLogHandlerConfig.DEFAULT.withFormatter(fmt);
+        Logger logger = FileLoggers.forLogFile("custom.log", log, cfg);
+        logger.setLevel(Level.INFO);
+        try {
+            logger.log(Level.INFO, "ping");
+            for (var h : logger.getHandlers()) {
+                h.flush();
+            }
+            String content = Files.readString(log, StandardCharsets.UTF_8).trim();
+            assertEquals("CUSTOM:ping", content);
+        } finally {
+            for (var h : logger.getHandlers()) {
+                h.close();
+            }
+        }
+    }
 
     @Test
     void writesSimpleFormatterAfterFlush(@TempDir Path dir) throws IOException {
@@ -46,6 +75,38 @@ class FileLoggersTest {
             assertEquals(b.getName(), a.getName());
         } finally {
             for (var h : a.getHandlers()) {
+                h.close();
+            }
+        }
+    }
+
+    @Test
+    void twoLoggersSameNormalizedPathSecondForLogFileThrows(@TempDir Path dir) {
+        Path log1 = dir.resolve("a").resolve("shared.log");
+        Path log2 = dir.resolve("b").resolve("..").resolve("a").resolve("shared.log");
+        Logger first = FileLoggers.forLogFile("one.logger", log1);
+        try {
+            assertThrows(IllegalStateException.class, () -> FileLoggers.forLogFile("other.logger", log2));
+        } finally {
+            for (var h : first.getHandlers()) {
+                h.close();
+            }
+        }
+    }
+
+    @Test
+    void samePathAllowedAfterFirstHandlerClosed(@TempDir Path dir) {
+        Path log1 = dir.resolve("a").resolve("reuse.log");
+        Path log2 = dir.resolve("b").resolve("..").resolve("a").resolve("reuse.log");
+        Logger first = FileLoggers.forLogFile("reuse.a", log1);
+        for (var h : first.getHandlers()) {
+            h.close();
+        }
+        Logger second = FileLoggers.forLogFile("reuse.b", log2);
+        try {
+            assertEquals(1, second.getHandlers().length);
+        } finally {
+            for (var h : second.getHandlers()) {
                 h.close();
             }
         }

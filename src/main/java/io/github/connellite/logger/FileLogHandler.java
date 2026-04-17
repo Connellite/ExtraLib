@@ -5,12 +5,16 @@ import lombok.Getter;
 import java.io.BufferedOutputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.lang.ref.WeakReference;
 import java.time.LocalDate;
 import java.util.Objects;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.logging.Formatter;
 import java.util.logging.SimpleFormatter;
 import java.util.stream.Stream;
 import java.time.ZoneId;
@@ -19,10 +23,17 @@ import java.util.logging.Handler;
 import java.util.logging.LogRecord;
 
 /**
- * {@link Handler} that appends lines formatted like {@link java.util.logging.SimpleFormatter} (same locale and fields),
+ * {@link Handler} that appends one line per {@link LogRecord} using the configured {@link Formatter}
+ * (default {@link SimpleFormatter} when {@link FileLogHandlerConfig#formatter()} is {@code null}).
  * Optional rotation renames the current file to {@code name.log.0}, shifts older segments, and starts a new file.
+ * <p>
+ * {@link #publish} and rotation are synchronized on this handler: while {@link java.nio.file.Files#move} runs during
+ * rotation, other threads block on this instance (typical for JUL; async rotation is out of scope here).
+ * </p>
  */
 public class FileLogHandler extends Handler {
+
+    private static final ConcurrentHashMap<Path, WeakReference<FileLogHandler>> ACTIVE_WRITERS = new ConcurrentHashMap<>();
 
     @Getter
     private final Path logFile;
@@ -35,21 +46,49 @@ public class FileLogHandler extends Handler {
     private long bytesWritten;
     private LocalDate dayOfCurrentFile;
     private volatile boolean closed;
+    /** Set after {@link #openAppendStreams} completes so a failed first open can {@linkplain #releaseOutputFile() release} the path. */
+    private boolean logStreamEverOpened;
 
     public FileLogHandler(Path logFile, FileLogHandlerConfig config) {
         Objects.requireNonNull(logFile, "logFile cannot be null");
         Objects.requireNonNull(config, "config cannot be null");
         this.logFile = logFile.toAbsolutePath().normalize();
         this.config = config;
-        setFormatter(new SimpleFormatter());
+        Formatter f = config.formatter();
+        setFormatter(f != null ? f : new SimpleFormatter());
         try {
             setEncoding(StandardCharsets.UTF_8.name());
-        } catch (Exception ignored) {
+        } catch (UnsupportedEncodingException e) {
+            throw new IllegalStateException("UTF-8 must be supported by the JVM (required charset)", e);
         }
+        claimOutputFile();
     }
 
     public FileLogHandler(Path logFile) {
         this(logFile, FileLogHandlerConfig.DEFAULT);
+    }
+
+    private void claimOutputFile() {
+        ACTIVE_WRITERS.compute(logFile, (path, oldRef) -> {
+            FileLogHandler prev = oldRef == null ? null : oldRef.get();
+            if (prev != null && prev != this) {
+                throw new IllegalStateException("Another FileLogHandler is already writing to " + path);
+            }
+            return new WeakReference<>(this);
+        });
+    }
+
+    private void releaseOutputFile() {
+        ACTIVE_WRITERS.compute(logFile, (path, ref) -> {
+            if (ref == null) {
+                return null;
+            }
+            FileLogHandler h = ref.get();
+            if (h == null || h == this) {
+                return null;
+            }
+            return ref;
+        });
     }
 
     @Override
@@ -80,6 +119,8 @@ public class FileLogHandler extends Handler {
                 buffered.write('\n');
             }
             bytesWritten += payloadLen;
+        } catch (IllegalStateException ex) {
+            reportError(null, ex, ErrorManager.GENERIC_FAILURE);
         } catch (IOException ex) {
             reportError(null, ex, ErrorManager.WRITE_FAILURE);
         }
@@ -92,22 +133,33 @@ public class FileLogHandler extends Handler {
         }
     }
 
+    /**
+     * Lazily opens the file when needed. When {@code buffered != null}, {@link #dayOfCurrentFile} is already current
+     * because calendar rollover is handled above in {@link #publish} via {@link #rotateLocked()} before this returns early.
+     * Registration uses {@link #claimOutputFile()} alone (no prior {@code get}) so two threads cannot both see an empty slot then race.
+     */
     private void ensureOpen() throws IOException {
         if (buffered != null) {
             return;
         }
-        ensureParentDirs();
-        if (config.rotateDaily() && Files.isRegularFile(logFile)) {
-            LocalDate fileDay = LocalDate.ofInstant(Files.getLastModifiedTime(logFile).toInstant(), zone);
-            if (!fileDay.equals(LocalDate.now(zone))) {
-                shiftLogs(logFile, config.maxBackupFiles());
+        claimOutputFile();
+        try {
+            ensureParentDirs();
+            if (config.rotateDaily() && Files.isRegularFile(logFile)) {
+                LocalDate fileDay = LocalDate.ofInstant(Files.getLastModifiedTime(logFile).toInstant(), zone);
+                if (!fileDay.equals(LocalDate.now(zone))) {
+                    shiftLogs(logFile, config.maxBackupFiles());
+                }
             }
+            boolean existed = Files.isRegularFile(logFile);
+            openAppendStreams(existed);
+        } catch (IOException e) {
+            closeStreamsNoMarkClosed();
+            if (!logStreamEverOpened) {
+                releaseOutputFile();
+            }
+            throw e;
         }
-        boolean existed = Files.isRegularFile(logFile);
-        fileOut = new FileOutputStream(logFile.toFile(), true);
-        buffered = new BufferedOutputStream(fileOut, config.bufferSize());
-        bytesWritten = existed ? Files.size(logFile) : 0;
-        dayOfCurrentFile = LocalDate.now(zone);
     }
 
     private void rotateLocked() throws IOException {
@@ -116,8 +168,15 @@ public class FileLogHandler extends Handler {
         bytesWritten = 0;
         dayOfCurrentFile = LocalDate.now(zone);
         ensureParentDirs();
+        openAppendStreams(Files.isRegularFile(logFile));
+    }
+
+    private void openAppendStreams(boolean existed) throws IOException {
         fileOut = new FileOutputStream(logFile.toFile(), true);
         buffered = new BufferedOutputStream(fileOut, config.bufferSize());
+        bytesWritten = existed ? Files.size(logFile) : 0;
+        dayOfCurrentFile = LocalDate.now(zone);
+        logStreamEverOpened = true;
     }
 
     private void closeStreamsNoMarkClosed() {
@@ -125,6 +184,11 @@ public class FileLogHandler extends Handler {
         buffered = null;
         fileOut = null;
         if (b != null) {
+            try {
+                b.flush();
+            } catch (IOException ex) {
+                reportError(null, ex, ErrorManager.FLUSH_FAILURE);
+            }
             try {
                 b.close();
             } catch (IOException ex) {
@@ -207,5 +271,6 @@ public class FileLogHandler extends Handler {
         }
         closed = true;
         closeStreamsNoMarkClosed();
+        releaseOutputFile();
     }
 }

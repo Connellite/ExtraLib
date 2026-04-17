@@ -26,10 +26,12 @@ import java.util.logging.Logger;
  * }</pre>
  * <p>
  * Shorter overload: {@link #forLogFile(Path)} uses {@link Path#getFileName()} as the logger name.
+ * Two different paths that resolve to the same file cannot each have an open {@link FileLogHandler} in one JVM
+ * ({@link FileLogHandler} registers a single active writer per path).
  * </p>
  * <p>
- * Each record is one line of the same information as {@link java.util.logging.SimpleFormatter}
- * only the sink is the file handler.
+ * Each record is one line from the handler's {@link java.util.logging.Formatter}
+ * ({@link java.util.logging.SimpleFormatter} by default; override via {@link FileLogHandlerConfig#withFormatter}).
  * </p>
  */
 @UtilityClass
@@ -42,11 +44,13 @@ public final class FileLoggers {
         Objects.requireNonNull(loggerName,  "loggerName must not be null");
         Path normalized = logFile.toAbsolutePath().normalize();
         Logger logger = Logger.getLogger(loggerName);
-        logger.setUseParentHandlers(false);
-        removeOurHandlersForFile(logger, normalized);
-        logger.addHandler(new FileLogHandler(normalized, config));
-        if (logger.getLevel() == null) {
-            logger.setLevel(Level.FINE);
+        synchronized (logger) {
+            logger.setUseParentHandlers(false);
+            removeOurHandlersForFile(logger, normalized);
+            logger.addHandler(new FileLogHandler(normalized, config));
+            if (logger.getLevel() == null) {
+                logger.setLevel(Level.FINE);
+            }
         }
         return logger;
     }
@@ -70,10 +74,12 @@ public final class FileLoggers {
     public static FileLogHandler addFileHandler(Logger logger, Path logFile, FileLogHandlerConfig config) {
         Objects.requireNonNull(logger, "logger");
         Path normalized = logFile.toAbsolutePath().normalize();
-        removeOurHandlersForFile(logger, normalized);
-        FileLogHandler h = new FileLogHandler(normalized, config);
-        logger.addHandler(h);
-        return h;
+        synchronized (logger) {
+            removeOurHandlersForFile(logger, normalized);
+            FileLogHandler h = new FileLogHandler(normalized, config);
+            logger.addHandler(h);
+            return h;
+        }
     }
 
     public static FileLogHandler addFileHandler(Logger logger, Path logFile) {
@@ -83,7 +89,8 @@ public final class FileLoggers {
     private static void removeOurHandlersForFile(Logger logger, Path normalized) {
         for (Handler h : logger.getHandlers()) {
             if (h instanceof FileLogHandler fh && fh.getLogFile().equals(normalized)) {
-                logger.removeHandler(h);
+                logger.removeHandler(fh);
+                fh.close();
             }
         }
     }
