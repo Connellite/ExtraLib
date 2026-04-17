@@ -67,16 +67,6 @@ public class LobUtils {
     }
 
     /**
-     * Creates JDBC {@link Clob} from a generic {@link CharSequence}.
-     *
-     * @param chars source characters; may be {@code null}
-     * @return a new {@link Clob}, or {@code null} if {@code chars} is {@code null}
-     */
-    public static Clob createClob(CharSequence chars) throws SQLException {
-        return chars == null ? null : createClob(chars.toString());
-    }
-
-    /**
      * Creates JDBC {@link Clob} from a character array.
      *
      * @param chars source character array; may be {@code null}

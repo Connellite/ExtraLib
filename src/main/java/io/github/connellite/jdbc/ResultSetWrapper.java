@@ -7,13 +7,16 @@ import java.sql.SQLException;
 import java.sql.Statement;
 
 class ResultSetWrapper implements ResultSet {
+
     @Delegate(types = ResultSet.class)
     private final ResultSet delegate;
     private final Statement statement;
+
     ResultSetWrapper(Statement statement, ResultSet delegate) {
         this.statement = statement;
         this.delegate = delegate;
     }
+
     @Override
     public void close() throws SQLException {
         SQLException closeException = null;
@@ -23,7 +26,7 @@ class ResultSetWrapper implements ResultSet {
             closeException = e;
         }
         try {
-            statement.close();
+            if(statement != null) statement.close();
         } catch (SQLException e) {
             if (closeException == null) {
                 closeException = e;

@@ -24,25 +24,25 @@ import java.util.Map;
  */
 public abstract class AbstractResultSetIterator<V> implements Iterator<Map<String, V>>, AutoCloseable {
 
-    private Statement statement;
     protected final ResultSet resultSet;
     protected final List<String> columnNames;
     protected boolean hasNextValue;
 
     public AbstractResultSetIterator(Connection conn, String query) throws SQLException {
+        Statement statement;
         // Prefer forward-only read-only cursors; fall back to default statement if the driver rejects that type/concurrency.
         try {
-            this.statement = conn.createStatement(ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY);
+            statement = conn.createStatement(ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY);
         } catch (Exception e) {
-            this.statement = conn.createStatement();
+            statement = conn.createStatement();
         }
 
         // Ignore if the driver does not support fetch size hints for this statement type.
         try {
-            this.statement.setFetchSize(1000);
+            statement.setFetchSize(1000);
         } catch (SQLException ignore) {
         }
-        this.resultSet = statement.executeQuery(query);
+        this.resultSet = new ResultSetWrapper(statement, statement.executeQuery(query));
         ResultSetMetaData metadata = resultSet.getMetaData();
         this.columnNames = getColumnNames(metadata);
         this.hasNextValue = resultSet.next();
@@ -81,6 +81,5 @@ public abstract class AbstractResultSetIterator<V> implements Iterator<Map<Strin
     @Override
     public void close() throws Exception {
         if (resultSet != null) resultSet.close();
-        if (statement != null) statement.close();
     }
 }
