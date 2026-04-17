@@ -18,10 +18,33 @@ class ResultSetWrapper implements ResultSet {
     }
 
     @Override
+    public boolean isWrapperFor(Class<?> iface) throws SQLException {
+        if (iface != null && iface.isInstance(this)) {
+            return true;
+        }
+        return delegate.isWrapperFor(iface);
+    }
+
+    @Override
+    public <T> T unwrap(Class<T> iface) throws SQLException {
+        if (iface == null) {
+            throw new SQLException("iface must not be null");
+        }
+        if (iface.isInstance(this)) {
+            try {
+                return iface.cast(this);
+            } catch (ClassCastException e) {
+                throw new SQLException("Unable to unwrap to " + iface.getName(), e);
+            }
+        }
+        return delegate.unwrap(iface);
+    }
+
+    @Override
     public void close() throws SQLException {
         SQLException closeException = null;
         try {
-            delegate.close();
+            if (delegate != null) delegate.close();
         } catch (SQLException e) {
             closeException = e;
         }
