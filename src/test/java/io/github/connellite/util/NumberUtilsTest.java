@@ -4,12 +4,46 @@ import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.util.Locale;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class NumberUtilsTest {
+
+    @Test
+    void toInteger_fromBoolean() {
+        assertEquals(1, NumberUtils.toInteger(true));
+        assertEquals(0, NumberUtils.toInteger(false));
+    }
+
+    @Test
+    void toBoolean_fromString() {
+        assertEquals(Boolean.TRUE, NumberUtils.toBoolean("true"));
+        assertEquals(Boolean.TRUE, NumberUtils.toBoolean("TRUE"));
+        assertEquals(Boolean.TRUE, NumberUtils.toBoolean(" 1 "));
+        assertEquals(Boolean.FALSE, NumberUtils.toBoolean("false"));
+        assertEquals(Boolean.FALSE, NumberUtils.toBoolean("0"));
+    }
+
+    @Test
+    void toBoolean_fromString_nullBlankInvalid() {
+        assertNull(NumberUtils.toBoolean(null));
+        assertNull(NumberUtils.toBoolean(" "));
+        assertNull(NumberUtils.toBoolean("maybe"));
+    }
+
+    @Test
+    void toBoolean_fromInt() {
+        assertFalse(NumberUtils.toBoolean(0));
+        assertTrue(NumberUtils.toBoolean(1));
+        assertTrue(NumberUtils.toBoolean(-1));
+        assertTrue(NumberUtils.toBoolean(Integer.MAX_VALUE));
+    }
 
     @Test
     void parsesWrapperNumbers() {
@@ -75,5 +109,104 @@ class NumberUtilsTest {
         assertNull(NumberUtils.parseNumber("1.2", Integer.class));
         assertThrows(NullPointerException.class, () ->  NumberUtils.parseNumber("10", null));
         assertNull(NumberUtils.parseNumber("10", (Class) Object.class));
+    }
+
+    @Test
+    void bytesToObjectBytes_nullReturnsNull() {
+        assertNull(NumberUtils.bytesToObjectBytes(null));
+    }
+
+    @Test
+    void objectBytesToBytes_nullReturnsNull() {
+        assertNull(NumberUtils.objectBytesToBytes(null));
+    }
+
+    @Test
+    void bytesToObjectBytes_emptyArray() {
+        assertArrayEquals(new Byte[0], NumberUtils.bytesToObjectBytes(new byte[0]));
+    }
+
+    @Test
+    void objectBytesToBytes_emptyArray() {
+        assertArrayEquals(new byte[0], NumberUtils.objectBytesToBytes(new Byte[0]));
+    }
+
+    @Test
+    void bytesRoundTrip_viaObjectBytes() {
+        byte[] original = {0, 127, -1, -128};
+        Byte[] boxed = NumberUtils.bytesToObjectBytes(original);
+        assertEquals(Byte.valueOf((byte) 0), boxed[0]);
+        assertEquals(Byte.valueOf((byte) 127), boxed[1]);
+        assertEquals(Byte.valueOf((byte) -1), boxed[2]);
+        assertEquals(Byte.valueOf((byte) -128), boxed[3]);
+        assertArrayEquals(original, NumberUtils.objectBytesToBytes(boxed));
+    }
+
+    @Test
+    void objectBytesToBytes_nullElementThrows() {
+        Byte[] withNull = {(byte) 1, null};
+        assertThrows(NullPointerException.class, () -> NumberUtils.objectBytesToBytes(withNull));
+    }
+
+    @Test
+    void isNumeric_nullThrows() {
+        assertThrows(NullPointerException.class, () -> NumberUtils.isNumeric(null));
+    }
+
+    @Test
+    void isNumeric_twoArg_nullStrThrows() {
+        assertThrows(NullPointerException.class, () -> NumberUtils.isNumeric(null, Locale.ROOT));
+    }
+
+    @Test
+    void isNumeric_twoArg_nullLocaleThrows() {
+        assertThrows(NullPointerException.class, () -> NumberUtils.isNumeric("0", null));
+    }
+
+    @Test
+    void isNumeric_explicitLocales_parseKnownSamples() {
+        assertTrue(NumberUtils.isNumeric("123.45", Locale.ROOT));
+        assertTrue(NumberUtils.isNumeric("123.45", Locale.US));
+        assertTrue(NumberUtils.isNumeric("123.45", Locale.GERMANY));
+        assertTrue(NumberUtils.isNumeric("1,234", Locale.ROOT));
+        assertFalse(NumberUtils.isNumeric("12.3.4", Locale.ROOT));
+    }
+
+    @Test
+    void isNumeric_acceptsRootLocaleNumberFormat() {
+        assertTrue(NumberUtils.isNumeric(""));
+        assertTrue(NumberUtils.isNumeric("0"));
+        assertTrue(NumberUtils.isNumeric("42"));
+        assertTrue(NumberUtils.isNumeric("-17"));
+        assertTrue(NumberUtils.isNumeric("123.45"));
+        assertTrue(NumberUtils.isNumeric("3.14"));
+        assertTrue(NumberUtils.isNumeric(".5"));
+        assertTrue(NumberUtils.isNumeric("1,234"));
+        assertTrue(NumberUtils.isNumeric("1,234.56"));
+        assertTrue(NumberUtils.isNumeric("123,45"));
+    }
+
+    @Test
+    void isNumeric_rejectsInvalidOrUnconsumed() {
+        assertFalse(NumberUtils.isNumeric(" "));
+        assertFalse(NumberUtils.isNumeric("   "));
+        assertFalse(NumberUtils.isNumeric("abc"));
+        assertFalse(NumberUtils.isNumeric("12a"));
+        assertFalse(NumberUtils.isNumeric("12.3.4"));
+        assertFalse(NumberUtils.isNumeric(" 42 "));
+        assertFalse(NumberUtils.isNumeric("42 "));
+        assertFalse(NumberUtils.isNumeric("1e-3"));
+    }
+
+    @Test
+    void isNumeric_independentOfDefaultLocale() {
+        Locale previous = Locale.getDefault();
+        try {
+            Locale.setDefault(Locale.GERMANY);
+            assertTrue(NumberUtils.isNumeric("123.45"));
+            assertTrue(NumberUtils.isNumeric("1,234"));
+        } finally {
+            Locale.setDefault(previous);
+        }
     }
 }

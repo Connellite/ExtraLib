@@ -5,6 +5,9 @@ import lombok.experimental.UtilityClass;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.text.NumberFormat;
+import java.text.ParsePosition;
+import java.util.Locale;
 import java.util.function.Function;
 
 @UtilityClass
@@ -38,6 +41,45 @@ public class NumberUtils {
      */
     public static Integer toInteger(String value) {
         return parse(value, Integer::valueOf);
+    }
+
+    /**
+     * Converts {@code true} to {@code 1} and {@code false} to {@code 0} (same mapping as a typical C {@code int} cast).
+     *
+     * @param value boolean to convert
+     * @return {@code 1} or {@code 0}, never {@code null}
+     */
+    public static int toInteger(boolean value) {
+        return value ? 1 : 0;
+    }
+
+    /**
+     * Parses a string into a {@link Boolean}.
+     * Recognizes {@code "true"} / {@code "false"} (case-insensitive) and {@code "1"} / {@code "0"} after trimming.
+     *
+     * @param value the string to convert
+     * @return the parsed value, or {@code null} if the input is {@code null}, blank, or not one of the supported literals
+     */
+    public static Boolean toBoolean(String value) {
+        if (value == null) {
+            return null;
+        }
+        String s = value.trim().toLowerCase();
+        return switch (s) {
+            case "true", "1" -> true;
+            case "false", "0" -> false;
+            default -> null;
+        };
+    }
+
+    /**
+     * C-style conversion from {@code int} to boolean: {@code 0} is {@code false}, any non-zero value is {@code true}.
+     *
+     * @param value Boolean value
+     * @return {@code false} if {@code value == 0}, otherwise {@code true}
+     */
+    public static boolean toBoolean(int value) {
+        return value != 0;
     }
 
     /**
@@ -138,6 +180,71 @@ public class NumberUtils {
             return (T) toBigDecimal(text);
         }
         return null;
+    }
+
+    /**
+     * Copies a primitive {@code byte[]} into a boxed {@link Byte}{@code []} of the same length.
+     * Each element is autoboxed; the returned array is a new instance.
+     *
+     * @param bytes the source array, or {@code null}
+     * @return a new {@code Byte[]} with the same values and order, or {@code null} if {@code bytes} is {@code null}
+     */
+    public static Byte[] bytesToObjectBytes(byte[] bytes) {
+        if (bytes == null) return null;
+        Byte[] result = new Byte[bytes.length];
+
+        for (int i = 0; i < bytes.length; ++i) {
+            result[i] = bytes[i];
+        }
+
+        return result;
+    }
+
+    /**
+     * Copies a boxed {@link Byte}{@code []} into a primitive {@code byte[]} of the same length.
+     * Each element is unboxed; the returned array is a new instance.
+     *
+     * @param bytes the source array, or {@code null}
+     * @return a new {@code byte[]} with the same values and order, or {@code null} if {@code bytes} is {@code null}
+     */
+    public static byte[] objectBytesToBytes(Byte[] bytes) {
+        if (bytes == null) return null;
+        byte[] result = new byte[bytes.length];
+
+        for (int i = 0; i < bytes.length; ++i) {
+            result[i] = bytes[i];
+        }
+
+        return result;
+    }
+
+    /**
+     * Equivalent to {@code isNumeric(str, Locale.ROOT)}; see {@link #isNumeric(String, Locale)} for full rules.
+     *
+     * @param str the text to check, must not be {@code null}
+     * @return {@code true} if a root-locale {@link NumberFormat} parses the entire {@code str}
+     * @throws NullPointerException if {@code str} is {@code null}
+     */
+    public static boolean isNumeric(String str) {
+        return isNumeric(str, Locale.ROOT);
+    }
+
+    /**
+     * Returns whether {@code str} is consumed in full as a number by
+     * {@link NumberFormat#getInstance(Locale) NumberFormat.getInstance}{@code (locale)}.
+     * The result depends on {@code locale}: decimal separators, grouping symbols, and digit shapes follow that
+     * locale's {@code NumberFormat} rules.
+     *
+     * @param str    the text to check, must not be {@code null}
+     * @param locale the locale whose number format to use, must not be {@code null}
+     * @return {@code true} if the locale's {@code NumberFormat} parses the entire {@code str}
+     * @throws NullPointerException if {@code str} or {@code locale} is {@code null}
+     */
+    public static boolean isNumeric(String str, Locale locale) {
+        NumberFormat formatter = NumberFormat.getInstance(locale);
+        ParsePosition pos = new ParsePosition(0);
+        formatter.parse(str, pos);
+        return str.length() == pos.getIndex();
     }
 
     private static <T> T parse(String value, Function<String, T> parser) {
