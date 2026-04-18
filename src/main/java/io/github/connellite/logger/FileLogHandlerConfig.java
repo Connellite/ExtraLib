@@ -10,9 +10,6 @@ public record FileLogHandlerConfig(
         long maxFileBytes,
         boolean rotateDaily,
         int maxBackupFiles,
-        /**
-         * When non-null, used as the {@link java.util.logging.Handler}'s formatter; when {@code null}, {@link java.util.logging.SimpleFormatter} is used.
-         */
         Formatter formatter
 ) {
     /**
@@ -29,7 +26,8 @@ public record FileLogHandlerConfig(
     }
 
     /** Buffered writes, no rotation, {@link java.util.logging.SimpleFormatter}. */
-    public static final FileLogHandlerConfig DEFAULT = new FileLogHandlerConfig(8192, 0, false, 5, null);
+    public static final FileLogHandlerConfig DEFAULT =
+            new FileLogHandlerConfig(8192, 0, false, 10, null);
 
     public FileLogHandlerConfig withBufferSize(int size) {
         return new FileLogHandlerConfig(size, maxFileBytes, rotateDaily, maxBackupFiles, formatter);

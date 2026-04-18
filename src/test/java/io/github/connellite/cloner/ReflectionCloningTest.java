@@ -346,6 +346,7 @@ class ReflectionCloningTest {
         int a;
         float b;
         boolean c;
+        private static final int i = 1;
 
         Primitives() {
         }
@@ -354,6 +355,7 @@ class ReflectionCloningTest {
     static class WithChars {
         Character ch;
         Byte b;
+        private static final String s = "test";
 
         WithChars() {
         }

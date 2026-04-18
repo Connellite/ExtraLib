@@ -1,5 +1,7 @@
 package io.github.connellite.concurrent;
 
+import lombok.NonNull;
+
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
@@ -71,7 +73,7 @@ public class ThreadPool implements AutoCloseable {
      * @param task work item
      * @Throws IllegalStateException if stopped ThreadPool
      */
-    public void enqueue(Runnable task) {
+    public void enqueue(@NonNull Runnable task) {
         synchronized (queueMutex) {
             // don't allow enqueueing after stopping the pool
             if (stop) {
@@ -89,7 +91,7 @@ public class ThreadPool implements AutoCloseable {
      * @param <T> The result type returned by this Future's get method
      * @Throws IllegalStateException if stopped ThreadPool
      */
-    public <T> Future<T> enqueue(Callable<T> task) {
+    public <T> Future<T> enqueue(@NonNull Callable<T> task) {
         FutureTask<T> future = new FutureTask<>(task);
         synchronized (queueMutex) {
             // don't allow enqueueing after stopping the pool
