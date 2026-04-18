@@ -7,6 +7,12 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Formatter;
 import java.util.logging.Level;
 import java.util.logging.LogRecord;
@@ -60,6 +66,71 @@ class FileLoggersTest {
             assertTrue(content.contains("INFO"));
             assertTrue(content.contains("hello"));
         } finally {
+            for (var h : logger.getHandlers()) {
+                h.close();
+            }
+        }
+    }
+
+    @Test
+    void repeatedForLogFileWithSameLoggerNameReplacesHandlerInLoop(@TempDir Path dir) throws IOException {
+        Path log = dir.resolve("repeat.log");
+        String loggerName = "repeat.same";
+        Logger logger = null;
+        try {
+            for (int i = 0; i < 100; i++) {
+                logger = FileLoggers.forLogFile(loggerName, log);
+                logger.setLevel(Level.INFO);
+                assertEquals(1, logger.getHandlers().length, "single FileLogHandler after iteration " + i);
+            }
+            logger.log(Level.INFO, "after-loop");
+            for (var h : logger.getHandlers()) {
+                h.flush();
+            }
+            String content = Files.readString(log, StandardCharsets.UTF_8);
+            assertTrue(content.contains("after-loop"));
+        } finally {
+            if (logger != null) {
+                for (var h : logger.getHandlers()) {
+                    h.close();
+                }
+            }
+        }
+    }
+
+    @Test
+    void concurrentForLogFileWithSameLoggerName(@TempDir Path dir) throws Exception {
+        Path log = dir.resolve("concurrent.log");
+        String loggerName = "concurrent.same";
+        ExecutorService executor = Executors.newFixedThreadPool(10);
+        try {
+            List<Future<?>> futures = new ArrayList<>();
+            for (int i = 0; i < 100; i++) {
+                futures.add(executor.submit(() -> {
+                    Logger logger = FileLoggers.forLogFile(loggerName, log);
+                    logger.setLevel(Level.INFO);
+                    logger.info("Concurrent log");
+                }));
+            }
+            executor.shutdown();
+            assertTrue(executor.awaitTermination(60, TimeUnit.SECONDS));
+            for (Future<?> f : futures) {
+                f.get();
+            }
+            Logger logger = Logger.getLogger(loggerName);
+            for (var h : logger.getHandlers()) {
+                h.flush();
+            }
+            String content = Files.readString(log, StandardCharsets.UTF_8);
+            assertEquals(100, content.lines().filter(line -> line.contains("Concurrent log")).count());
+        } finally {
+            executor.shutdownNow();
+            try {
+                executor.awaitTermination(5, TimeUnit.SECONDS);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+            Logger logger = Logger.getLogger(loggerName);
             for (var h : logger.getHandlers()) {
                 h.close();
             }

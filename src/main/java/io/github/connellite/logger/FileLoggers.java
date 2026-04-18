@@ -46,6 +46,12 @@ public final class FileLoggers {
         Logger logger = Logger.getLogger(loggerName);
         synchronized (logger) {
             logger.setUseParentHandlers(false);
+            if (findOurHandlerForFile(logger, normalized, config) != null) {
+                if (logger.getLevel() == null) {
+                    logger.setLevel(Level.FINE);
+                }
+                return logger;
+            }
             removeOurHandlersForFile(logger, normalized);
             logger.addHandler(new FileLogHandler(normalized, config));
             if (logger.getLevel() == null) {
@@ -75,6 +81,10 @@ public final class FileLoggers {
         Objects.requireNonNull(logger, "logger");
         Path normalized = logFile.toAbsolutePath().normalize();
         synchronized (logger) {
+            FileLogHandler existing = findOurHandlerForFile(logger, normalized, config);
+            if (existing != null) {
+                return existing;
+            }
             removeOurHandlersForFile(logger, normalized);
             FileLogHandler h = new FileLogHandler(normalized, config);
             logger.addHandler(h);
@@ -84,6 +94,17 @@ public final class FileLoggers {
 
     public static FileLogHandler addFileHandler(Logger logger, Path logFile) {
         return addFileHandler(logger, logFile, FileLogHandlerConfig.DEFAULT);
+    }
+
+    private static FileLogHandler findOurHandlerForFile(Logger logger, Path normalized, FileLogHandlerConfig config) {
+        for (Handler h : logger.getHandlers()) {
+            if (h instanceof FileLogHandler fh
+                    && fh.getLogFile().equals(normalized)
+                    && fh.getConfig().equals(config)) {
+                return fh;
+            }
+        }
+        return null;
     }
 
     private static void removeOurHandlersForFile(Logger logger, Path normalized) {
