@@ -29,6 +29,23 @@ class KMPMatchingTest {
     }
 
     @Test
+    void isMatch_singleChar() {
+        assertTrue(KMPMatching.isMatch("z", "z"));
+        assertFalse(KMPMatching.isMatch("z", "y"));
+    }
+
+    @Test
+    void isMatch_repeatedPrefixPattern() {
+        assertTrue(KMPMatching.isMatch("aaaa", "aaa"));
+        assertFalse(KMPMatching.isMatch("aaa", "aaaa"));
+    }
+
+    @Test
+    void performKMPSearch_singleCharPattern() {
+        assertEquals(List.of(0, 1, 2), KMPMatching.performKMPSearch("aaa", "a"));
+    }
+
+    @Test
     void isMatch_stringBuilder() {
         var text = new StringBuilder("prefix needle suffix");
         var pattern = new StringBuilder("needle");

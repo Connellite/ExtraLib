@@ -81,4 +81,20 @@ class LinkedCaseInsensitiveSetTest {
         assertEquals(Locale.ROOT, s.getLocale());
         assertTrue(s.contains("x"));
     }
+
+    @Test
+    void lastAddWinsSpellingPreservesEarlierInsertionPositionsOfOtherKeys() {
+        LinkedCaseInsensitiveSet s = new LinkedCaseInsensitiveSet();
+        s.add("Aa");
+        s.add("B");
+        s.add("AA");
+        assertEquals(List.of("B", "AA"), List.copyOf(s));
+    }
+
+    @Test
+    void containsNonStringReturnsFalse() {
+        LinkedCaseInsensitiveSet s = new LinkedCaseInsensitiveSet();
+        s.add("a");
+        assertFalse(s.contains(1L));
+    }
 }

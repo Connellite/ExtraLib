@@ -116,7 +116,7 @@ public class LinkedCaseInsensitiveMap<V> extends LinkedHashMap<String, V> implem
     @Override
     public V getOrDefault(Object key, V defaultValue) {
         V value = get(key);
-        return value != null ? value : defaultValue;
+        return (value != null || containsKey(key)) ? value : defaultValue;
     }
 
     @Override

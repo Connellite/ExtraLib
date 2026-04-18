@@ -13,9 +13,9 @@ import java.util.Objects;
 public class WildKMPMatching {
 
     /**
-     * Wildcard semantics are equivalent to {@link #search(CharSequence, CharSequence)}:
-     * each {@code '*'} matches exactly one character, and consecutive {@code '*'} characters
-     * must match the same character.
+     * Each {@code '*'} matches exactly one character; consecutive {@code '*'} characters must match the same
+     * character in that run. A match is any window of {@code text} with length {@code pattern.length()} for which
+     * {@link #matchesWindow(CharSequence, int, CharSequence)} is {@code true}.
      *
      * @param text    source text; not null
      * @param pattern wildcard pattern; not null
@@ -35,34 +35,39 @@ public class WildKMPMatching {
         }
 
         for (int start = 0; start <= textLength - patternLength; start++) {
-            Character groupWildcard = null;
-            boolean matched = true;
-
-            for (int j = 0; j < patternLength; j++) {
-                char patternChar = pattern.charAt(j);
-                char textChar = text.charAt(start + j);
-
-                if (patternChar == '*') {
-                    if (groupWildcard == null) {
-                        groupWildcard = textChar;
-                    } else if (groupWildcard != textChar) {
-                        matched = false;
-                        break;
-                    }
-                } else {
-                    groupWildcard = null;
-                    if (patternChar != textChar) {
-                        matched = false;
-                        break;
-                    }
-                }
-            }
-
-            if (matched) {
+            if (matchesWindow(text, start, pattern)) {
                 return true;
             }
         }
         return false;
+    }
+
+    /**
+     * Whether {@code pattern} matches the length-{@code pattern.length()} slice of {@code text} starting at {@code start}.
+     * Each {@code '*'} matches one text character; consecutive {@code '*'} require the same character in that run.
+     * <p>Package-private for tests; callers must ensure {@code start + pattern.length() <= text.length()}.
+     */
+    static boolean matchesWindow(CharSequence text, int start, CharSequence pattern) {
+        int patternLength = pattern.length();
+        Character groupWildcard = null;
+        for (int j = 0; j < patternLength; j++) {
+            char patternChar = pattern.charAt(j);
+            char textChar = text.charAt(start + j);
+
+            if (patternChar == '*') {
+                if (groupWildcard == null) {
+                    groupWildcard = textChar;
+                } else if (groupWildcard != textChar) {
+                    return false;
+                }
+            } else {
+                groupWildcard = null;
+                if (patternChar != textChar) {
+                    return false;
+                }
+            }
+        }
+        return true;
     }
 
     /**
@@ -83,7 +88,6 @@ public class WildKMPMatching {
             return -1;
         }
 
-        // create dfa
         final int[] prefixTable = getDFA(pattern);
 
         int matchLength = 0;
@@ -154,14 +158,18 @@ public class WildKMPMatching {
     }
 
     /**
-     * Creates the DFA for the KMP algorithm.
+     * Prefix table used by {@link #search}; same shape as a KMP failure function over {@code pattern}.
+     * Package-private for tests.
      *
      * @param pattern The pattern which is being searched in the text
-     * @return The DFA.
+     * @return table of length {@code pattern.length()} (empty when pattern is empty)
      */
-    private static int[] getDFA(CharSequence pattern) {
+    static int[] getDFA(CharSequence pattern) {
 
         final int length = pattern.length();
+        if (length == 0) {
+            return new int[0];
+        }
         final int[] dfa = new int[length];
         dfa[0] = 0;
         int longestPrefixIndex = 0;

@@ -56,7 +56,7 @@ public class ReflectionUtil {
             throws NoSuchFieldException, IllegalAccessException {
         Field field = clazz.getDeclaredField(f);
         field.setAccessible(true);
-        return type.cast(field.get(null));
+        return castFieldValue(type, field.get(null));
     }
 
     /**
@@ -76,7 +76,7 @@ public class ReflectionUtil {
             throws NoSuchFieldException, IllegalAccessException {
         Field field = o.getClass().getSuperclass().getDeclaredField(f);
         field.setAccessible(true);
-        return type.cast(field.get(o));
+        return castFieldValue(type, field.get(o));
     }
 
     /**
@@ -87,7 +87,7 @@ public class ReflectionUtil {
             throws NoSuchFieldException, IllegalAccessException {
         Field field = clazz.getDeclaredField(f);
         field.setAccessible(true);
-        return type.cast(field.get(instance));
+        return castFieldValue(type, field.get(instance));
     }
 
     /**
@@ -97,7 +97,7 @@ public class ReflectionUtil {
             throws NoSuchFieldException, IllegalAccessException {
         Field field = o.getClass().getDeclaredField(f);
         field.setAccessible(true);
-        return type.cast(field.get(o));
+        return castFieldValue(type, field.get(o));
     }
 
     /**
@@ -107,7 +107,7 @@ public class ReflectionUtil {
             throws NoSuchFieldException, IllegalAccessException {
         Field field = o.getClass().getField(f);
         field.setAccessible(true);
-        return type.cast(field.get(o));
+        return castFieldValue(type, field.get(o));
     }
 
     /**
@@ -309,6 +309,50 @@ public class ReflectionUtil {
             final Function<? super E, ? extends K> keyExtractor) {
         return Arrays.stream(enumClass.getEnumConstants())
                 .collect(Collectors.toMap(keyExtractor, Function.identity()));
+    }
+
+    /**
+     * {@link Field#get} boxes primitive values; {@link Class#cast} on a primitive {@code Class}
+     * (e.g. {@code int.class}) rejects wrapper instances. Cast using the wrapper type instead.
+     */
+    @SuppressWarnings("unchecked")
+    private static <T> T castFieldValue(Class<T> type, Object value) {
+        if (value == null) {
+            return null;
+        }
+        Class<?> castType = type.isPrimitive() ? primitiveToWrapper(type) : type;
+        return (T) castType.cast(value);
+    }
+
+    private static Class<?> primitiveToWrapper(Class<?> primitive) {
+        if (primitive == int.class) {
+            return Integer.class;
+        }
+        if (primitive == long.class) {
+            return Long.class;
+        }
+        if (primitive == boolean.class) {
+            return Boolean.class;
+        }
+        if (primitive == byte.class) {
+            return Byte.class;
+        }
+        if (primitive == char.class) {
+            return Character.class;
+        }
+        if (primitive == short.class) {
+            return Short.class;
+        }
+        if (primitive == float.class) {
+            return Float.class;
+        }
+        if (primitive == double.class) {
+            return Double.class;
+        }
+        if (primitive == void.class) {
+            return Void.class;
+        }
+        return primitive;
     }
 
     private static Class<?> reflectParameterType(Object arg, int index) {

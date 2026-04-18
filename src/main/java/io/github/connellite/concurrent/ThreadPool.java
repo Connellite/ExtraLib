@@ -22,7 +22,9 @@ public class ThreadPool implements AutoCloseable {
     private final Object queueMutex;
     private volatile boolean stop;
 
-    /** First failure from a worker thread; checked on {@link #close()} and {@link #checkError()}. */
+    /**
+     * Primary worker failure (first recorded); further failures are {@linkplain Throwable#addSuppressed(Throwable) suppressed} on it.
+     */
     private final AtomicReference<Throwable> errorRef = new AtomicReference<>();
 
     /**
@@ -110,15 +112,28 @@ public class ThreadPool implements AutoCloseable {
                     // intentional cancellation — not a pool fault
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
-                    errorRef.compareAndSet(null, e);
+                    recordError(e);
                 } catch (ExecutionException e) {
                     Throwable cause = e.getCause();
-                    errorRef.compareAndSet(null, cause != null ? cause : e);
+                    recordError(cause != null ? cause : e);
                 }
             }
         } catch (Throwable t) {
-            errorRef.compareAndSet(null, t);
+            recordError(t);
         }
+    }
+
+    private void recordError(Throwable t) {
+        if (t == null) {
+            return;
+        }
+        errorRef.updateAndGet(existing -> {
+            if (existing == null) {
+                return t;
+            }
+            existing.addSuppressed(t);
+            return existing;
+        });
     }
 
     /**

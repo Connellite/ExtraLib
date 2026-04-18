@@ -147,4 +147,17 @@ class BMHMatchTest {
         assertEquals(KMPMatching.performKMPSearch(text, pat), BMHMatch.performBMHSearch(text, pat, BAD_CHARACTER));
         assertEquals(KMPMatching.performKMPSearch(text, pat), BMHMatch.performBMHSearch(text, pat, GOOD_SUFFIX));
     }
+
+    @Test
+    void performBMHSearch_utf16Units_agreeWithKmp() {
+        String text = "prefix \uD83D\uDE00 suffix";
+        String pat = "\uD83D\uDE00";
+        assertEquals(KMPMatching.performKMPSearch(text, pat), BMHMatch.performBMHSearch(text, pat, BAD_CHARACTER));
+        assertEquals(KMPMatching.performKMPSearch(text, pat), BMHMatch.performBMHSearch(text, pat, GOOD_SUFFIX));
+    }
+
+    @Test
+    void performBMHSearch_singleChar_matchesKmp() {
+        assertEquals(KMPMatching.performKMPSearch("abcabc", "b"), BMHMatch.performBMHSearch("abcabc", "b", BAD_CHARACTER));
+    }
 }

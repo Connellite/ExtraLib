@@ -121,7 +121,7 @@ public class CaseInsensitiveHashMap<V> extends HashMap<String, V> implements Ser
     @Override
     public V getOrDefault(Object key, V defaultValue) {
         V value = get(key);
-        return value != null ? value : defaultValue;
+        return (value != null || containsKey(key)) ? value : defaultValue;
     }
 
     @Override

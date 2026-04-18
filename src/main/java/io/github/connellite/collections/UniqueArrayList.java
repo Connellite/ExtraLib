@@ -253,9 +253,7 @@ public class UniqueArrayList<E> extends ArrayList<E> {
 
         @Override
         public void add(E object) {
-            if (uniques.add(object)) {
-                delegate.add(object);
-            }
+            delegate.add(object);
         }
     }
 }

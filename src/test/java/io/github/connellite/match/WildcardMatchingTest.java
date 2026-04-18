@@ -81,4 +81,33 @@ class WildcardMatchingTest {
     void nullPattern() {
         assertThrows(NullPointerException.class, () -> WildcardMatching.isMatch("a", null));
     }
+
+    @Test
+    void starOnlyMatchesAnyWholeText() {
+        assertTrue(WildcardMatching.isMatch("anything goes here", "*"));
+        assertTrue(WildcardMatching.isMatch("", "*"));
+    }
+
+    @Test
+    void multipleStarsAndQuestionMarks() {
+        assertTrue(WildcardMatching.isMatch("xaylmz", "*a?*m*"));
+        assertFalse(WildcardMatching.isMatch("xaylmz", "*d*"));
+    }
+
+    @Test
+    void repeatedLiteralWithStars() {
+        assertTrue(WildcardMatching.isMatch("aaa", "a*a*a"));
+        assertTrue(WildcardMatching.isMatch("aba", "a*a"));
+    }
+
+    @Test
+    void patternLongerThanText() {
+        assertFalse(WildcardMatching.isMatch("hi", "hello*"));
+    }
+
+    @Test
+    void unicodeCodeUnits() {
+        assertTrue(WildcardMatching.isMatch("caf\u00e9", "caf?"));
+        assertTrue(WildcardMatching.isMatch("caf\u00e9", "caf*"));
+    }
 }

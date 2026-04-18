@@ -7,20 +7,27 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.attribute.FileTime;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.logging.ErrorManager;
 import java.util.logging.Formatter;
 import java.util.logging.Level;
 import java.util.logging.LogRecord;
 import java.util.logging.Logger;
 import java.util.stream.Stream;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -296,6 +303,242 @@ class FileLoggersTest {
         }
         for (int i = 13; i <= 15; i++) {
             assertFalse(Files.exists(dir.resolve("live.log." + i)), "overflow ." + i + " should be gone after rotation");
+        }
+    }
+
+    @Test
+    void forLogFileRejectsNullLoggerName(@TempDir Path dir) {
+        Path log = dir.resolve("n.log");
+        assertThrows(NullPointerException.class, () -> FileLoggers.forLogFile(null, log));
+    }
+
+    @Test
+    void forLogFileRejectsNullPath() {
+        assertThrows(NullPointerException.class, () -> FileLoggers.forLogFile("x", null));
+    }
+
+    @Test
+    void addFileHandlerRejectsNullLogger(@TempDir Path dir) {
+        assertThrows(NullPointerException.class, () -> FileLoggers.addFileHandler(null, dir.resolve("x.log")));
+    }
+
+    @Test
+    void fileLogHandlerConfigClampsBufferSizeMaxFileBytesAndMaxBackups() {
+        FileLogHandlerConfig cfg = new FileLogHandlerConfig(1, -10L, false, -3, null);
+        assertEquals(256, cfg.bufferSize());
+        assertEquals(0L, cfg.maxFileBytes());
+        assertEquals(0, cfg.maxBackupFiles());
+    }
+
+    @Test
+    void addFileHandlerReplacesHandlerWhenSamePathButDifferentConfig(@TempDir Path dir) throws IOException {
+        Path log = dir.resolve("reconf.log");
+        Logger logger = Logger.getLogger("reconf");
+        logger.setUseParentHandlers(false);
+        logger.setLevel(Level.INFO);
+        Formatter first = new Formatter() {
+            @Override
+            public String format(LogRecord record) {
+                return "FIRST";
+            }
+        };
+        Formatter second = new Formatter() {
+            @Override
+            public String format(LogRecord record) {
+                return "SECOND";
+            }
+        };
+        try {
+            FileLoggers.addFileHandler(logger, log, FileLogHandlerConfig.DEFAULT.withFormatter(first));
+            FileLoggers.addFileHandler(logger, log, FileLogHandlerConfig.DEFAULT.withFormatter(second));
+            int fileHandlers = 0;
+            for (var h : logger.getHandlers()) {
+                if (h instanceof FileLogHandler) {
+                    fileHandlers++;
+                }
+            }
+            assertEquals(1, fileHandlers);
+            logger.info("x");
+            for (var h : logger.getHandlers()) {
+                h.flush();
+            }
+            String content = Files.readString(log, StandardCharsets.UTF_8).trim();
+            assertEquals("SECOND", content);
+        } finally {
+            for (var h : logger.getHandlers()) {
+                h.close();
+            }
+        }
+    }
+
+    @Test
+    void formatterThrowingIsReportedViaErrorManagerAndDoesNotPropagate(@TempDir Path dir) throws IOException {
+        Path log = dir.resolve("fmt-fail.log");
+        Logger logger = FileLoggers.forLogFile("fmt-fail", log, FileLogHandlerConfig.DEFAULT.withFormatter(new Formatter() {
+            @Override
+            public String format(LogRecord record) {
+                throw new IllegalStateException("boom");
+            }
+        }));
+        logger.setLevel(Level.INFO);
+        AtomicInteger formatFailures = new AtomicInteger();
+        try {
+            for (var h : logger.getHandlers()) {
+                if (h instanceof FileLogHandler fh) {
+                    fh.setErrorManager(new ErrorManager() {
+                        @Override
+                        public void error(String msg, Exception ex, int code) {
+                            if (code == ErrorManager.FORMAT_FAILURE) {
+                                formatFailures.incrementAndGet();
+                            }
+                        }
+                    });
+                }
+            }
+            assertDoesNotThrow(() -> logger.info("ping"));
+            assertEquals(1, formatFailures.get());
+            assertTrue(!Files.exists(log) || Files.size(log) == 0,
+                    "no bytes should be written when formatting fails before write");
+        } finally {
+            for (var h : logger.getHandlers()) {
+                h.close();
+            }
+        }
+    }
+
+    @Test
+    void publishDoesNotAppendSecondNewlineWhenFormatterEndsWithNewline(@TempDir Path dir) throws IOException {
+        Path log = dir.resolve("nl.log");
+        Formatter fmt = new Formatter() {
+            @Override
+            public String format(LogRecord record) {
+                return "OK\n";
+            }
+        };
+        Logger logger = FileLoggers.forLogFile("nl", log, FileLogHandlerConfig.DEFAULT.withFormatter(fmt));
+        logger.setLevel(Level.INFO);
+        try {
+            logger.info("ignored");
+            for (var h : logger.getHandlers()) {
+                h.flush();
+            }
+            byte[] raw = Files.readAllBytes(log);
+            assertFalse(containsDoubleNewline(raw), "must not write an extra newline when formatter already ends with \\n");
+        } finally {
+            for (var h : logger.getHandlers()) {
+                h.close();
+            }
+        }
+    }
+
+    private static boolean containsDoubleNewline(byte[] raw) {
+        for (int i = 1; i < raw.length; i++) {
+            if (raw[i - 1] == '\n' && raw[i] == '\n') {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    @Test
+    void rotateDailyShiftsStaleFileByLastModifiedDateBeforeAppend(@TempDir Path dir) throws IOException {
+        Path log = dir.resolve("daily.log");
+        Files.createFile(log);
+        Instant twoDaysAgo = Instant.now().minus(2, ChronoUnit.DAYS);
+        Files.setLastModifiedTime(log, FileTime.from(twoDaysAgo));
+        FileLogHandlerConfig cfg = FileLogHandlerConfig.DEFAULT.withRotateDaily(true).withMaxBackupFiles(4);
+        Logger logger = FileLoggers.forLogFile("daily", log, cfg);
+        logger.setLevel(Level.INFO);
+        try {
+            logger.info("fresh-day");
+            for (var h : logger.getHandlers()) {
+                h.flush();
+            }
+            assertTrue(Files.isRegularFile(log), "new current log should exist");
+            assertTrue(Files.isRegularFile(dir.resolve("daily.log.0")), "stale main file should move to .0");
+            String current = Files.readString(log, StandardCharsets.UTF_8);
+            assertTrue(current.contains("fresh-day"));
+        } finally {
+            for (var h : logger.getHandlers()) {
+                h.close();
+            }
+        }
+    }
+
+    @Test
+    void shiftLogsWithMaxLogsZeroDeletesMainOnly(@TempDir Path dir) throws IOException {
+        Path main = dir.resolve("drop.log");
+        Files.writeString(main, "gone", StandardCharsets.UTF_8);
+        FileLogHandler.shiftLogs(main, 0);
+        assertFalse(Files.exists(main));
+    }
+
+    @Test
+    void deleteOverflowLogsSegmentsIgnoresNonNumericSuffix(@TempDir Path dir) throws IOException {
+        String base = "mix.log";
+        Files.createFile(dir.resolve(base + ".backup"));
+        Files.createFile(dir.resolve(base + ".12"));
+        FileLogHandler.deleteOverflowLogsSegments(dir, base, 10);
+        assertTrue(Files.isRegularFile(dir.resolve(base + ".backup")), "suffix .backup is not numeric — must be kept");
+        assertFalse(Files.exists(dir.resolve(base + ".12")), "numeric overflow still removed");
+    }
+
+    @Test
+    void pathOverloadSameFileNameDifferentDirectoriesAttachesTwoHandlersToOneLogger(@TempDir Path dir) throws IOException {
+        Path d1 = dir.resolve("p1");
+        Path d2 = dir.resolve("p2");
+        Files.createDirectories(d1);
+        Files.createDirectories(d2);
+        Path log1 = d1.resolve("dupname.log");
+        Path log2 = d2.resolve("dupname.log");
+        Logger first = FileLoggers.forLogFile(log1);
+        try {
+            Logger second = FileLoggers.forLogFile(log2);
+            assertSame(first, second);
+            assertEquals(2, first.getHandlers().length, "Path overload uses file name as logger key — two paths => two handlers on one Logger");
+            first.info("broadcast");
+            for (var h : first.getHandlers()) {
+                h.flush();
+            }
+            assertTrue(Files.readString(log1, StandardCharsets.UTF_8).contains("broadcast"));
+            assertTrue(Files.readString(log2, StandardCharsets.UTF_8).contains("broadcast"));
+        } finally {
+            for (var h : first.getHandlers()) {
+                h.close();
+            }
+        }
+    }
+
+    @Test
+    void flushBeforeFirstPublishDoesNotThrow(@TempDir Path dir) {
+        Path log = dir.resolve("lazy.log");
+        FileLogHandler h = new FileLogHandler(log, FileLogHandlerConfig.DEFAULT);
+        try {
+            assertDoesNotThrow(h::flush);
+        } finally {
+            h.close();
+        }
+    }
+
+    @Test
+    void sizeRotationWithZeroBackupsDropsContentOnRotate(@TempDir Path dir) throws IOException {
+        Path log = dir.resolve("nobak.log");
+        FileLogHandlerConfig cfg = FileLogHandlerConfig.DEFAULT.withMaxFileBytes(20).withMaxBackupFiles(0);
+        Logger logger = FileLoggers.forLogFile("nobak", log, cfg);
+        logger.setLevel(Level.INFO);
+        try {
+            logger.info("aaaaaaaaaa");
+            logger.info("bbbbbbbbbb");
+            for (var h : logger.getHandlers()) {
+                h.flush();
+            }
+            assertTrue(Files.isRegularFile(log));
+            String content = Files.readString(log, StandardCharsets.UTF_8);
+            assertTrue(content.contains("bbbbbbbbbb"));
+        } finally {
+            for (var h : logger.getHandlers()) {
+                h.close();
+            }
         }
     }
 }

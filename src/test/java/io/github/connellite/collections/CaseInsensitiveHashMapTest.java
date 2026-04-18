@@ -43,11 +43,22 @@ class CaseInsensitiveHashMapTest {
     }
 
     @Test
+    void getOrDefault_whenKeyPresentWithNullValue_returnsNullNotDefault() {
+        Map<String, Integer> m = new CaseInsensitiveHashMap<>();
+        m.put("K", null);
+        assertTrue(m.containsKey("k"));
+        assertNull(m.getOrDefault("k", -1));
+    }
+
+    @Test
     void getOrDefault_nullKey() {
         Map<String, Integer> m = new CaseInsensitiveHashMap<>();
         assertEquals(0, m.getOrDefault(null, 0));
         m.put(null, 5);
         assertEquals(5, m.getOrDefault(null, 0));
+        m.clear();
+        m.put(null, null);
+        assertNull(m.getOrDefault(null, 0));
     }
 
     @Test

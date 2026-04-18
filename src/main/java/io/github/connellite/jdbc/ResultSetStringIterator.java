@@ -5,6 +5,7 @@ import io.github.connellite.exception.ResultSetException;
 import java.math.BigDecimal;
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.NoSuchElementException;
@@ -45,6 +46,6 @@ public class ResultSetStringIterator extends AbstractResultSetIterator<String> {
             throw new ResultSetException(e);
         }
 
-        return row;
+        return Collections.unmodifiableMap(row);
     }
 }

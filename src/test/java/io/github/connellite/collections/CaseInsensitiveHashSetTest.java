@@ -82,4 +82,20 @@ class CaseInsensitiveHashSetTest {
         assertEquals(Locale.ROOT, s.getLocale());
         assertTrue(s.contains("x"));
     }
+
+    @Test
+    void containsNonStringReturnsFalse() {
+        CaseInsensitiveHashSet s = new CaseInsensitiveHashSet();
+        s.add("a");
+        assertFalse(s.contains(1));
+    }
+
+    @Test
+    void clearEmptiesSet() {
+        CaseInsensitiveHashSet s = new CaseInsensitiveHashSet();
+        s.add("A");
+        s.clear();
+        assertTrue(s.isEmpty());
+        assertFalse(s.contains("a"));
+    }
 }

@@ -1,0 +1,183 @@
+package io.github.connellite.util;
+
+import org.junit.jupiter.api.Test;
+
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.reflect.Field;
+import java.util.List;
+import java.util.Map;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+class ReflectionUtilTest {
+
+    @Retention(RetentionPolicy.RUNTIME)
+    @java.lang.annotation.Target(ElementType.METHOD)
+    @interface Marker {
+    }
+
+    enum Color {
+        RED(1), GREEN(2);
+        private final int code;
+
+        Color(int code) {
+            this.code = code;
+        }
+
+        int getCode() {
+            return code;
+        }
+    }
+
+    private enum DupKey {
+        A, B;
+
+        int k() {
+            return 1;
+        }
+    }
+
+    static class Base {
+        @SuppressWarnings("unused")
+        protected int inherited = 7;
+    }
+
+    @SuppressWarnings("unused")
+    static class Fixture extends Base {
+        private static String STAT = "s";
+        private int inst = 3;
+
+        private static int staticM() {
+            return 99;
+        }
+
+        private int instM() {
+            return inst;
+        }
+
+        @Marker
+        private void marked() {
+        }
+
+        @Marker
+        private void marked2() {
+        }
+
+        Fixture() {
+        }
+
+        Fixture(int v) {
+            this.inst = v;
+        }
+    }
+
+    @Test
+    void invokeStatic_and_invoke_instance() throws Exception {
+        assertEquals(99, ReflectionUtil.invokeStatic(Fixture.class, "staticM"));
+        Fixture t = new Fixture();
+        assertEquals(3, ReflectionUtil.invoke(t, "instM"));
+    }
+
+    @Test
+    void getStatic_setStatic_get_set_instance_getSuper() throws Exception {
+        assertEquals("s", ReflectionUtil.getStatic(Fixture.class, "STAT", String.class));
+        ReflectionUtil.setStatic(Fixture.class, "STAT", "t");
+        assertEquals("t", ReflectionUtil.getStatic(Fixture.class, "STAT", String.class));
+        ReflectionUtil.setStatic(Fixture.class, "STAT", "s");
+
+        Fixture t = new Fixture();
+        assertEquals(3, ReflectionUtil.get(t, "inst", int.class));
+        ReflectionUtil.set(t, "inst", 5);
+        assertEquals(5, ReflectionUtil.get(t, "inst", int.class));
+        assertEquals(7, ReflectionUtil.getSuper(t, "inherited", int.class));
+    }
+
+    @Test
+    void get_withDeclaringClass() throws Exception {
+        Fixture t = new Fixture();
+        assertEquals(7, ReflectionUtil.get(t, Base.class, "inherited", int.class));
+    }
+
+    @Test
+    void getValueField_setValueField() throws Exception {
+        Fixture t = new Fixture();
+        Field f = Fixture.class.getDeclaredField("inst");
+        assertEquals(3, ReflectionUtil.getValueField(t, f));
+        ReflectionUtil.setValueField(t, f, 8);
+        assertEquals(8, ReflectionUtil.getValueField(t, f));
+    }
+
+    @Test
+    void setValueField_finalThrows() throws Exception {
+        class Holds {
+            @SuppressWarnings("unused")
+            private final int x = 1;
+        }
+        Holds h = new Holds();
+        Field f = Holds.class.getDeclaredField("x");
+        assertThrows(IllegalStateException.class, () -> ReflectionUtil.setValueField(h, f, 2));
+    }
+
+    @Test
+    void getMethodByName_and_byAnnotation() {
+        assertNotNull(ReflectionUtil.getMethodByName(Fixture.class, "instM"));
+        assertNull(ReflectionUtil.getMethodByName(Fixture.class, "noSuchMethod"));
+        assertNotNull(ReflectionUtil.getMethodByAnnotation(Fixture.class, Marker.class));
+        List<?> list = ReflectionUtil.getAllMethodsByAnnotation(Fixture.class, Marker.class);
+        assertEquals(2, list.size());
+    }
+
+    @Test
+    void getConstructor_and_getInstance() throws Exception {
+        Fixture a = ReflectionUtil.getInstance(Fixture.class);
+        assertEquals(3, ReflectionUtil.get(a, "inst", int.class));
+        Fixture b = ReflectionUtil.getInstance(Fixture.class, 42);
+        assertEquals(42, ReflectionUtil.get(b, "inst", int.class));
+        Fixture c = ReflectionUtil.getInstance(Fixture.class, new Class<?>[]{int.class}, 11);
+        assertEquals(11, ReflectionUtil.get(c, "inst", int.class));
+    }
+
+    @Test
+    void getInstance_nullArgThrows() {
+        assertThrows(IllegalArgumentException.class, () -> ReflectionUtil.getInstance(Fixture.class, new Object[]{null}));
+    }
+
+    @Test
+    void getAllInterfaces() {
+        class Local implements Runnable, java.io.Serializable {
+            @Override
+            public void run() {
+            }
+        }
+        List<Class<?>> ifaces = ReflectionUtil.getAllInterfaces(Local.class);
+        assertTrue(ifaces.contains(Runnable.class));
+        assertTrue(ifaces.contains(java.io.Serializable.class));
+    }
+
+    @Test
+    void isInnerClass() {
+        assertFalse(ReflectionUtil.isInnerClass(String.class));
+        assertFalse(ReflectionUtil.isInnerClass(null));
+        assertTrue(ReflectionUtil.isInnerClass(Fixture.class));
+    }
+
+    @Test
+    void getEnumMap_byName_and_byKey() {
+        Map<String, Color> byName = ReflectionUtil.getEnumMap(Color.class);
+        assertEquals(Color.RED, byName.get("RED"));
+        Map<Integer, Color> byCode = ReflectionUtil.getEnumMap(Color.class, Color::getCode);
+        assertEquals(Color.GREEN, byCode.get(2));
+    }
+
+    @Test
+    void getEnumMap_duplicateKeyThrows() {
+        assertThrows(IllegalStateException.class, () -> ReflectionUtil.getEnumMap(DupKey.class, DupKey::k));
+    }
+}
