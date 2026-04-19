@@ -34,9 +34,10 @@ public class DateTimeUtilFormat {
     /**
      * Formats a date-time using a subset of C99 / POSIX {@code strftime} conversion specifiers.
      * <p>
-     * Supported specifiers include {@code %a %A %b %B %c %C %d %D %e %F %g %G %H %h %I %j %m %M %n %p %r %R %S %T
-     * %u %U %V %w %W %x %X %y %Y %z %Z %%}. Locale affects names where specified by POSIX (weekday/month names,
-     * {@code %c %x %X %p}, and {@code %Z}). Week-based specifiers {@code %g %G %V} follow ISO week date rules.
+     * Supported specifiers include {@code %a %A %b %B %c %C %d %D %e %F %g %G %H %h %I %j %k %l %m %M %n %p %r %R %S
+     * %s %T %t %u %U %V %w %W %x %X %y %Y %z %Z %%}. Locale affects names where specified by POSIX (weekday/month names,
+     * {@code %c %x %X %p}, and {@code %Z}). {@code %c} follows common C-library layout
+     * {@code %a %b %e %H:%M:%S %Y}. Week-based specifiers {@code %g %G %V} follow ISO week date rules.
      * </p>
      * <p>
      * {@code %z} is the offset from UTC in ISO 8601 <em>basic</em> form {@code ±hhmm} (no colon), as in POSIX.
@@ -68,8 +69,7 @@ public class DateTimeUtilFormat {
                 case 'A' -> sb.append(DateTimeFormatter.ofPattern("EEEE", locale).format(zdt));
                 case 'b', 'h' -> sb.append(DateTimeFormatter.ofPattern("MMM", locale).format(zdt));
                 case 'B' -> sb.append(DateTimeFormatter.ofPattern("MMMM", locale).format(zdt));
-                case 'c' ->
-                        sb.append(DateTimeFormatter.ofLocalizedDateTime(FormatStyle.MEDIUM).withLocale(locale).format(zdt));
+                case 'c' -> sb.append(strftime(locale, zdt, "%a %b %e %H:%M:%S %Y"));
                 case 'C' -> appendPadded(sb, Math.floorDiv(zdt.getYear(), 100), 2);
                 case 'd' -> appendPadded(sb, zdt.getDayOfMonth(), 2);
                 case 'D' -> sb.append(strftime(locale, zdt, "%m/%d/%y"));
@@ -78,9 +78,14 @@ public class DateTimeUtilFormat {
                 case 'g' -> appendPadded(sb, Math.floorMod(zdt.get(WeekFields.ISO.weekBasedYear()), 100), 2);
                 case 'G' -> appendPadded(sb, zdt.get(WeekFields.ISO.weekBasedYear()), 4);
                 case 'H' -> appendPadded(sb, zdt.getHour(), 2);
+                case 'k' -> appendSpacePadded(sb, zdt.getHour(), 2);
                 case 'I' -> {
                     int hour = zdt.getHour() % 12;
                     appendPadded(sb, hour == 0 ? 12 : hour, 2);
+                }
+                case 'l' -> {
+                    int hour12 = zdt.getHour() % 12;
+                    appendSpacePadded(sb, hour12 == 0 ? 12 : hour12, 2);
                 }
                 case 'j' -> appendPadded(sb, zdt.getDayOfYear(), 3);
                 case 'm' -> appendPadded(sb, zdt.getMonthValue(), 2);
@@ -90,7 +95,9 @@ public class DateTimeUtilFormat {
                 case 'r' -> sb.append(strftime(locale, zdt, "%I:%M:%S %p"));
                 case 'R' -> sb.append(strftime(locale, zdt, "%H:%M"));
                 case 'S' -> appendPadded(sb, zdt.getSecond(), 2);
+                case 's' -> sb.append(zdt.toInstant().getEpochSecond());
                 case 'T' -> sb.append(strftime(locale, zdt, "%H:%M:%S"));
+                case 't' -> sb.append('\t');
                 case 'u' -> sb.append(zdt.getDayOfWeek().getValue());
                 case 'U' -> appendPadded(sb, weekNumberSundayFirst(zdt.toLocalDate()), 2);
                 case 'V' -> appendPadded(sb, zdt.get(WeekFields.ISO.weekOfWeekBasedYear()), 2);
@@ -104,7 +111,9 @@ public class DateTimeUtilFormat {
                 case 'Y' -> appendPadded(sb, zdt.getYear(), 4);
                 case 'z' -> appendStrftimePercentZ(sb, zdt);
                 case 'Z' -> sb.append(DateTimeFormatter.ofPattern("z", locale).format(zdt));
-                default -> throw new FormatException("unknown strftime conversion: %" + d);
+                default -> throw new FormatException("unknown strftime conversion '%%%c' at position %d in pattern: %s"
+                        .formatted(d, i - 1, pattern));
+
             }
         }
         return sb.toString();
@@ -128,7 +137,7 @@ public class DateTimeUtilFormat {
         if (instant == null) {
             return "null";
         }
-        return strftime(locale, DateTimeUtil.toZonedDateTime(instant, SystemDefaultZoneHolder.INSTANCE), pattern);
+        return strftime(locale, DateTimeUtil.toZonedDateTime(instant, zone), pattern);
     }
 
     /**
@@ -149,7 +158,7 @@ public class DateTimeUtilFormat {
         if (odt == null) {
             return "null";
         }
-        return strftime(locale, DateTimeUtil.toZonedDateTime(odt, SystemDefaultZoneHolder.INSTANCE), pattern);
+        return strftime(locale, DateTimeUtil.toZonedDateTime(odt, zone), pattern);
     }
 
     /**
@@ -170,7 +179,7 @@ public class DateTimeUtilFormat {
         if (date == null) {
             return "null";
         }
-        return strftime(locale, DateTimeUtil.toZonedDateTime(date, SystemDefaultZoneHolder.INSTANCE), pattern);
+        return strftime(locale, DateTimeUtil.toZonedDateTime(date, zone), pattern);
     }
 
     /**
@@ -191,7 +200,7 @@ public class DateTimeUtilFormat {
         if (calendar == null) {
             return "null";
         }
-        return strftime(locale, DateTimeUtil.toZonedDateTime(calendar, SystemDefaultZoneHolder.INSTANCE), pattern);
+        return strftime(locale, DateTimeUtil.toZonedDateTime(calendar, zone), pattern);
     }
 
     /**
@@ -212,7 +221,7 @@ public class DateTimeUtilFormat {
         if (ldt == null) {
             return "null";
         }
-        return strftime(locale, DateTimeUtil.toZonedDateTime(ldt, SystemDefaultZoneHolder.INSTANCE), pattern);
+        return strftime(locale, DateTimeUtil.toZonedDateTime(ldt, zone), pattern);
     }
 
     /**
@@ -233,13 +242,14 @@ public class DateTimeUtilFormat {
         if (ld == null) {
             return "null";
         }
-        return strftime(locale, DateTimeUtil.toZonedDateTime(ld, SystemDefaultZoneHolder.INSTANCE), pattern);
+        return strftime(locale, DateTimeUtil.toZonedDateTime(ld, zone), pattern);
     }
 
     /**
      * Formats a supported date-time {@code value} for {@code Fmt} and similar APIs: converts to
-     * {@link ZonedDateTime} in the {@linkplain ZoneId#systemDefault() system default} zone, then
-     * {@link #strftime(Locale, ZonedDateTime, String)}.
+     * {@link ZonedDateTime}, then {@link #strftime(Locale, ZonedDateTime, String)}.
+     * {@link ZonedDateTime} is left unchanged; {@link OffsetDateTime} keeps its fixed offset. All other
+     * supported types are interpreted in the {@linkplain ZoneId#systemDefault() system default} zone.
      * <p>
      * Supported types: {@link ZonedDateTime}, {@link OffsetDateTime}, {@link Instant}, {@link Date},
      * {@link Calendar}, {@link LocalDateTime}, {@link LocalDate}. A {@code null} value yields the literal
@@ -259,10 +269,10 @@ public class DateTimeUtilFormat {
 
     private static ZonedDateTime strftimeValueToZonedDateTime(Object value) {
         if (value instanceof ZonedDateTime z) {
-            return DateTimeUtil.toZonedDateTime(z, SystemDefaultZoneHolder.INSTANCE);
+            return z;
         }
         if (value instanceof OffsetDateTime o) {
-            return DateTimeUtil.toZonedDateTime(o, SystemDefaultZoneHolder.INSTANCE);
+            return o.toZonedDateTime();
         }
         if (value instanceof Instant ins) {
             return DateTimeUtil.toZonedDateTime(ins, SystemDefaultZoneHolder.INSTANCE);
@@ -311,7 +321,9 @@ public class DateTimeUtilFormat {
         if (date.isBefore(firstSunday)) {
             return 0;
         }
-        return (int) ((date.toEpochDay() - firstSunday.toEpochDay()) / 7) + 1;
+        int w = (int) ((date.toEpochDay() - firstSunday.toEpochDay()) / 7) + 1;
+        // POSIX range is [00,53]; values beyond 53 are treated as week 00 of the following year
+        return w > 53 ? 0 : w;
     }
 
     private static int weekNumberMondayFirst(LocalDate date) {
@@ -320,6 +332,8 @@ public class DateTimeUtilFormat {
         if (date.isBefore(firstMonday)) {
             return 0;
         }
-        return (int) ((date.toEpochDay() - firstMonday.toEpochDay()) / 7) + 1;
+        int w = (int) ((date.toEpochDay() - firstMonday.toEpochDay()) / 7) + 1;
+        // POSIX range is [00,53]; values beyond 53 are treated as week 00 of the following year
+        return w > 53 ? 0 : w;
     }
 }

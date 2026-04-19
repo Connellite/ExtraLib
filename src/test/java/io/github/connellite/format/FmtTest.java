@@ -27,6 +27,7 @@ import java.util.Locale;
 import java.util.Map;
 
 import io.github.connellite.exception.FormatException;
+import io.github.connellite.util.DateTimeUtilFormat;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
@@ -240,7 +241,8 @@ class FmtTest {
         LocalDateTime t = LocalDateTime.of(2026, 4, 7, 14, 30, 45);
         String expectedDate = DateTimeFormatter.ofLocalizedDate(FormatStyle.SHORT).withLocale(Locale.US).format(t);
         String expectedTime = DateTimeFormatter.ofLocalizedTime(FormatStyle.MEDIUM).withLocale(Locale.US).format(t);
-        String expectedDateTime = DateTimeFormatter.ofLocalizedDateTime(FormatStyle.MEDIUM).withLocale(Locale.US).format(t);
+        // %c follows C-style "%a %b %e %H:%M:%S %Y", not Java FormatStyle.MEDIUM
+        String expectedDateTime = DateTimeUtilFormat.strftime(Locale.US, t, "%c");
         assertEquals(expectedDate, Fmt.format(Locale.US, "{:%x}", t));
         assertEquals(expectedTime, Fmt.format(Locale.US, "{:%X}", t));
         assertEquals(expectedDateTime, Fmt.format(Locale.US, "{:%c}", t));

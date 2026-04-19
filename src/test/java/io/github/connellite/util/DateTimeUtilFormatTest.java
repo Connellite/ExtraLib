@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
@@ -99,5 +100,56 @@ class DateTimeUtilFormatTest {
         assertEquals("15", DateTimeUtilFormat.strftime(loc, z, "%d"));
         assertEquals("02:30:45 PM", DateTimeUtilFormat.strftime(loc, z, "%r"));
         assertEquals("%", DateTimeUtilFormat.strftime(loc, z, "%%"));
+    }
+
+    @Test
+    void strftimeObjectPreservesZoneForZonedAndOffset() {
+        ZonedDateTime berlin = ZonedDateTime.of(2026, 6, 15, 12, 0, 0, 0, ZoneId.of("Europe/Berlin"));
+        assertEquals(
+                DateTimeUtilFormat.strftime(Locale.ROOT, berlin, "%z"),
+                DateTimeUtilFormat.strftime(Locale.ROOT, (Object) berlin, "%z"));
+
+        OffsetDateTime odt = OffsetDateTime.of(2026, 6, 15, 12, 0, 0, 0, ZoneOffset.ofHours(3));
+        assertEquals("+0300", DateTimeUtilFormat.strftime(Locale.ROOT, (Object) odt, "%z"));
+    }
+
+    @Test
+    void strftimeEpochSecondsTabAndSpacePaddedHours() {
+        ZonedDateTime utc = ZonedDateTime.of(1970, 1, 1, 0, 0, 0, 0, ZoneOffset.UTC);
+        assertEquals("0", DateTimeUtilFormat.strftime(Locale.ROOT, utc, "%s"));
+
+        ZonedDateTime z = ZonedDateTime.of(2026, 3, 9, 9, 0, 0, 0, ZoneOffset.UTC);
+        assertEquals("x\ty", DateTimeUtilFormat.strftime(Locale.ROOT, z, "x%ty"));
+        assertEquals(" 9", DateTimeUtilFormat.strftime(Locale.ROOT, z, "%k"));
+        assertEquals(" 9", DateTimeUtilFormat.strftime(Locale.ROOT, z, "%l"));
+
+        ZonedDateTime noon = ZonedDateTime.of(2026, 3, 9, 12, 0, 0, 0, ZoneOffset.UTC);
+        assertEquals("12", DateTimeUtilFormat.strftime(Locale.ROOT, noon, "%l"));
+        assertEquals("12", DateTimeUtilFormat.strftime(Locale.ROOT, noon, "%k"));
+    }
+
+    @Test
+    void strftimePercentCmatchesCStyleLayout() {
+        ZonedDateTime z = ZonedDateTime.of(2024, 6, 5, 15, 30, 0, 0, ZoneOffset.UTC);
+        Locale us = Locale.US;
+        assertEquals(
+                DateTimeUtilFormat.strftime(us, z, "%a %b %e %H:%M:%S %Y"),
+                DateTimeUtilFormat.strftime(us, z, "%c"));
+    }
+
+    @Test
+    void strftimePercentUBeforeFirstSundayIsWeek00() {
+        ZonedDateTime z = ZonedDateTime.of(2024, 1, 3, 0, 0, 0, 0, ZoneOffset.UTC);
+        assertEquals("00", DateTimeUtilFormat.strftime(Locale.ROOT, z, "%U"));
+        ZonedDateTime firstSun = ZonedDateTime.of(2024, 1, 7, 0, 0, 0, 0, ZoneOffset.UTC);
+        assertEquals("01", DateTimeUtilFormat.strftime(Locale.ROOT, firstSun, "%U"));
+    }
+
+    @Test
+    void strftimePercentWBeforeFirstMondayIsWeek00() {
+        ZonedDateTime sunday = ZonedDateTime.of(2023, 1, 1, 0, 0, 0, 0, ZoneOffset.UTC);
+        assertEquals("00", DateTimeUtilFormat.strftime(Locale.ROOT, sunday, "%W"));
+        ZonedDateTime firstMon = ZonedDateTime.of(2023, 1, 2, 0, 0, 0, 0, ZoneOffset.UTC);
+        assertEquals("01", DateTimeUtilFormat.strftime(Locale.ROOT, firstMon, "%W"));
     }
 }
