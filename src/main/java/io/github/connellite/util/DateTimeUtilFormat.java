@@ -272,7 +272,7 @@ public class DateTimeUtilFormat {
             return z;
         }
         if (value instanceof OffsetDateTime o) {
-            return o.toZonedDateTime();
+            return DateTimeUtil.toZonedDateTime(o);
         }
         if (value instanceof Instant ins) {
             return DateTimeUtil.toZonedDateTime(ins, SystemDefaultZoneHolder.INSTANCE);

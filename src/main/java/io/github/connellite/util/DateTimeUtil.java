@@ -409,6 +409,16 @@ public class DateTimeUtil {
     }
 
     /**
+     * Returns {@code zdt} unchanged (identity conversion for API symmetry with other {@code toZonedDateTime} overloads).
+     *
+     * @param zdt the zoned date-time, or {@code null}
+     * @return {@code zdt}, or {@code null} if {@code zdt} is {@code null}
+     */
+    public static ZonedDateTime toZonedDateTime(ZonedDateTime zdt) {
+        return zdt;
+    }
+
+    /**
      * Converts {@code zdt} to the same instant expressed in {@code zone}.
      *
      * @param zdt  the zoned date-time, or {@code null}
@@ -418,6 +428,18 @@ public class DateTimeUtil {
     public static ZonedDateTime toZonedDateTime(ZonedDateTime zdt, ZoneId zone) {
         if (zdt == null) return null;
         return zdt.withZoneSameInstant(zone);
+    }
+
+    /**
+     * Converts {@code odt} to a {@link ZonedDateTime} using the same offset as {@code odt}
+     * (see {@link OffsetDateTime#toZonedDateTime()}).
+     *
+     * @param odt the offset date-time, or {@code null}
+     * @return the zoned date-time, or {@code null} if {@code odt} is {@code null}
+     */
+    public static ZonedDateTime toZonedDateTime(OffsetDateTime odt) {
+        if (odt == null) return null;
+        return odt.toZonedDateTime();
     }
 
     /**
