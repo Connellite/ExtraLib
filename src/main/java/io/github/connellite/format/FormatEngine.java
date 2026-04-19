@@ -1,6 +1,7 @@
 package io.github.connellite.format;
 
 import io.github.connellite.exception.FormatException;
+import io.github.connellite.util.DateTimeUtilFormat;
 import io.github.connellite.util.StringUtils;
 import lombok.experimental.UtilityClass;
 
@@ -222,7 +223,7 @@ class FormatEngine {
             return;
         }
         if (spec.indexOf('%') >= 0) {
-            out.append(DatePercentSpec.format(locale, value, spec));
+            out.append(DateTimeUtilFormat.strftime(locale, value, spec));
             return;
         }
         String bridged = BraceSpec.tryFormat(locale, value, spec);

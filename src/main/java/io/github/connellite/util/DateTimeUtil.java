@@ -19,13 +19,15 @@ import java.util.List;
 import java.util.Locale;
 
 /**
- * Parses {@link LocalDate} and {@link LocalDateTime} from strings using a fixed set of patterns.
- * Throws if the input is blank or no pattern matches.
+ * Parses {@link LocalDate} and {@link LocalDateTime} from strings using a fixed set of patterns,
+ * and converts between legacy {@link Date}/{@link Calendar} and {@link java.time} types.
  */
 @UtilityClass
 public class DateTimeUtil {
 
-    private static final ZoneId SYSTEM_ZONE = ZoneId.systemDefault();
+    private static final class SystemDefaultZoneHolder {
+        private static final ZoneId INSTANCE = ZoneId.systemDefault();
+    }
 
     private static final List<DateTimeFormatter> INPUT_FORMATTERS = List.of(
             DateTimeFormatter.ISO_LOCAL_DATE_TIME,
@@ -140,7 +142,7 @@ public class DateTimeUtil {
      */
     public static Date toDate(LocalDate localDate) {
         if (localDate == null) return null;
-        return Date.from(localDate.atStartOfDay(SYSTEM_ZONE).toInstant());
+        return Date.from(localDate.atStartOfDay(SystemDefaultZoneHolder.INSTANCE).toInstant());
     }
 
     /**
@@ -152,7 +154,7 @@ public class DateTimeUtil {
      */
     public static Date toDate(LocalDateTime localDateTime) {
         if (localDateTime == null) return null;
-        return Date.from(localDateTime.atZone(SYSTEM_ZONE).toInstant());
+        return Date.from(localDateTime.atZone(SystemDefaultZoneHolder.INSTANCE).toInstant());
     }
 
     /**
@@ -218,7 +220,7 @@ public class DateTimeUtil {
      */
     public static LocalDateTime toLocalDateTime(LocalDate localDate) {
         if (localDate == null) return null;
-        return localDate.atStartOfDay(SYSTEM_ZONE).toLocalDateTime();
+        return localDate.atStartOfDay(SystemDefaultZoneHolder.INSTANCE).toLocalDateTime();
     }
 
     /**
@@ -229,7 +231,7 @@ public class DateTimeUtil {
      */
     public static LocalDateTime toLocalDateTime(Instant instant) {
         if (instant == null) return null;
-        return instant.atZone(SYSTEM_ZONE).toLocalDateTime();
+        return instant.atZone(SystemDefaultZoneHolder.INSTANCE).toLocalDateTime();
     }
 
     /**
@@ -241,7 +243,7 @@ public class DateTimeUtil {
      */
     public static LocalDateTime toLocalDateTime(ZonedDateTime zonedDateTime) {
         if (zonedDateTime == null) return null;
-        return zonedDateTime.withZoneSameInstant(SYSTEM_ZONE).toLocalDateTime();
+        return zonedDateTime.withZoneSameInstant(SystemDefaultZoneHolder.INSTANCE).toLocalDateTime();
     }
 
     /**
@@ -253,7 +255,7 @@ public class DateTimeUtil {
      */
     public static LocalDateTime toLocalDateTime(OffsetDateTime offsetDateTime) {
         if (offsetDateTime == null) return null;
-        return offsetDateTime.atZoneSameInstant(SYSTEM_ZONE).toLocalDateTime();
+        return offsetDateTime.atZoneSameInstant(SystemDefaultZoneHolder.INSTANCE).toLocalDateTime();
     }
 
     /**
@@ -264,7 +266,7 @@ public class DateTimeUtil {
      */
     public static LocalDateTime toLocalDateTime(Date date) {
         if (date == null) return null;
-        return date.toInstant().atZone(SYSTEM_ZONE).toLocalDateTime();
+        return date.toInstant().atZone(SystemDefaultZoneHolder.INSTANCE).toLocalDateTime();
     }
 
     /**
@@ -275,7 +277,7 @@ public class DateTimeUtil {
      */
     public static LocalDateTime toLocalDateTime(Calendar calendar) {
         if (calendar == null) return null;
-        return calendar.toInstant().atZone(SYSTEM_ZONE).toLocalDateTime();
+        return calendar.toInstant().atZone(SystemDefaultZoneHolder.INSTANCE).toLocalDateTime();
     }
 
     /**
@@ -307,7 +309,7 @@ public class DateTimeUtil {
      */
     public static LocalDate toLocalDate(Instant instant) {
         if (instant == null) return null;
-        return instant.atZone(SYSTEM_ZONE).toLocalDate();
+        return instant.atZone(SystemDefaultZoneHolder.INSTANCE).toLocalDate();
     }
 
     /**
@@ -319,7 +321,7 @@ public class DateTimeUtil {
      */
     public static LocalDate toLocalDate(ZonedDateTime zonedDateTime) {
         if (zonedDateTime == null) return null;
-        return zonedDateTime.withZoneSameInstant(SYSTEM_ZONE).toLocalDate();
+        return zonedDateTime.withZoneSameInstant(SystemDefaultZoneHolder.INSTANCE).toLocalDate();
     }
 
     /**
@@ -331,7 +333,7 @@ public class DateTimeUtil {
      */
     public static LocalDate toLocalDate(OffsetDateTime offsetDateTime) {
         if (offsetDateTime == null) return null;
-        return offsetDateTime.atZoneSameInstant(SYSTEM_ZONE).toLocalDate();
+        return offsetDateTime.atZoneSameInstant(SystemDefaultZoneHolder.INSTANCE).toLocalDate();
     }
 
     /**
@@ -342,7 +344,7 @@ public class DateTimeUtil {
      */
     public static LocalDate toLocalDate(Date date) {
         if (date == null) return null;
-        return date.toInstant().atZone(SYSTEM_ZONE).toLocalDate();
+        return date.toInstant().atZone(SystemDefaultZoneHolder.INSTANCE).toLocalDate();
     }
 
     /**
@@ -353,7 +355,7 @@ public class DateTimeUtil {
      */
     public static LocalDate toLocalDate(Calendar calendar) {
         if (calendar == null) return null;
-        return calendar.toInstant().atZone(SYSTEM_ZONE).toLocalDate();
+        return calendar.toInstant().atZone(SystemDefaultZoneHolder.INSTANCE).toLocalDate();
     }
 
     /**
@@ -362,8 +364,8 @@ public class DateTimeUtil {
     public static Date startOfDay(Date date) {
         if (date == null) return null;
 
-        LocalDate localDate = date.toInstant().atZone(SYSTEM_ZONE).toLocalDate();
-        return Date.from(localDate.atStartOfDay(SYSTEM_ZONE).toInstant());
+        LocalDate localDate = date.toInstant().atZone(SystemDefaultZoneHolder.INSTANCE).toLocalDate();
+        return Date.from(localDate.atStartOfDay(SystemDefaultZoneHolder.INSTANCE).toInstant());
     }
 
     /**
@@ -372,9 +374,9 @@ public class DateTimeUtil {
     public static Date endOfDay(Date date) {
         if (date == null) return null;
 
-        LocalDate localDate = date.toInstant().atZone(SYSTEM_ZONE).toLocalDate();
+        LocalDate localDate = date.toInstant().atZone(SystemDefaultZoneHolder.INSTANCE).toLocalDate();
         LocalDateTime endOfDay = localDate.atTime(23, 59, 59, 999_000_000);
-        return Date.from(endOfDay.atZone(SYSTEM_ZONE).toInstant());
+        return Date.from(endOfDay.atZone(SystemDefaultZoneHolder.INSTANCE).toInstant());
     }
 
     /**
@@ -383,7 +385,7 @@ public class DateTimeUtil {
     public static java.sql.Date toSqlDate(Date date) {
         if (date == null) return null;
 
-        LocalDate localDate = date.toInstant().atZone(SYSTEM_ZONE).toLocalDate();
+        LocalDate localDate = date.toInstant().atZone(SystemDefaultZoneHolder.INSTANCE).toLocalDate();
         return java.sql.Date.valueOf(localDate);
     }
 
@@ -393,7 +395,7 @@ public class DateTimeUtil {
     public static java.sql.Time toSqlTime(Date date) {
         if (date == null) return null;
 
-        LocalTime localTime = date.toInstant().atZone(SYSTEM_ZONE).toLocalTime();
+        LocalTime localTime = date.toInstant().atZone(SystemDefaultZoneHolder.INSTANCE).toLocalTime();
         return java.sql.Time.valueOf(localTime);
     }
 
