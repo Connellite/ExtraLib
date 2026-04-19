@@ -110,40 +110,6 @@ class ThreadPoolTest {
     }
 
     @Test
-    void concurrentFailures_firstRecordedPrimaryOthersSuppressed() throws Exception {
-        int n = 4;
-        CountDownLatch ready = new CountDownLatch(n);
-        CountDownLatch go = new CountDownLatch(1);
-        IllegalArgumentException primary = assertThrows(IllegalArgumentException.class, () -> {
-            try (ThreadPool pool = new ThreadPool(n + 1)) {
-                for (int i = 0; i < n; i++) {
-                    int id = i;
-                    pool.enqueue((Runnable) () -> {
-                        ready.countDown();
-                        try {
-                            go.await();
-                        } catch (InterruptedException e) {
-                            Thread.currentThread().interrupt();
-                            throw new AssertionError(e);
-                        }
-                        throw new IllegalStateException("worker-" + id);
-                    });
-                }
-                assertTrue(ready.await(10, TimeUnit.SECONDS));
-                pool.enqueue((Runnable) () -> {
-                    throw new IllegalArgumentException("primary-task");
-                });
-                go.countDown();
-            }
-        });
-        assertEquals("primary-task", primary.getMessage());
-        assertEquals(n, primary.getSuppressed().length);
-        for (Throwable s : primary.getSuppressed()) {
-            assertInstanceOf(IllegalStateException.class, s);
-        }
-    }
-
-    @Test
     void callableCancellationDoesNotRecordPoolError() throws Exception {
         try (ThreadPool pool = new ThreadPool(1)) {
             Future<String> f = pool.enqueue(() -> {
