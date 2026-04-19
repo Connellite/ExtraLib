@@ -6,11 +6,15 @@ import lombok.experimental.UtilityClass;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.lang.reflect.Array;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.StringJoiner;
 import java.util.function.Function;
@@ -26,6 +30,56 @@ import java.util.stream.Collectors;
 public class StringUtils {
 
     /**
+     * Returns a readable string for {@code value}, including array contents.
+     *
+     * <p>{@code null} becomes the literal {@code "null"}. Non-array values use {@link String#valueOf(Object)}.
+     * Primitive arrays use the matching {@code Arrays.toString} overload; reference-type arrays use
+     * {@link Arrays#deepToString(Object[])} so nested arrays are expanded instead of default object references like
+     * {@code [I@…}.
+     *
+     * @param value any object or array, or {@code null}
+     * @return text suitable for logging or default formatting
+     */
+    public static String toString(Object value) {
+        if (value == null) {
+            return "null";
+        }
+        Class<?> cl = value.getClass();
+        if (!cl.isArray()) {
+            return String.valueOf(value);
+        }
+        Class<?> comp = cl.getComponentType();
+        if (!comp.isPrimitive()) {
+            return Arrays.deepToString((Object[]) value);
+        }
+        if (comp == byte.class) {
+            return Arrays.toString((byte[]) value);
+        }
+        if (comp == short.class) {
+            return Arrays.toString((short[]) value);
+        }
+        if (comp == int.class) {
+            return Arrays.toString((int[]) value);
+        }
+        if (comp == long.class) {
+            return Arrays.toString((long[]) value);
+        }
+        if (comp == char.class) {
+            return Arrays.toString((char[]) value);
+        }
+        if (comp == float.class) {
+            return Arrays.toString((float[]) value);
+        }
+        if (comp == double.class) {
+            return Arrays.toString((double[]) value);
+        }
+        if (comp == boolean.class) {
+            return Arrays.toString((boolean[]) value);
+        }
+        return String.valueOf(value);
+    }
+
+    /**
      * Joins elements with {@link String#valueOf(Object)} for non-null items; {@code null} elements
      * are represented as the four characters {@code null}, same as {@code String.join(separator, elements)}
      * for an {@link Iterable} of {@link CharSequence}.
@@ -33,9 +87,7 @@ public class StringUtils {
      * @param items     sequence to join; not null (may be empty)
      * @param separator placed between elements; not null (may be empty)
      */
-    public static <T> String join(Iterable<T> items, String separator) {
-        Objects.requireNonNull(items, "items");
-        Objects.requireNonNull(separator, "separator");
+    public static <T> String join(@NonNull Iterable<T> items, @NonNull String separator) {
         StringJoiner joiner = new StringJoiner(separator);
         for (T item : items) {
             joiner.add(String.valueOf(item));
@@ -54,15 +106,49 @@ public class StringUtils {
      * @param toString  converts each non-null element; not null
      */
     public static <T> String join(
-            Iterable<T> items,
-            String separator,
-            Function<? super T, ? extends CharSequence> toString) {
-        Objects.requireNonNull(items, "items");
-        Objects.requireNonNull(separator, "separator");
-        Objects.requireNonNull(toString, "toString");
+            @NonNull Iterable<T> items,
+            @NonNull String separator,
+            @NonNull Function<? super T, ? extends CharSequence> toString) {
         StringJoiner joiner = new StringJoiner(separator);
         for (T item : items) {
             joiner.add(item == null ? null : toString.apply(item));
+        }
+        return joiner.toString();
+    }
+
+    /**
+     * Joins multiple values into one string, dispatching on the runtime shape of {@code obj}.
+     *
+     * <p>If {@code obj} is an {@link Iterable}, each element is appended with {@link String#valueOf(Object)}.
+     * If it is any array (including primitives), elements are indexed with {@link Array#get}.
+     * If it is an {@link Iterator}, remaining elements are consumed and appended (the iterator is advanced).
+     * If it is a {@link Map}, each {@link Map.Entry} becomes {@code key=value} via string concatenation.
+     * Otherwise a single segment {@link String#valueOf(Object)} is used.
+     *
+     * @param obj       non-null container, array, iterator, map, or scalar
+     * @param separator placed between segments; not null (may be empty)
+     */
+    public static String join(@NonNull Object obj, @NonNull String separator) {
+        StringJoiner joiner = new StringJoiner(separator);
+        if (obj instanceof Iterable) {
+            for (Object item : (Iterable<?>) obj) {
+                joiner.add(String.valueOf(item));
+            }
+        } else if (obj.getClass().isArray()) {
+            int length = Array.getLength(obj);
+            for (int i = 0; i < length; i++) {
+                joiner.add(String.valueOf(Array.get(obj, i)));
+            }
+        } else if (obj instanceof Iterator<?> iterator) {
+            while (iterator.hasNext()) {
+                joiner.add(String.valueOf(iterator.next()));
+            }
+        } else if (obj instanceof Map<?, ?> map) {
+            for (Map.Entry<?, ?> entry : map.entrySet()) {
+                joiner.add(entry.getKey() + "=" + entry.getValue());
+            }
+        } else {
+            joiner.add(String.valueOf(obj));
         }
         return joiner.toString();
     }
@@ -164,20 +250,18 @@ public class StringUtils {
     public static boolean isNumeric(final CharSequence input) {
         if (input == null || input.isEmpty()) {
             return false;
-        } else {
-            int sz = input.length();
-
-            for (int i = 0; i < sz; ++i) {
-                char currentChar = input.charAt(i);
-                if (currentChar == '-' && i == 0 && sz > 1)
-                    continue;
-                if (!Character.isDigit(currentChar)) {
-                    return false;
-                }
-            }
-
-            return true;
         }
+        int sz = input.length();
+
+        for (int i = 0; i < sz; ++i) {
+            char currentChar = input.charAt(i);
+            if (currentChar == '-' && i == 0 && sz > 1)
+                continue;
+            if (!Character.isDigit(currentChar)) {
+                return false;
+            }
+        }
+        return true;
     }
 
     /**
@@ -195,7 +279,7 @@ public class StringUtils {
      *
      * @param match user-facing pattern; must not be {@code null}
      * @return compiled pattern ready for {@link Matcher#matches()}, {@link Matcher#find()}, etc.
-     * @throws NullPointerException     if {@code match} is {@code null}
+     * @throws NullPointerException   if {@code match} is {@code null}
      * @throws PatternSyntaxException if the transformed string is not a valid regex
      */
     public static Pattern compileMatchPattern(String match) {

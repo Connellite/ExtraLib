@@ -1,6 +1,7 @@
 package io.github.connellite.format;
 
 import io.github.connellite.exception.FormatException;
+import io.github.connellite.util.StringUtils;
 import lombok.experimental.UtilityClass;
 
 import java.io.IOException;
@@ -142,7 +143,7 @@ class FormatEngine {
                 }
                 String inner = spec.substring(i + 1, close).trim();
                 Object v = resolveSpecPlaceholder(inner, pack, counter);
-                out.append(FormatStrings.defaultArgString(v));
+                out.append(StringUtils.toString(v));
                 i = close + 1;
                 continue;
             }
@@ -217,7 +218,7 @@ class FormatEngine {
             return;
         }
         if (spec == null || spec.isEmpty()) {
-            out.append(FormatStrings.defaultArgString(value));
+            out.append(StringUtils.toString(value));
             return;
         }
         if (spec.indexOf('%') >= 0) {

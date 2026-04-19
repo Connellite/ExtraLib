@@ -1,6 +1,7 @@
 package io.github.connellite.format;
 
 import io.github.connellite.exception.FormatException;
+import io.github.connellite.util.StringUtils;
 import lombok.experimental.UtilityClass;
 
 import java.math.BigDecimal;
@@ -176,7 +177,7 @@ final class BraceSpec {
          */
         private static Object forPercentArg(Object value, char conv) {
             if ((conv == 's' || conv == 'S') && value != null && value.getClass().isArray()) {
-                return FormatStrings.defaultArgString(value);
+                return StringUtils.toString(value);
             }
             return value;
         }

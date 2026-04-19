@@ -3,7 +3,9 @@ package io.github.connellite.util;
 import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -11,6 +13,32 @@ import static org.junit.jupiter.api.Assertions.assertIterableEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class StringUtilsTest {
+
+    @Test
+    void toString_null_isNullLiteral() {
+        assertEquals("null", StringUtils.toString(null));
+    }
+
+    @Test
+    void toString_nonArray_usesValueOf() {
+        assertEquals("42", StringUtils.toString(42));
+        assertEquals("hi", StringUtils.toString("hi"));
+    }
+
+    @Test
+    void toString_intArray_usesArraysToString() {
+        assertEquals("[1, 2, 3]", StringUtils.toString(new int[] {1, 2, 3}));
+    }
+
+    @Test
+    void toString_objectArrayNested_usesDeepToString() {
+        assertEquals("[[1, 2], [3]]", StringUtils.toString(new Object[] {new int[] {1, 2}, new int[] {3}}));
+    }
+
+    @Test
+    void toString_booleanArray() {
+        assertEquals("[true, false]", StringUtils.toString(new boolean[] {true, false}));
+    }
 
     @Test
     void join_matchesStringJoin_forCharSequenceIterableWithNulls() {
@@ -62,6 +90,45 @@ class StringUtilsTest {
     @Test
     void join_nullSeparatorThrows() {
         assertThrows(NullPointerException.class, () -> StringUtils.join(List.of(1), null));
+    }
+
+    @Test
+    void join_object_dispatchIterable_matchesIterableJoin() {
+        List<String> list = Arrays.asList("a", "b");
+        assertEquals(StringUtils.join(list, ", "), StringUtils.join((Object) list, ", "));
+    }
+
+    @Test
+    void join_object_intArray() {
+        assertEquals("1, 2, 3", StringUtils.join((Object) new int[] {1, 2, 3}, ", "));
+    }
+
+    @Test
+    void join_object_iterator() {
+        assertEquals("1, 2, 3", StringUtils.join(List.of(1, 2, 3).iterator(), ", "));
+    }
+
+    @Test
+    void join_object_map_entryOrder() {
+        Map<String, Integer> map = new LinkedHashMap<>();
+        map.put("a", 1);
+        map.put("b", 2);
+        assertEquals("a=1, b=2", StringUtils.join(map, ", "));
+    }
+
+    @Test
+    void join_object_scalar() {
+        assertEquals("42", StringUtils.join(42, ", "));
+    }
+
+    @Test
+    void join_object_nullThrows() {
+        assertThrows(NullPointerException.class, () -> StringUtils.join((Object) null, ","));
+    }
+
+    @Test
+    void join_object_nullSeparatorThrows() {
+        assertThrows(NullPointerException.class, () -> StringUtils.join((Object) List.of(1), null));
     }
 
     @Test
