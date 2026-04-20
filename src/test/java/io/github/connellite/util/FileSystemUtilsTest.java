@@ -85,6 +85,46 @@ class FileSystemUtilsTest {
     }
 
     @Test
+    void moveRecursively_singleFile(@TempDir Path dir) throws IOException {
+        Path src = dir.resolve("src.txt");
+        Path dst = dir.resolve("dst.txt");
+        Files.writeString(src, "hello");
+
+        FileSystemUtils.moveRecursively(src, dst);
+
+        assertFalse(Files.exists(src));
+        assertEquals("hello", Files.readString(dst));
+    }
+
+    @Test
+    void moveRecursively_directoryTree(@TempDir Path dir) throws IOException {
+        Path src = dir.resolve("src");
+        Files.createDirectories(src.resolve("sub"));
+        Files.writeString(src.resolve("root.txt"), "r");
+        Files.writeString(src.resolve("sub").resolve("nested.txt"), "n");
+        Path dst = dir.resolve("dst");
+
+        FileSystemUtils.moveRecursively(src, dst);
+
+        assertFalse(Files.exists(src));
+        assertTrue(Files.isDirectory(dst.resolve("sub")));
+        assertEquals("r", Files.readString(dst.resolve("root.txt")));
+        assertEquals("n", Files.readString(dst.resolve("sub").resolve("nested.txt")));
+    }
+
+    @Test
+    void moveRecursively_nullSourceThrows() {
+        assertThrows(NullPointerException.class, () -> FileSystemUtils.moveRecursively((Path) null, Path.of("a")));
+    }
+
+    @Test
+    void moveRecursively_nullDestinationThrows(@TempDir Path dir) throws IOException {
+        Path src = dir.resolve("src.txt");
+        Files.writeString(src, "x");
+        assertThrows(NullPointerException.class, () -> FileSystemUtils.moveRecursively(src, null));
+    }
+
+    @Test
     void readAllLines_readsUtf8(@TempDir Path dir) throws IOException {
         Path f = dir.resolve("lines.txt");
         Files.writeString(f, "a\nb\n", StandardCharsets.UTF_8);

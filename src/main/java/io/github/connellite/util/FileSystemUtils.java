@@ -129,6 +129,67 @@ public class FileSystemUtils {
     }
 
     /**
+     * Recursively move the contents of the {@code src} file/directory
+     * to the {@code dest} file/directory.
+     *
+     * @param src  the source directory
+     * @param dest the destination directory
+     * @throws IOException in the case of I/O errors
+     */
+    public static void moveRecursively(File src, File dest) throws IOException {
+        Objects.requireNonNull(src, "Source File must not be null");
+        Objects.requireNonNull(dest, "Destination File must not be null");
+        moveRecursively(src.toPath(), dest.toPath());
+    }
+
+    /**
+     * Recursively move the contents of the {@code src} file/directory
+     * to the {@code dest} file/directory.
+     *
+     * @param src  the source directory
+     * @param dest the destination directory
+     * @throws IOException in the case of I/O errors
+     */
+    public static void moveRecursively(Path src, Path dest) throws IOException {
+        Objects.requireNonNull(src, "Source Path must not be null");
+        Objects.requireNonNull(dest, "Destination Path must not be null");
+        BasicFileAttributes srcAttr = Files.readAttributes(src, BasicFileAttributes.class);
+
+        if (srcAttr.isRegularFile()) {
+            Files.copy(src, dest, StandardCopyOption.REPLACE_EXISTING);
+            Files.delete(src);
+            return;
+        }
+        if (!srcAttr.isDirectory()) {
+            throw new IllegalArgumentException("Source File must denote a directory or file");
+        }
+
+        Files.walkFileTree(src, EnumSet.of(FOLLOW_LINKS), Integer.MAX_VALUE, new SimpleFileVisitor<>() {
+            @Override
+            public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) throws IOException {
+                Files.createDirectories(dest.resolve(src.relativize(dir)));
+                return FileVisitResult.CONTINUE;
+            }
+
+            @Override
+            public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+                Files.copy(file, dest.resolve(src.relativize(file)), StandardCopyOption.REPLACE_EXISTING);
+                Files.delete(file);
+                return FileVisitResult.CONTINUE;
+            }
+
+            @Override
+            public FileVisitResult postVisitDirectory(Path dir, IOException exc) throws IOException {
+                if (exc != null) {
+                    throw exc;
+                }
+                Files.delete(dir);
+                return FileVisitResult.CONTINUE;
+            }
+        });
+    }
+
+    /**
      * Read the lines of a file and return it as a stream
      *
      * @param path File path to read
