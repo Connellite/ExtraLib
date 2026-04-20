@@ -1,5 +1,6 @@
 package io.github.connellite.logger;
 
+import io.github.connellite.compress.CompressFile;
 import lombok.Getter;
 
 import java.io.BufferedOutputStream;
@@ -148,7 +149,7 @@ public class FileLogHandler extends Handler {
             if (config.rotateDaily() && Files.isRegularFile(logFile)) {
                 LocalDate fileDay = LocalDate.ofInstant(Files.getLastModifiedTime(logFile).toInstant(), zone);
                 if (!fileDay.equals(LocalDate.now(zone))) {
-                    shiftLogs(logFile, config.maxBackupFiles());
+                    shiftLogs(logFile, config.maxBackupFiles(), config.compressRotatedGzip());
                 }
             }
             boolean existed = Files.isRegularFile(logFile);
@@ -164,7 +165,7 @@ public class FileLogHandler extends Handler {
 
     private void rotateLocked() throws IOException {
         closeStreamsNoMarkClosed();
-        shiftLogs(logFile, config.maxBackupFiles());
+        shiftLogs(logFile, config.maxBackupFiles(), config.compressRotatedGzip());
         bytesWritten = 0;
         dayOfCurrentFile = LocalDate.now(zone);
         ensureParentDirs();
@@ -203,6 +204,10 @@ public class FileLogHandler extends Handler {
      * leftovers from a previously larger limit) are removed first.
      */
     static void shiftLogs(Path main, int maxLogs) throws IOException {
+        shiftLogs(main, maxLogs, false);
+    }
+
+    static void shiftLogs(Path main, int maxLogs, boolean compressRotatedGzip) throws IOException {
         String name = main.getFileName().toString();
         Path dir = main.getParent();
         if (dir == null) {
@@ -213,18 +218,25 @@ public class FileLogHandler extends Handler {
             Files.deleteIfExists(main);
             return;
         }
-        deleteOverflowLogsSegments(dir, name, maxLogs);
-        Path oldest = dir.resolve(name + "." + (maxLogs - 1));
+        deleteOverflowLogsSegments(dir, name, maxLogs, compressRotatedGzip);
+        String suffix = compressRotatedGzip ? ".gz" : "";
+        Path oldest = dir.resolve(name + "." + (maxLogs - 1) + suffix);
         Files.deleteIfExists(oldest);
         for (int i = maxLogs - 2; i >= 0; i--) {
-            Path from = dir.resolve(name + "." + i);
-            Path to = dir.resolve(name + "." + (i + 1));
+            Path from = dir.resolve(name + "." + i + suffix);
+            Path to = dir.resolve(name + "." + (i + 1) + suffix);
             if (Files.exists(from)) {
                 Files.move(from, to, StandardCopyOption.REPLACE_EXISTING);
             }
         }
         if (Files.exists(main)) {
-            Files.move(main, dir.resolve(name + ".0"), StandardCopyOption.REPLACE_EXISTING);
+            Path moved = dir.resolve(name + ".0");
+            Files.move(main, moved, StandardCopyOption.REPLACE_EXISTING);
+            if (compressRotatedGzip) {
+                Path gz = dir.resolve(name + ".0.gz");
+                CompressFile.compressGzipFile(moved.toFile(), gz.toFile());
+                Files.deleteIfExists(moved);
+            }
         }
     }
 
@@ -233,7 +245,12 @@ public class FileLogHandler extends Handler {
      * old {@code maxBackups} or a buggy rotation cannot collide with the numeric chain.
      */
     static void deleteOverflowLogsSegments(Path dir, String baseFileName, int maxBackups) throws IOException {
+        deleteOverflowLogsSegments(dir, baseFileName, maxBackups, false);
+    }
+
+    static void deleteOverflowLogsSegments(Path dir, String baseFileName, int maxBackups, boolean compressRotatedGzip) throws IOException {
         String prefix = baseFileName + ".";
+        String expectedSuffix = compressRotatedGzip ? ".gz" : "";
         try (Stream<Path> stream = Files.list(dir)) {
             Path[] entries = stream.toArray(Path[]::new);
             for (Path p : entries) {
@@ -242,6 +259,14 @@ public class FileLogHandler extends Handler {
                     continue;
                 }
                 String tail = fname.substring(prefix.length());
+                if (compressRotatedGzip) {
+                    if (!tail.endsWith(expectedSuffix)) {
+                        continue;
+                    }
+                    tail = tail.substring(0, tail.length() - expectedSuffix.length());
+                } else if (tail.endsWith(".gz")) {
+                    continue;
+                }
                 if (!tail.chars().allMatch(Character::isDigit) || tail.isEmpty()) {
                     continue;
                 }

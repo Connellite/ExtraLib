@@ -10,6 +10,7 @@ public record FileLogHandlerConfig(
         long maxFileBytes,
         boolean rotateDaily,
         int maxBackupFiles,
+        boolean compressRotatedGzip,
         Formatter formatter
 ) {
     /**
@@ -17,6 +18,7 @@ public record FileLogHandlerConfig(
      * @param maxFileBytes   when {@code > 0}, rotate once the current log file reaches this size
      * @param rotateDaily    when {@code true}, start a new file when the system date changes
      * @param maxBackupFiles number of rotated segments kept ({@code name.log.0} …); {@code 0} means no backups (main file is dropped on rotate)
+     * @param compressRotatedGzip when {@code true}, rotated segments are compressed to {@code .gz}
      * @param formatter      custom {@link Formatter} for each log line, or {@code null} for {@link java.util.logging.SimpleFormatter}
      */
     public FileLogHandlerConfig {
@@ -25,27 +27,35 @@ public record FileLogHandlerConfig(
         maxBackupFiles = Math.max(maxBackupFiles, 0);
     }
 
+    public FileLogHandlerConfig(int bufferSize, long maxFileBytes, boolean rotateDaily, int maxBackupFiles, Formatter formatter) {
+        this(bufferSize, maxFileBytes, rotateDaily, maxBackupFiles, false, formatter);
+    }
+
     /** Buffered writes, no rotation, {@link java.util.logging.SimpleFormatter}. */
     public static final FileLogHandlerConfig DEFAULT =
-            new FileLogHandlerConfig(8192, 0, false, 10, null);
+            new FileLogHandlerConfig(8192, 0, false, 10, false, null);
 
     public FileLogHandlerConfig withBufferSize(int size) {
-        return new FileLogHandlerConfig(size, maxFileBytes, rotateDaily, maxBackupFiles, formatter);
+        return new FileLogHandlerConfig(size, maxFileBytes, rotateDaily, maxBackupFiles, compressRotatedGzip, formatter);
     }
 
     public FileLogHandlerConfig withMaxFileBytes(long bytes) {
-        return new FileLogHandlerConfig(bufferSize, bytes, rotateDaily, maxBackupFiles, formatter);
+        return new FileLogHandlerConfig(bufferSize, bytes, rotateDaily, maxBackupFiles, compressRotatedGzip, formatter);
     }
 
     public FileLogHandlerConfig withRotateDaily(boolean daily) {
-        return new FileLogHandlerConfig(bufferSize, maxFileBytes, daily, maxBackupFiles, formatter);
+        return new FileLogHandlerConfig(bufferSize, maxFileBytes, daily, maxBackupFiles, compressRotatedGzip, formatter);
     }
 
     public FileLogHandlerConfig withMaxBackupFiles(int max) {
-        return new FileLogHandlerConfig(bufferSize, maxFileBytes, rotateDaily, max, formatter);
+        return new FileLogHandlerConfig(bufferSize, maxFileBytes, rotateDaily, max, compressRotatedGzip, formatter);
+    }
+
+    public FileLogHandlerConfig withCompressRotatedGzip(boolean compress) {
+        return new FileLogHandlerConfig(bufferSize, maxFileBytes, rotateDaily, maxBackupFiles, compress, formatter);
     }
 
     public FileLogHandlerConfig withFormatter(Formatter customFormatter) {
-        return new FileLogHandlerConfig(bufferSize, maxFileBytes, rotateDaily, maxBackupFiles, customFormatter);
+        return new FileLogHandlerConfig(bufferSize, maxFileBytes, rotateDaily, maxBackupFiles, compressRotatedGzip, customFormatter);
     }
 }

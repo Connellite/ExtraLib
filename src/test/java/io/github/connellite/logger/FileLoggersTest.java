@@ -1,5 +1,6 @@
 package io.github.connellite.logger;
 
+import io.github.connellite.compress.CompressFile;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -328,6 +329,7 @@ class FileLoggersTest {
         assertEquals(256, cfg.bufferSize());
         assertEquals(0L, cfg.maxFileBytes());
         assertEquals(0, cfg.maxBackupFiles());
+        assertFalse(cfg.compressRotatedGzip());
     }
 
     @Test
@@ -535,6 +537,34 @@ class FileLoggersTest {
             assertTrue(Files.isRegularFile(log));
             String content = Files.readString(log, StandardCharsets.UTF_8);
             assertTrue(content.contains("bbbbbbbbbb"));
+        } finally {
+            for (var h : logger.getHandlers()) {
+                h.close();
+            }
+        }
+    }
+
+    @Test
+    void rotatesToGzipWhenCompressionEnabled(@TempDir Path dir) throws IOException {
+        Path log = dir.resolve("gzip.log");
+        FileLogHandlerConfig cfg = FileLogHandlerConfig.DEFAULT
+                .withMaxFileBytes(1)
+                .withMaxBackupFiles(3)
+                .withCompressRotatedGzip(true);
+        Logger logger = FileLoggers.forLogFile("gzip", log, cfg);
+        logger.setLevel(Level.INFO);
+        try {
+            logger.info("first-line");
+            logger.info("second-line");
+            for (var h : logger.getHandlers()) {
+                h.flush();
+            }
+            Path gzBackup = dir.resolve("gzip.log.0.gz");
+            assertTrue(Files.isRegularFile(gzBackup), "compressed rotated segment should exist");
+            Path decompressed = dir.resolve("gzip.log.0");
+            CompressFile.decompressGzipFile(gzBackup.toFile(), decompressed.toFile());
+            String backupText = Files.readString(decompressed, StandardCharsets.UTF_8);
+            assertTrue(backupText.contains("first-line"), "backup should contain rotated records");
         } finally {
             for (var h : logger.getHandlers()) {
                 h.close();
