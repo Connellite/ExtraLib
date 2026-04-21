@@ -32,7 +32,7 @@ public class ThreadPool implements AutoCloseable {
     /**
      * The constructor just launches some amount of workers
      * @param threads number of threads
-     * @Throws IllegalStateException if number of threads is less than or equal to 0
+     * @throws IllegalStateException if number of threads is less than or equal to 0
      */
     public ThreadPool(int threads) {
         if(threads <= 0) {
@@ -71,7 +71,7 @@ public class ThreadPool implements AutoCloseable {
     /**
      * Add new work item to the pool
      * @param task work item
-     * @Throws IllegalStateException if stopped ThreadPool
+     * @throws IllegalStateException if stopped ThreadPool
      */
     public void enqueue(@NonNull Runnable task) {
         synchronized (queueMutex) {
@@ -89,7 +89,7 @@ public class ThreadPool implements AutoCloseable {
      * @param task work item
      * @return {@link Future<T>}
      * @param <T> The result type returned by this Future's get method
-     * @Throws IllegalStateException if stopped ThreadPool
+     * @throws IllegalStateException if stopped ThreadPool
      */
     public <T> Future<T> enqueue(@NonNull Callable<T> task) {
         FutureTask<T> future = new FutureTask<>(task);

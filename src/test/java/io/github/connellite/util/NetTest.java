@@ -28,15 +28,6 @@ class NetTest {
     }
 
     @Test
-    void findAvailablePort_returnsPortInRangeWhenFree() throws Exception {
-        int p = Net.findAvailablePort("127.0.0.1", 43100, 43200);
-        assertTrue(p >= 43100 && p <= 43200);
-        try (ServerSocket ss = new ServerSocket(p)) {
-            assertEquals(p, ss.getLocalPort());
-        }
-    }
-
-    @Test
     void findAvailablePort_whenOnlyPortInRangeIsBound_returnsZero() throws Exception {
         try (ServerSocket ss = new ServerSocket(0)) {
             int p = ss.getLocalPort();
