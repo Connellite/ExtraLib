@@ -12,6 +12,7 @@ module io.github.connellite.ExtraLib {
     exports io.github.connellite.exception;
     exports io.github.connellite.format;
     exports io.github.connellite.jdbc;
+    exports io.github.connellite.jdbc.annotation;
     exports io.github.connellite.logger;
     exports io.github.connellite.match;
     exports io.github.connellite.system;
