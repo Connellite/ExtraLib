@@ -40,9 +40,16 @@ public abstract class AbstractResultSetIterator<V> implements Iterator<Map<Strin
         // Ignore if the driver does not support fetch size hints for this statement type.
         try {
             statement.setFetchSize(1000);
-        } catch (SQLException ignore) {
+        } catch (Exception ignore) {
         }
         this.resultSet = new ResultSetWrapper(statement, statement.executeQuery(query));
+        ResultSetMetaData metadata = resultSet.getMetaData();
+        this.columnNames = getColumnNames(metadata);
+        this.hasNextValue = resultSet.next();
+    }
+
+    public AbstractResultSetIterator(ResultSet resultSet) throws SQLException {
+        this.resultSet = resultSet;
         ResultSetMetaData metadata = resultSet.getMetaData();
         this.columnNames = getColumnNames(metadata);
         this.hasNextValue = resultSet.next();

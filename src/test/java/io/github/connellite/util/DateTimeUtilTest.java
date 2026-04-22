@@ -60,6 +60,12 @@ class DateTimeUtilTest {
     }
 
     @Test
+    void parseLocalTimeFromTimeAndDateTime() {
+        assertEquals(LocalTime.of(10, 15, 30), DateTimeUtil.parseLocalTime("10:15:30"));
+        assertEquals(LocalTime.of(10, 15, 30), DateTimeUtil.parseLocalTime("2011-12-03T10:15:30"));
+    }
+
+    @Test
     void dateOnlyBecomesStartOfDayForDateTime() {
         assertEquals(
                 LocalDate.of(1999, 2, 12).atStartOfDay(),
@@ -70,6 +76,8 @@ class DateTimeUtilTest {
     void unparseableThrows() {
         assertThrows(IllegalArgumentException.class, () -> DateTimeUtil.parseLocalDate("not-a-date"));
         assertNull(DateTimeUtil.parseLocalDateTime("  "));
+        assertNull(DateTimeUtil.parseLocalTime(" "));
+        assertThrows(IllegalArgumentException.class, () -> DateTimeUtil.parseLocalTime("not-a-time"));
     }
 
     @Test
@@ -200,5 +208,86 @@ class DateTimeUtilTest {
         assertNull(DateTimeUtil.toLocalDate((OffsetDateTime) null));
         assertNull(DateTimeUtil.toLocalDate((Date) null));
         assertNull(DateTimeUtil.toLocalDate((Calendar) null));
+    }
+
+    @Test
+    void toOffsetDateTimeFromAllSupportedTypes() {
+        OffsetDateTime odt = OffsetDateTime.of(2026, 2, 28, 18, 0, 0, 0, ZoneOffset.ofHours(-8));
+        assertEquals(odt, DateTimeUtil.toOffsetDateTime(odt));
+
+        ZonedDateTime zdt = ZonedDateTime.of(2026, 1, 15, 12, 0, 0, 0, ZoneId.of("UTC"));
+        assertEquals(zdt.toOffsetDateTime(), DateTimeUtil.toOffsetDateTime(zdt));
+
+        ZoneId targetZone = ZoneId.of("Europe/Berlin");
+        Instant instant = Instant.parse("2026-04-11T08:15:30Z");
+        assertEquals(instant.atZone(targetZone).toOffsetDateTime(), DateTimeUtil.toOffsetDateTime(instant, targetZone));
+
+        Date date = Date.from(instant);
+        assertEquals(date.toInstant().atZone(targetZone).toOffsetDateTime(), DateTimeUtil.toOffsetDateTime(date, targetZone));
+
+        Calendar cal = new GregorianCalendar(TimeZone.getTimeZone("GMT"));
+        cal.clear();
+        cal.set(2026, Calendar.APRIL, 11, 8, 15, 30);
+        assertEquals(cal.toInstant().atZone(targetZone).toOffsetDateTime(), DateTimeUtil.toOffsetDateTime(cal, targetZone));
+
+        assertNull(DateTimeUtil.toOffsetDateTime((OffsetDateTime) null));
+        assertNull(DateTimeUtil.toOffsetDateTime((ZonedDateTime) null));
+        assertNull(DateTimeUtil.toOffsetDateTime((Instant) null, targetZone));
+        assertNull(DateTimeUtil.toOffsetDateTime((Date) null, targetZone));
+        assertNull(DateTimeUtil.toOffsetDateTime((Calendar) null, targetZone));
+    }
+
+    @Test
+    void toZonedDateTimeOverloadsWithoutZoneUseSystemDefault() {
+        Instant instant = Instant.parse("2026-04-11T08:15:30Z");
+        assertEquals(DateTimeUtil.toZonedDateTime(instant, SYSTEM_ZONE), DateTimeUtil.toZonedDateTime(instant));
+
+        Date date = Date.from(instant);
+        assertEquals(DateTimeUtil.toZonedDateTime(date, SYSTEM_ZONE), DateTimeUtil.toZonedDateTime(date));
+
+        Calendar cal = new GregorianCalendar(TimeZone.getTimeZone("GMT"));
+        cal.clear();
+        cal.set(2026, Calendar.APRIL, 11, 8, 15, 30);
+        assertEquals(DateTimeUtil.toZonedDateTime(cal, SYSTEM_ZONE), DateTimeUtil.toZonedDateTime(cal));
+
+        LocalDateTime ldt = LocalDateTime.of(2026, 5, 20, 14, 30, 1, 999_000_000);
+        assertEquals(DateTimeUtil.toZonedDateTime(ldt, SYSTEM_ZONE), DateTimeUtil.toZonedDateTime(ldt));
+
+        LocalDate ld = LocalDate.of(2026, 8, 1);
+        assertEquals(DateTimeUtil.toZonedDateTime(ld, SYSTEM_ZONE), DateTimeUtil.toZonedDateTime(ld));
+    }
+
+    @Test
+    void toOffsetDateTimeOverloadsWithoutZoneUseSystemDefault() {
+        Instant instant = Instant.parse("2026-04-11T08:15:30Z");
+        assertEquals(DateTimeUtil.toOffsetDateTime(instant, SYSTEM_ZONE), DateTimeUtil.toOffsetDateTime(instant));
+
+        Date date = Date.from(instant);
+        assertEquals(DateTimeUtil.toOffsetDateTime(date, SYSTEM_ZONE), DateTimeUtil.toOffsetDateTime(date));
+
+        Calendar cal = new GregorianCalendar(TimeZone.getTimeZone("GMT"));
+        cal.clear();
+        cal.set(2026, Calendar.APRIL, 11, 8, 15, 30);
+        assertEquals(DateTimeUtil.toOffsetDateTime(cal, SYSTEM_ZONE), DateTimeUtil.toOffsetDateTime(cal));
+
+        LocalDateTime ldt = LocalDateTime.of(2026, 5, 20, 14, 30, 1, 999_000_000);
+        assertEquals(DateTimeUtil.toOffsetDateTime(ldt, SYSTEM_ZONE), DateTimeUtil.toOffsetDateTime(ldt));
+    }
+
+    @Test
+    void toLocalTimeFromAllSupportedTypes() {
+        LocalTime lt = LocalTime.of(9, 8, 7, 123_000_000);
+        assertEquals(lt, DateTimeUtil.toLocalTime(lt));
+
+        LocalDateTime ldt = LocalDateTime.of(2026, 5, 20, 14, 30, 1, 999_000_000);
+        assertEquals(ldt.toLocalTime(), DateTimeUtil.toLocalTime(ldt));
+
+        Instant instant = Instant.parse("2026-04-11T08:15:30Z");
+        Date date = Date.from(instant);
+        assertEquals(instant.atZone(SYSTEM_ZONE).toLocalTime(), DateTimeUtil.toLocalTime(date));
+
+        assertNull(DateTimeUtil.toLocalTime((LocalTime) null));
+        assertNull(DateTimeUtil.toLocalTime((LocalDateTime) null));
+        assertNull(DateTimeUtil.toLocalTime((Date) null));
     }
 }

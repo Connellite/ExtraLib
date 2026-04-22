@@ -158,11 +158,11 @@ public class StringUtils {
      * ({@link String#split(String)} with {@code \r?\n}).
      *
      * @param input the text; must not be {@code null}
-     * @return an array of lines (may be a single element for text without newlines; behavior matches {@link String#split})
+     * @return a list of lines (may contain a single element for text without newlines; behavior matches {@link String#split})
      * @throws NullPointerException if {@code input} is {@code null}
      */
-    public static String[] splitLines(String input) {
-        return input.split("\\r?\\n");
+    public static List<String> splitLines(String input) {
+        return Arrays.asList(input.split("\\r?\\n"));
     }
 
     /**
@@ -205,7 +205,7 @@ public class StringUtils {
                 result.add(item);
             }
         }
-        return result;
+        return Collections.unmodifiableList(result);
     }
 
     /**

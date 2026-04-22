@@ -4,6 +4,7 @@ import lombok.experimental.UtilityClass;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 
@@ -62,15 +63,16 @@ public class BMHMatch {
         Objects.requireNonNull(pattern, "pattern");
         Objects.requireNonNull(strategy, "strategy");
         if (pattern.isEmpty()) {
-            return new ArrayList<>();
+            return Collections.emptyList();
         }
         if (pattern.length() > text.length()) {
-            return new ArrayList<>();
+            return Collections.emptyList();
         }
-        return switch (strategy) {
+        List<Integer> result = switch (strategy) {
             case BAD_CHARACTER -> searchBadCharacterAll(text, pattern);
             case GOOD_SUFFIX -> searchGoodSuffixAll(text, pattern);
         };
+        return Collections.unmodifiableList(result);
     }
 
     private static int findFirstBadCharacter(CharSequence text, CharSequence pattern) {

@@ -3,6 +3,7 @@ package io.github.connellite.match;
 import lombok.experimental.UtilityClass;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 
@@ -61,7 +62,7 @@ public class KMPMatching {
         Objects.requireNonNull(text, "text");
         Objects.requireNonNull(pattern, "pattern");
         if (pattern.isEmpty()) {
-            return new ArrayList<>();
+            return Collections.emptyList();
         }
         int[] lps = compileLps(pattern);
         int textIndex = 0;
@@ -89,7 +90,7 @@ public class KMPMatching {
             }
         }
 
-        return foundIndexes;
+        return Collections.unmodifiableList(foundIndexes);
     }
 
     /**

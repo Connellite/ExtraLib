@@ -198,7 +198,7 @@ public class ReflectionUtil {
      */
     public static <T> Constructor<T> getConstructor(Class<T> t) throws NoSuchMethodException {
         Constructor<T> constructor = t.getDeclaredConstructor();
-        constructor.setAccessible(true);
+        constructor.trySetAccessible();
         return constructor;
     }
 
@@ -208,7 +208,7 @@ public class ReflectionUtil {
     public static <T> Constructor<T> getConstructor(Class<T> t, Class<?>... parameterTypes)
             throws NoSuchMethodException {
         Constructor<T> constructor = t.getDeclaredConstructor(parameterTypes);
-        constructor.setAccessible(true);
+        constructor.trySetAccessible();
         return constructor;
     }
 
@@ -312,11 +312,19 @@ public class ReflectionUtil {
     }
 
     /**
-     * {@link Field#get} boxes primitive values; {@link Class#cast} on a primitive {@code Class}
-     * (e.g. {@code int.class}) rejects wrapper instances. Cast using the wrapper type instead.
+     * Casts a reflected field value to {@code type} with primitive-aware behavior.
+     * <p>
+     * Reflection APIs return boxed values for primitive fields; when {@code type} is a primitive
+     * token (for example {@code int.class}), this method first maps it to the wrapper type
+     * (for example {@code Integer.class}) before casting.
+     *
+     * @param type requested target type (primitive or reference)
+     * @param value value to cast
+     * @return cast value, or {@code null} if {@code value} is {@code null}
+     * @throws ClassCastException if {@code value} is not assignable to the effective cast type
      */
     @SuppressWarnings("unchecked")
-    private static <T> T castFieldValue(Class<T> type, Object value) {
+    public static <T> T castFieldValue(Class<T> type, Object value) {
         if (value == null) {
             return null;
         }
@@ -324,7 +332,13 @@ public class ReflectionUtil {
         return (T) castType.cast(value);
     }
 
-    private static Class<?> primitiveToWrapper(Class<?> primitive) {
+    /**
+     * Maps a primitive type token to its wrapper type; non-primitive inputs are returned unchanged.
+     *
+     * @param primitive primitive class token (or any class)
+     * @return wrapper class for primitives, {@code Void.class} for {@code void.class}, otherwise {@code primitive}
+     */
+    public static Class<?> primitiveToWrapper(Class<?> primitive) {
         if (primitive == int.class) {
             return Integer.class;
         }

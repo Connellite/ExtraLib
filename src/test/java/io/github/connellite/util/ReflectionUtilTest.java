@@ -180,4 +180,26 @@ class ReflectionUtilTest {
     void getEnumMap_duplicateKeyThrows() {
         assertThrows(IllegalStateException.class, () -> ReflectionUtil.getEnumMap(DupKey.class, DupKey::k));
     }
+
+    @Test
+    void primitiveToWrapper_mapsPrimitivesAndKeepsOthers() {
+        assertEquals(Boolean.class, ReflectionUtil.primitiveToWrapper(boolean.class));
+        assertEquals(Byte.class, ReflectionUtil.primitiveToWrapper(byte.class));
+        assertEquals(Short.class, ReflectionUtil.primitiveToWrapper(short.class));
+        assertEquals(Integer.class, ReflectionUtil.primitiveToWrapper(int.class));
+        assertEquals(Long.class, ReflectionUtil.primitiveToWrapper(long.class));
+        assertEquals(Float.class, ReflectionUtil.primitiveToWrapper(float.class));
+        assertEquals(Double.class, ReflectionUtil.primitiveToWrapper(double.class));
+        assertEquals(Character.class, ReflectionUtil.primitiveToWrapper(char.class));
+        assertEquals(Void.class, ReflectionUtil.primitiveToWrapper(void.class));
+        assertEquals(String.class, ReflectionUtil.primitiveToWrapper(String.class));
+    }
+
+    @Test
+    void castFieldValue_handlesPrimitiveTokenNullAndInvalidCast() {
+        assertEquals(Integer.valueOf(7), ReflectionUtil.castFieldValue(int.class, 7));
+        assertEquals("x", ReflectionUtil.castFieldValue(String.class, "x"));
+        assertNull(ReflectionUtil.castFieldValue(Integer.class, null));
+        assertThrows(ClassCastException.class, () -> ReflectionUtil.castFieldValue(Integer.class, "7"));
+    }
 }

@@ -4,12 +4,16 @@ import io.github.connellite.exception.ResultSetException;
 
 import java.math.BigDecimal;
 import java.sql.Connection;
+import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Objects;
+import java.util.Optional;
 
 /**
  * Forward-only iterator over JDBC query rows.
@@ -22,6 +26,64 @@ public class ResultSetStringIterator extends AbstractResultSetIterator<String> {
 
     public ResultSetStringIterator(Connection conn, String query) throws SQLException {
         super(conn, query);
+    }
+
+    public ResultSetStringIterator(ResultSet resultSet) throws SQLException {
+        super(resultSet);
+    }
+
+    public static List<Map<String, String>> findAll(Connection conn, String query) throws SQLException {
+        List<Map<String, String>> out = new ArrayList<>();
+        try (ResultSetStringIterator it = new ResultSetStringIterator(conn, query)) {
+            while (it.hasNext()) {
+                out.add(it.next());
+            }
+        } catch (SQLException se) {
+            throw se;
+        } catch (Exception e) {
+            throw new SQLException(e);
+        }
+        return Collections.unmodifiableList(out);
+    }
+
+    public static Optional<Map<String, String>> findFirst(Connection conn, String query) throws SQLException {
+        try (ResultSetStringIterator it = new ResultSetStringIterator(conn, query)) {
+            if (it.hasNext()) {
+                return Optional.of(it.next());
+            }
+            return Optional.empty();
+        } catch (SQLException se) {
+            throw se;
+        } catch (Exception e) {
+            throw new SQLException(e);
+        }
+    }
+
+    public static List<Map<String, String>> findAll(ResultSet resultSet) throws SQLException {
+        List<Map<String, String>> out = new ArrayList<>();
+        try (ResultSetStringIterator it = new ResultSetStringIterator(resultSet)) {
+            while (it.hasNext()) {
+                out.add(it.next());
+            }
+        } catch (SQLException se) {
+            throw se;
+        } catch (Exception e) {
+            throw new SQLException(e);
+        }
+        return Collections.unmodifiableList(out);
+    }
+
+    public static Optional<Map<String, String>> findFirst(ResultSet resultSet) throws SQLException {
+        try (ResultSetStringIterator it = new ResultSetStringIterator(resultSet)) {
+            if (it.hasNext()) {
+                return Optional.of(it.next());
+            }
+            return Optional.empty();
+        } catch (SQLException se) {
+            throw se;
+        } catch (Exception e) {
+            throw new SQLException(e);
+        }
     }
 
     @Override

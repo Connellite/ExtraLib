@@ -3,7 +3,9 @@ package io.github.connellite.jdbc;
 import org.junit.jupiter.api.Test;
 
 import java.sql.Connection;
+import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
@@ -66,6 +68,51 @@ class ResultSetStringStreamSqliteTest {
         try (Connection c = SqliteMemory.open()) {
             SqliteMemory.bootstrapDemoSchema(c);
             assertThrows(SQLException.class, () -> ResultSetStringStream.stream(c, "SELECT FROM oops"));
+        }
+    }
+
+    @Test
+    void iteratorAndStreamCanUseExistingResultSet() throws Exception {
+        try (Connection c = SqliteMemory.open()) {
+            SqliteMemory.bootstrapDemoSchema(c);
+
+            try (Statement st = c.createStatement();
+                 ResultSet rs = st.executeQuery("SELECT 1.500 AS x");
+                 ResultSetStringIterator it = new ResultSetStringIterator(rs)) {
+                assertTrue(it.hasNext());
+                assertEquals("1.5", it.next().get("x"));
+            }
+
+            try (Statement st = c.createStatement();
+                 ResultSet rs = st.executeQuery("SELECT id FROM demo ORDER BY id");
+                 Stream<Map<String, String>> stream = ResultSetStringStream.stream(rs)) {
+                assertEquals(List.of("1", "2"), stream.map(row -> row.get("id")).toList());
+            }
+        }
+    }
+
+    @Test
+    void iteratorStaticFindMethodsWorkForQueryAndResultSet() throws Exception {
+        try (Connection c = SqliteMemory.open()) {
+            SqliteMemory.bootstrapDemoSchema(c);
+
+            List<Map<String, String>> allByQuery = ResultSetStringIterator.findAll(c, "SELECT id FROM demo ORDER BY id");
+            assertEquals(2, allByQuery.size());
+            assertEquals("1", allByQuery.get(0).get("id"));
+
+            assertEquals("1", ResultSetStringIterator.findFirst(c, "SELECT id FROM demo ORDER BY id").orElseThrow().get("id"));
+            assertTrue(ResultSetStringIterator.findFirst(c, "SELECT id FROM demo WHERE 1=0").isEmpty());
+
+            try (Statement st = c.createStatement();
+                 ResultSet rs1 = st.executeQuery("SELECT id FROM demo ORDER BY id")) {
+                List<Map<String, String>> allByRs = ResultSetStringIterator.findAll(rs1);
+                assertEquals(2, allByRs.size());
+                assertEquals("2", allByRs.get(1).get("id"));
+            }
+            try (Statement st = c.createStatement();
+                 ResultSet rs2 = st.executeQuery("SELECT id FROM demo ORDER BY id")) {
+                assertEquals("1", ResultSetStringIterator.findFirst(rs2).orElseThrow().get("id"));
+            }
         }
     }
 }

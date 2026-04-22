@@ -7,6 +7,7 @@ import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Set;
 
 /**
@@ -32,7 +33,7 @@ public class ResultSetMetaDataUtils {
             String columnName = metaData.getColumnName(i);
             out.add(columnName);
         }
-        return out;
+        return Collections.unmodifiableCollection(out);
     }
 
     /**
@@ -52,7 +53,7 @@ public class ResultSetMetaDataUtils {
             String columnLabel = metaData.getColumnLabel(i);
             out.add(columnLabel);
         }
-        return out;
+        return Collections.unmodifiableCollection(out);
     }
 
     /**
@@ -72,7 +73,7 @@ public class ResultSetMetaDataUtils {
             String catalogName = metaData.getCatalogName(i);
             out.add(catalogName);
         }
-        return out;
+        return Collections.unmodifiableCollection(out);
     }
 
     /**
@@ -92,7 +93,7 @@ public class ResultSetMetaDataUtils {
             String schemaName = metaData.getSchemaName(i);
             out.add(schemaName);
         }
-        return out;
+        return Collections.unmodifiableCollection(out);
     }
 
     /**
@@ -112,7 +113,7 @@ public class ResultSetMetaDataUtils {
             String tableName = metaData.getTableName(i);
             out.add(tableName);
         }
-        return out;
+        return Collections.unmodifiableCollection(out);
     }
 
     /**
@@ -132,7 +133,7 @@ public class ResultSetMetaDataUtils {
             String typeName = metaData.getColumnTypeName(i);
             out.add(typeName);
         }
-        return out;
+        return Collections.unmodifiableCollection(out);
     }
 
     /**
@@ -152,7 +153,7 @@ public class ResultSetMetaDataUtils {
             String className = metaData.getColumnClassName(i);
             out.add(className);
         }
-        return out;
+        return Collections.unmodifiableCollection(out);
     }
 
     /**
@@ -176,7 +177,7 @@ public class ResultSetMetaDataUtils {
             String qualified = qualifyCatalogSchemaTableColumn(catalogName, schemaName, tableName, columnLabel);
             out.add(qualified);
         }
-        return out;
+        return Collections.unmodifiableCollection(out);
     }
 
     private static String qualify(String first, String second) {

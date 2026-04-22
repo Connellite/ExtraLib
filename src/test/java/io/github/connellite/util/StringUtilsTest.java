@@ -198,4 +198,14 @@ class StringUtilsTest {
     void splitAndTrim_multiCharSep_anyCharSplits() {
         assertIterableEquals(List.of("a", "b"), StringUtils.splitAndTrim("a,;b", ",;"));
     }
+
+    @Test
+    void splitLines_splitsUnixAndWindowsNewlines() {
+        assertIterableEquals(List.of("a", "b", "c"), StringUtils.splitLines("a\r\nb\nc"));
+    }
+
+    @Test
+    void splitLines_withoutNewline_returnsSingleElement() {
+        assertIterableEquals(List.of("only"), StringUtils.splitLines("only"));
+    }
 }

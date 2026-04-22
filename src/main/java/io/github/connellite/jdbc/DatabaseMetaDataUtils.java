@@ -8,6 +8,7 @@ import java.sql.DatabaseMetaData;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Set;
 
 /**
@@ -25,7 +26,7 @@ public class DatabaseMetaDataUtils {
                 tablesList.add(tableName);
             }
         }
-        return tablesList;
+        return Collections.unmodifiableCollection(tablesList);
     }
 
     public static Collection<String> getColumns(Connection connection, String tableName) throws SQLException {
@@ -37,7 +38,7 @@ public class DatabaseMetaDataUtils {
                 columnsList.add(columnName);
             }
         }
-        return columnsList;
+        return Collections.unmodifiableCollection(columnsList);
     }
 
     /** {@link DatabaseMetaData#getCatalogs()} — {@code TABLE_CAT} values. */
@@ -50,7 +51,7 @@ public class DatabaseMetaDataUtils {
                 out.add(catalogName);
             }
         }
-        return out;
+        return Collections.unmodifiableCollection(out);
     }
 
     /**
@@ -70,7 +71,7 @@ public class DatabaseMetaDataUtils {
                 out.add(qualified);
             }
         }
-        return out;
+        return Collections.unmodifiableCollection(out);
     }
 
     /**
@@ -88,7 +89,7 @@ public class DatabaseMetaDataUtils {
                 out.add(qualified);
             }
         }
-        return out;
+        return Collections.unmodifiableCollection(out);
     }
 
     /**
@@ -106,7 +107,7 @@ public class DatabaseMetaDataUtils {
                 out.add(qualified);
             }
         }
-        return out;
+        return Collections.unmodifiableCollection(out);
     }
 
     /**
@@ -126,7 +127,7 @@ public class DatabaseMetaDataUtils {
                 out.add(columnName);
             }
         }
-        return out;
+        return Collections.unmodifiableCollection(out);
     }
 
     /** {@link DatabaseMetaData#getPrimaryKeys(String, String, String)} — {@code COLUMN_NAME} in JDBC key-sequence order. */
@@ -152,7 +153,7 @@ public class DatabaseMetaDataUtils {
                 out.add(columnName);
             }
         }
-        return out;
+        return Collections.unmodifiableCollection(out);
     }
 
     /** {@link DatabaseMetaData#getExportedKeys(String, String, String)} — {@code PKCOLUMN_NAME} on this table as referenced primary key. */
@@ -165,7 +166,7 @@ public class DatabaseMetaDataUtils {
                 out.add(columnName);
             }
         }
-        return out;
+        return Collections.unmodifiableCollection(out);
     }
 
     private static String qualify(String first, String second) {
