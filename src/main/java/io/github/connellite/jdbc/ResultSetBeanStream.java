@@ -44,6 +44,32 @@ public final class ResultSetBeanStream {
     }
 
     /**
+     * @param connection connection used for query execution
+     * @param sql        query executed once; forward-only read-only cursor
+     * @param mapper     configured row mapper
+     */
+    public static <T> Stream<T> stream(Connection connection, String sql, SimpleResultSetBeanMapper<T> mapper) throws SQLException {
+        ResultSetBeanIterator<T> it;
+        try {
+            it = new ResultSetBeanIterator<>(connection, sql, mapper);
+        } catch (SQLException se) {
+            throw se;
+        } catch (Exception e) {
+            throw new SQLException(e);
+        }
+        return StreamSupport.stream(
+                        Spliterators.spliteratorUnknownSize(it, Spliterator.ORDERED | Spliterator.NONNULL),
+                        false)
+                .onClose(() -> {
+                    try {
+                        it.close();
+                    } catch (Exception e) {
+                        throw new RuntimeException(e);
+                    }
+                });
+    }
+
+    /**
      * @param resultSet open result set; stream close closes this result set
      * @param beanClass target bean type
      */
@@ -51,6 +77,31 @@ public final class ResultSetBeanStream {
         ResultSetBeanIterator<T> it;
         try {
             it = new ResultSetBeanIterator<>(resultSet, beanClass);
+        } catch (SQLException se) {
+            throw se;
+        } catch (Exception e) {
+            throw new SQLException(e);
+        }
+        return StreamSupport.stream(
+                        Spliterators.spliteratorUnknownSize(it, Spliterator.ORDERED | Spliterator.NONNULL),
+                        false)
+                .onClose(() -> {
+                    try {
+                        it.close();
+                    } catch (Exception e) {
+                        throw new RuntimeException(e);
+                    }
+                });
+    }
+
+    /**
+     * @param resultSet open result set; stream close closes this result set
+     * @param mapper    configured row mapper
+     */
+    public static <T> Stream<T> stream(ResultSet resultSet, SimpleResultSetBeanMapper<T> mapper) throws SQLException {
+        ResultSetBeanIterator<T> it;
+        try {
+            it = new ResultSetBeanIterator<>(resultSet, mapper);
         } catch (SQLException se) {
             throw se;
         } catch (Exception e) {

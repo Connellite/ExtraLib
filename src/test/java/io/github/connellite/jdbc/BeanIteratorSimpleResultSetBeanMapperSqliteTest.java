@@ -2,6 +2,8 @@ package io.github.connellite.jdbc;
 
 import io.github.connellite.exception.ResultSetException;
 import io.github.connellite.jdbc.annotation.Column;
+import lombok.Data;
+import lombok.Getter;
 import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.Proxy;
@@ -156,7 +158,7 @@ class BeanIteratorSimpleResultSetBeanMapperSqliteTest {
                     InheritedRow.class)) {
                 assertTrue(it.hasNext());
                 InheritedRow row = it.next();
-                assertEquals(id, row.id);
+                assertEquals(id, row.getId());
                 assertEquals("row-1", row.name);
                 assertTrue(row.active);
             }
@@ -172,30 +174,30 @@ class BeanIteratorSimpleResultSetBeanMapperSqliteTest {
                 s.execute("INSERT INTO one_row (name, active_flag) VALUES ('row-2', 'false')");
             }
 
-            List<PojoMinimal> all = ResultSetBeanIterator.findAll(c, "SELECT name, active_flag FROM one_row ORDER BY name", PojoMinimal.class);
+            List<PojoMinimal> all = ResultSetBeanIterator.getAll(c, "SELECT name, active_flag FROM one_row ORDER BY name", PojoMinimal.class);
             assertEquals(2, all.size());
             assertEquals("row-1", all.get(0).name);
             assertTrue(all.get(0).active);
             assertEquals("row-2", all.get(1).name);
             assertFalse(all.get(1).active);
 
-            Optional<PojoMinimal> first = ResultSetBeanIterator.findFirst(c, "SELECT name, active_flag FROM one_row ORDER BY name", PojoMinimal.class);
+            Optional<PojoMinimal> first = ResultSetBeanIterator.getFirst(c, "SELECT name, active_flag FROM one_row ORDER BY name", PojoMinimal.class);
             assertTrue(first.isPresent());
             assertEquals("row-1", first.get().name);
 
-            Optional<PojoMinimal> empty = ResultSetBeanIterator.findFirst(c, "SELECT name, active_flag FROM one_row WHERE 1=0", PojoMinimal.class);
+            Optional<PojoMinimal> empty = ResultSetBeanIterator.getFirst(c, "SELECT name, active_flag FROM one_row WHERE 1=0", PojoMinimal.class);
             assertTrue(empty.isEmpty());
 
             try (Statement s = c.createStatement();
                  ResultSet rs1 = s.executeQuery("SELECT name, active_flag FROM one_row ORDER BY name")) {
-                List<PojoMinimal> allByResultSet = ResultSetBeanIterator.findAll(rs1, PojoMinimal.class);
+                List<PojoMinimal> allByResultSet = ResultSetBeanIterator.getAll(rs1, PojoMinimal.class);
                 assertEquals(2, allByResultSet.size());
                 assertEquals("row-1", allByResultSet.get(0).name);
             }
 
             try (Statement s = c.createStatement();
                  ResultSet rs2 = s.executeQuery("SELECT name, active_flag FROM one_row ORDER BY name")) {
-                Optional<PojoMinimal> firstByResultSet = ResultSetBeanIterator.findFirst(rs2, PojoMinimal.class);
+                Optional<PojoMinimal> firstByResultSet = ResultSetBeanIterator.getFirst(rs2, PojoMinimal.class);
                 assertTrue(firstByResultSet.isPresent());
                 assertEquals("row-1", firstByResultSet.get().name);
             }
@@ -207,9 +209,9 @@ class BeanIteratorSimpleResultSetBeanMapperSqliteTest {
         try (Connection c = SqliteMemory.open()) {
             SqliteMemory.bootstrapDemoSchema(c);
 
-            List<Integer> ids = ResultSetBeanIterator.findAll(c, "SELECT id FROM demo ORDER BY id", Integer.class);
+            List<Integer> ids = ResultSetBeanIterator.getAll(c, "SELECT id FROM demo ORDER BY id", Integer.class);
             assertEquals(List.of(1, 2), ids);
-            assertEquals(1, ResultSetBeanIterator.findFirst(c, "SELECT id FROM demo ORDER BY id", Integer.class).orElseThrow());
+            assertEquals(1, ResultSetBeanIterator.getFirst(c, "SELECT id FROM demo ORDER BY id", Integer.class).orElseThrow());
 
             UUID u1 = UUID.randomUUID();
             UUID u2 = UUID.randomUUID();
@@ -219,14 +221,14 @@ class BeanIteratorSimpleResultSetBeanMapperSqliteTest {
                 st.execute("INSERT INTO uuid_demo (id) VALUES ('" + u2 + "')");
             }
 
-            List<UUID> uuids = ResultSetBeanIterator.findAll(c, "SELECT id FROM uuid_demo ORDER BY id", UUID.class);
+            List<UUID> uuids = ResultSetBeanIterator.getAll(c, "SELECT id FROM uuid_demo ORDER BY id", UUID.class);
             assertEquals(2, uuids.size());
             assertTrue(uuids.contains(u1));
             assertTrue(uuids.contains(u2));
 
             try (Statement st = c.createStatement();
                  ResultSet rs = st.executeQuery("SELECT id FROM demo ORDER BY id")) {
-                assertEquals(List.of(1, 2), ResultSetBeanIterator.findAll(rs, Integer.class));
+                assertEquals(List.of(1, 2), ResultSetBeanIterator.getAll(rs, Integer.class));
             }
         }
     }
@@ -253,6 +255,42 @@ class BeanIteratorSimpleResultSetBeanMapperSqliteTest {
                 assertTrue(row.active);
             }
         }
+    }
+
+    @Test
+    void annotationConverterIsAppliedForPojoField() throws Exception {
+        ResultSet rs = fakeRowResultSet(
+                "name", "row-annotated",
+                "active_flag", "yes"
+        );
+        SimpleResultSetBeanMapper<PojoWithAnnotationConverter> mapper = new SimpleResultSetBeanMapper<>(PojoWithAnnotationConverter.class);
+        PojoWithAnnotationConverter row = mapper.mapRow(rs);
+        assertEquals("row-annotated", row.name);
+        assertTrue(row.active);
+    }
+
+    @Test
+    void annotationConverterIsAppliedForRecordComponent() throws Exception {
+        ResultSet rs = fakeRowResultSet(
+                "name", "record-annotated",
+                "active_flag", "1"
+        );
+        SimpleResultSetBeanMapper<RecordWithAnnotationConverter> mapper = new SimpleResultSetBeanMapper<>(RecordWithAnnotationConverter.class);
+        RecordWithAnnotationConverter row = mapper.mapRow(rs);
+        assertEquals("record-annotated", row.name());
+        assertTrue(row.active());
+    }
+
+    @Test
+    void annotationConverterCanBeUsedWithoutValue() throws Exception {
+        ResultSet rs = fakeRowResultSet(
+                "name", "row-without-value",
+                "active", "yes"
+        );
+        SimpleResultSetBeanMapper<PojoWithConverterOnly> mapper = new SimpleResultSetBeanMapper<>(PojoWithConverterOnly.class);
+        PojoWithConverterOnly row = mapper.mapRow(rs);
+        assertEquals("row-without-value", row.name);
+        assertTrue(row.active);
     }
 
     @Test
@@ -487,39 +525,53 @@ class BeanIteratorSimpleResultSetBeanMapperSqliteTest {
         );
         SimpleResultSetBeanMapper<InheritedLobRow> mapper = new SimpleResultSetBeanMapper<>(InheritedLobRow.class);
         InheritedLobRow row = mapper.mapRow(rs);
-        assertEquals(id, row.id);
+        assertEquals(id, row.getId());
         assertEquals("inh-lob", row.name);
         assertEquals("xyz", new String(row.bytesValue, StandardCharsets.UTF_8));
     }
 
+    @Data
     static class PojoRow {
         @Column("id")
-        UUID id;
-        String name;
+        private UUID id;
+        private String name;
         @Column("active_flag")
-        Boolean active;
+        private Boolean active;
         @Column("amount_value")
-        BigDecimal amount;
-        LocalDate born;
+        private BigDecimal amount;
+        private LocalDate born;
         @Column("created_at")
-        LocalDateTime createdAt;
+        private LocalDateTime createdAt;
         @Column("optional_int")
-        Integer optionalInt;
+        private Integer optionalInt;
         @Column("primitive_int")
-        int primitiveInt;
+        private int primitiveInt;
     }
 
+    @Data
     static class PojoMinimal {
-        String name;
+        private String name;
         @Column("active_flag")
-        Boolean active;
+        private Boolean active;
     }
 
     static class PojoWithStaticFinal {
-        static final String CONST = "CONST";
-        String name;
+        private static final String CONST = "CONST";
+        private String name;
         @Column("active_flag")
-        Boolean active;
+        private Boolean active;
+    }
+
+    static class PojoWithAnnotationConverter {
+        private String name;
+        @Column(value = "active_flag", converter = TruthyBooleanConverter.class)
+        private Boolean active;
+    }
+
+    static class PojoWithConverterOnly {
+        private String name;
+        @Column(converter = TruthyBooleanConverter.class)
+        private Boolean active;
     }
 
     record RecordRow(String name) {
@@ -537,32 +589,48 @@ class BeanIteratorSimpleResultSetBeanMapperSqliteTest {
         }
     }
 
+    record RecordWithAnnotationConverter(String name,
+                                         @Column(value = "active_flag", converter = TruthyBooleanConverter.class) boolean active) {
+    }
+
+    public static final class TruthyBooleanConverter implements SimpleResultSetBeanMapper.TypeConverter<Boolean> {
+        @Override
+        public Boolean convert(Object raw) {
+            if (raw == null) {
+                return null;
+            }
+            String value = raw.toString().trim();
+            return "1".equals(value) || "true".equalsIgnoreCase(value) || "yes".equalsIgnoreCase(value);
+        }
+    }
+
+    @Getter
     static class UuidBase {
         @Column("id")
-        UUID id;
+        private UUID id;
     }
 
     static class InheritedRow extends UuidBase {
-        String name;
+        private String name;
         @Column("active_flag")
-        Boolean active;
+        private Boolean active;
     }
 
     static class InheritedLobRow extends UuidBase {
-        String name;
+        private String name;
         @Column("bytes_value")
-        byte[] bytesValue;
+        private byte[] bytesValue;
     }
 
     static class LobRow {
         @Column("text_value")
-        String textValue;
+        private String textValue;
         @Column("bytes_value")
-        byte[] bytesValue;
+        private byte[] bytesValue;
         @Column("as_clob")
-        Clob asClob;
+        private Clob asClob;
         @Column("as_blob")
-        Blob asBlob;
+        private Blob asBlob;
     }
 
     private static ResultSet fakeRowResultSet(Object... keyValues) {

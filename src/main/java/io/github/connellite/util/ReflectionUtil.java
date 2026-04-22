@@ -35,7 +35,9 @@ public class ReflectionUtil {
     public static Object invokeStatic(Class<?> clazz, String method)
             throws NoSuchMethodException, InvocationTargetException, IllegalAccessException {
         Method m = clazz.getDeclaredMethod(method);
-        m.setAccessible(true);
+        if (!m.canAccess(null)) {
+            m.trySetAccessible();
+        }
         return m.invoke(null);
     }
 
@@ -45,7 +47,9 @@ public class ReflectionUtil {
     public static Object invoke(Object o, String method)
             throws NoSuchMethodException, InvocationTargetException, IllegalAccessException {
         Method m = o.getClass().getDeclaredMethod(method);
-        m.setAccessible(true);
+        if (!m.canAccess(o)) {
+            m.trySetAccessible();
+        }
         return m.invoke(o);
     }
 
@@ -55,7 +59,9 @@ public class ReflectionUtil {
     public static <T> T getStatic(Class<?> clazz, String f, Class<T> type)
             throws NoSuchFieldException, IllegalAccessException {
         Field field = clazz.getDeclaredField(f);
-        field.setAccessible(true);
+        if (!field.canAccess(null)) {
+            field.trySetAccessible();
+        }
         return castFieldValue(type, field.get(null));
     }
 
@@ -65,7 +71,9 @@ public class ReflectionUtil {
     public static void setStatic(Class<?> clazz, String f, Object value)
             throws NoSuchFieldException, IllegalAccessException {
         Field field = clazz.getDeclaredField(f);
-        field.setAccessible(true);
+        if (!field.canAccess(null)) {
+            field.trySetAccessible();
+        }
         field.set(null, value);
     }
 
@@ -75,7 +83,9 @@ public class ReflectionUtil {
     public static <T> T getSuper(Object o, String f, Class<T> type)
             throws NoSuchFieldException, IllegalAccessException {
         Field field = o.getClass().getSuperclass().getDeclaredField(f);
-        field.setAccessible(true);
+        if (!field.canAccess(o)) {
+            field.trySetAccessible();
+        }
         return castFieldValue(type, field.get(o));
     }
 
@@ -86,7 +96,9 @@ public class ReflectionUtil {
     public static <T> T get(Object instance, Class<?> clazz, String f, Class<T> type)
             throws NoSuchFieldException, IllegalAccessException {
         Field field = clazz.getDeclaredField(f);
-        field.setAccessible(true);
+        if (!field.canAccess(instance)) {
+            field.trySetAccessible();
+        }
         return castFieldValue(type, field.get(instance));
     }
 
@@ -96,7 +108,9 @@ public class ReflectionUtil {
     public static <T> T get(Object o, String f, Class<T> type)
             throws NoSuchFieldException, IllegalAccessException {
         Field field = o.getClass().getDeclaredField(f);
-        field.setAccessible(true);
+        if (!field.canAccess(o)) {
+            field.trySetAccessible();
+        }
         return castFieldValue(type, field.get(o));
     }
 
@@ -106,7 +120,9 @@ public class ReflectionUtil {
     public static <T> T getPublic(Object o, String f, Class<T> type)
             throws NoSuchFieldException, IllegalAccessException {
         Field field = o.getClass().getField(f);
-        field.setAccessible(true);
+        if (!field.canAccess(o)) {
+            field.trySetAccessible();
+        }
         return castFieldValue(type, field.get(o));
     }
 
@@ -116,7 +132,9 @@ public class ReflectionUtil {
     public static void set(Object o, String f, Object value)
             throws NoSuchFieldException, IllegalAccessException {
         Field field = o.getClass().getDeclaredField(f);
-        field.setAccessible(true);
+        if (!field.canAccess(o)) {
+            field.trySetAccessible();
+        }
         field.set(o, value);
     }
 
@@ -159,7 +177,7 @@ public class ReflectionUtil {
     public static Method getMethodByName(Class<?> entity, String nameMethod) {
         for (Method method : entity.getDeclaredMethods()) {
             if (method.getName().equals(nameMethod)) {
-                method.setAccessible(true);
+                method.trySetAccessible();
                 return method;
             }
         }
@@ -172,7 +190,7 @@ public class ReflectionUtil {
     public static Method getMethodByAnnotation(Class<?> entity, Class<? extends Annotation> clazz) {
         for (Method method : entity.getDeclaredMethods()) {
             if (method.isAnnotationPresent(clazz)) {
-                method.setAccessible(true);
+                method.trySetAccessible();
                 return method;
             }
         }
@@ -186,7 +204,7 @@ public class ReflectionUtil {
         List<Method> list = new ArrayList<>();
         for (Method method : entity.getDeclaredMethods()) {
             if (method.isAnnotationPresent(clazz)) {
-                method.setAccessible(true);
+                method.trySetAccessible();
                 list.add(method);
             }
         }

@@ -1,5 +1,7 @@
 package io.github.connellite.jdbc.annotation;
 
+import io.github.connellite.jdbc.SimpleResultSetBeanMapper;
+
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -16,6 +18,14 @@ public @interface Column {
 
     /**
      * Column label in the result set (same string passed to {@link java.sql.ResultSet#getObject(String)}).
+     * When blank, field/record-component name is used.
      */
-    String value();
+    String value() default "";
+
+    /**
+     * Optional converter class for this field/component.
+     * Use {@link SimpleResultSetBeanMapper.DefaultConverter} to indicate "no explicit converter".
+     */
+    Class<? extends SimpleResultSetBeanMapper.TypeConverter<?>> converter()
+            default SimpleResultSetBeanMapper.DefaultConverter.class;
 }

@@ -39,7 +39,7 @@ public class ResultSetIterator extends AbstractResultSetIterator<Object> {
     /**
      * Reads all rows into an immutable list.
      */
-    public static List<Map<String, Object>> findAll(Connection conn, String query) throws SQLException {
+    public static List<Map<String, Object>> getAll(Connection conn, String query) throws SQLException {
         List<Map<String, Object>> out = new ArrayList<>();
         try (ResultSetIterator it = new ResultSetIterator(conn, query)) {
             while (it.hasNext()) {
@@ -56,7 +56,7 @@ public class ResultSetIterator extends AbstractResultSetIterator<Object> {
     /**
      * Reads the first row, if present.
      */
-    public static Optional<Map<String, Object>> findFirst(Connection conn, String query) throws SQLException {
+    public static Optional<Map<String, Object>> getFirst(Connection conn, String query) throws SQLException {
         try (ResultSetIterator it = new ResultSetIterator(conn, query)) {
             if (it.hasNext()) {
                 return Optional.of(it.next());
@@ -72,7 +72,7 @@ public class ResultSetIterator extends AbstractResultSetIterator<Object> {
     /**
      * Reads all rows from an existing {@link ResultSet} into an immutable list.
      */
-    public static List<Map<String, Object>> findAll(ResultSet resultSet) throws SQLException {
+    public static List<Map<String, Object>> getAll(ResultSet resultSet) throws SQLException {
         List<Map<String, Object>> out = new ArrayList<>();
         try (ResultSetIterator it = new ResultSetIterator(resultSet)) {
             while (it.hasNext()) {
@@ -89,7 +89,7 @@ public class ResultSetIterator extends AbstractResultSetIterator<Object> {
     /**
      * Reads the first row from an existing {@link ResultSet}, if present.
      */
-    public static Optional<Map<String, Object>> findFirst(ResultSet resultSet) throws SQLException {
+    public static Optional<Map<String, Object>> getFirst(ResultSet resultSet) throws SQLException {
         try (ResultSetIterator it = new ResultSetIterator(resultSet)) {
             if (it.hasNext()) {
                 return Optional.of(it.next());

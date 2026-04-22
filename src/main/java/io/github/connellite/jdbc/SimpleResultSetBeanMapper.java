@@ -86,6 +86,16 @@ public class SimpleResultSetBeanMapper<T> {
         T convert(Object raw) throws SQLException;
     }
 
+    /**
+     * Annotation default marker: means no explicit field/component converter is configured.
+     */
+    public static final class DefaultConverter implements TypeConverter<Object> {
+        @Override
+        public Object convert(Object raw) {
+            return raw;
+        }
+    }
+
     private final Class<T> beanClass;
     private final List<FieldBinding> bindings;
     private final Constructor<T> recordConstructor;
@@ -96,7 +106,7 @@ public class SimpleResultSetBeanMapper<T> {
     /**
      * Builds mapper without metadata validation.
      */
-    public SimpleResultSetBeanMapper(Class<T> beanClass) {
+    public SimpleResultSetBeanMapper(Class<T> beanClass) throws SQLException {
         this.beanClass = Objects.requireNonNull(beanClass, "beanClass");
         if (beanClass.isRecord()) {
             this.bindings = List.of();
@@ -161,7 +171,7 @@ public class SimpleResultSetBeanMapper<T> {
 
         for (FieldBinding b : bindings) {
             Object raw = rs.getObject(b.columnName());
-            Object value = coerce(raw, b.field().getType(), b.columnName());
+            Object value = coerce(raw, b.field().getType(), b.columnName(), b.converter());
             if (value == null && b.field().getType().isPrimitive()) {
                 throw new SQLException("Cannot map null to primitive field '" + b.field().getName() + "'");
             }
@@ -177,7 +187,8 @@ public class SimpleResultSetBeanMapper<T> {
     @SuppressWarnings("unchecked")
     private T mapScalarRow(ResultSet rs) throws SQLException {
         Object raw = rs.getObject(1);
-        Object value = coerce(raw, beanClass, "1");
+        // In scalar mode we always read the first column; "1" is used only as a column identifier in error messages.
+        Object value = coerce(raw, beanClass, "1", null);
         if (value == null && beanClass.isPrimitive()) {
             throw new SQLException("Cannot map null to primitive scalar type '" + beanClass.getName() + "'");
         }
@@ -197,7 +208,7 @@ public class SimpleResultSetBeanMapper<T> {
         for (int i = 0; i < recordBindings.size(); i++) {
             RecordBinding b = recordBindings.get(i);
             Object raw = rs.getObject(b.columnName());
-            Object value = coerce(raw, b.type(), b.columnName());
+            Object value = coerce(raw, b.type(), b.columnName(), b.converter());
             if (value == null && b.type().isPrimitive()) {
                 throw new SQLException("Cannot map null to primitive record component '" + b.name() + "'");
             }
@@ -210,7 +221,7 @@ public class SimpleResultSetBeanMapper<T> {
         }
     }
 
-    private static List<FieldBinding> collectBindings(Class<?> beanClass) {
+    private static List<FieldBinding> collectBindings(Class<?> beanClass) throws SQLException {
         List<Class<?>> hierarchy = new ArrayList<>();
         for (Class<?> c = beanClass; c != null && c != Object.class; c = c.getSuperclass()) {
             hierarchy.add(c);
@@ -225,8 +236,9 @@ public class SimpleResultSetBeanMapper<T> {
                 }
                 Column col = field.getAnnotation(Column.class);
                 String columnName = col != null && !col.value().isBlank() ? col.value() : field.getName();
+                TypeConverter<?> converter = resolveAnnotationConverter(col);
                 field.trySetAccessible();
-                out.add(new FieldBinding(field, columnName));
+                out.add(new FieldBinding(field, columnName, converter));
             }
         }
         return out;
@@ -245,13 +257,14 @@ public class SimpleResultSetBeanMapper<T> {
         }
     }
 
-    private static List<RecordBinding> collectRecordBindings(Class<?> beanClass) {
+    private static List<RecordBinding> collectRecordBindings(Class<?> beanClass) throws SQLException {
         RecordComponent[] components = beanClass.getRecordComponents();
         List<RecordBinding> out = new ArrayList<>(components.length);
         for (RecordComponent component : components) {
             Column col = component.getAnnotation(Column.class);
             String columnName = col != null && !col.value().isBlank() ? col.value() : component.getName();
-            out.add(new RecordBinding(component.getName(), component.getType(), columnName));
+            TypeConverter<?> converter = resolveAnnotationConverter(col);
+            out.add(new RecordBinding(component.getName(), component.getType(), columnName, converter));
         }
         return out;
     }
@@ -264,13 +277,27 @@ public class SimpleResultSetBeanMapper<T> {
     }
 
     @SuppressWarnings("unchecked")
-    private Object coerce(Object raw, Class<?> fieldType, String columnName) throws SQLException {
+    private Object coerce(Object raw, Class<?> fieldType, String columnName, TypeConverter<?> explicitConverter) throws SQLException {
+        if (explicitConverter != null) {
+            return ((TypeConverter<Object>) explicitConverter).convert(raw);
+        }
         Class<?> boxed = ReflectionUtil.primitiveToWrapper(fieldType);
         TypeConverter<?> converter = converters.get(boxed);
         if (converter != null) {
             return ((TypeConverter<Object>) converter).convert(raw);
         }
         return coerceDefault(raw, fieldType, columnName);
+    }
+
+    private static TypeConverter<?> resolveAnnotationConverter(Column col) throws SQLException {
+        if (col == null || col.converter() == DefaultConverter.class) {
+            return null;
+        }
+        try {
+            return ReflectionUtil.getInstance(col.converter());
+        } catch (ReflectiveOperationException e) {
+            throw new SQLException("Cannot instantiate converter " + col.converter().getName(), e);
+        }
     }
 
     @SuppressWarnings({"unchecked", "rawtypes"})
@@ -506,9 +533,9 @@ public class SimpleResultSetBeanMapper<T> {
         return n;
     }
 
-    private record FieldBinding(Field field, String columnName) {
+    private record FieldBinding(Field field, String columnName, TypeConverter<?> converter) {
     }
 
-    private record RecordBinding(String name, Class<?> type, String columnName) {
+    private record RecordBinding(String name, Class<?> type, String columnName, TypeConverter<?> converter) {
     }
 }

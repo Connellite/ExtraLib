@@ -103,22 +103,22 @@ class ResultSetStreamSqliteTest {
         try (Connection c = SqliteMemory.open()) {
             SqliteMemory.bootstrapDemoSchema(c);
 
-            List<Map<String, Object>> allByQuery = ResultSetIterator.findAll(c, "SELECT id FROM demo ORDER BY id");
+            List<Map<String, Object>> allByQuery = ResultSetIterator.getAll(c, "SELECT id FROM demo ORDER BY id");
             assertEquals(2, allByQuery.size());
             assertEquals(1, allByQuery.get(0).get("id"));
 
-            assertEquals(1, ResultSetIterator.findFirst(c, "SELECT id FROM demo ORDER BY id").orElseThrow().get("id"));
-            assertTrue(ResultSetIterator.findFirst(c, "SELECT id FROM demo WHERE 1=0").isEmpty());
+            assertEquals(1, ResultSetIterator.getFirst(c, "SELECT id FROM demo ORDER BY id").orElseThrow().get("id"));
+            assertTrue(ResultSetIterator.getFirst(c, "SELECT id FROM demo WHERE 1=0").isEmpty());
 
             try (Statement st = c.createStatement();
                  ResultSet rs1 = st.executeQuery("SELECT id FROM demo ORDER BY id")) {
-                List<Map<String, Object>> allByRs = ResultSetIterator.findAll(rs1);
+                List<Map<String, Object>> allByRs = ResultSetIterator.getAll(rs1);
                 assertEquals(2, allByRs.size());
                 assertEquals(2, allByRs.get(1).get("id"));
             }
             try (Statement st = c.createStatement();
                  ResultSet rs2 = st.executeQuery("SELECT id FROM demo ORDER BY id")) {
-                assertEquals(1, ResultSetIterator.findFirst(rs2).orElseThrow().get("id"));
+                assertEquals(1, ResultSetIterator.getFirst(rs2).orElseThrow().get("id"));
             }
         }
     }
