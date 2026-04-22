@@ -13,6 +13,8 @@ import java.lang.reflect.Modifier;
 import java.lang.reflect.RecordComponent;
 import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.sql.Blob;
+import java.sql.Clob;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Time;
@@ -54,6 +56,10 @@ import java.util.UUID;
  */
 public class SimpleResultSetBeanMapper<T> {
 
+    /**
+     * Custom conversion hook for target field/component type.
+     */
+    @FunctionalInterface
     public interface TypeConverter<T> {
         T convert(Object raw) throws SQLException;
     }
@@ -64,6 +70,9 @@ public class SimpleResultSetBeanMapper<T> {
     private final List<RecordBinding> recordBindings;
     private final Map<Class<?>, TypeConverter<?>> converters = new HashMap<>();
 
+    /**
+     * Builds mapper without metadata validation.
+     */
     public SimpleResultSetBeanMapper(Class<T> beanClass) {
         this.beanClass = Objects.requireNonNull(beanClass, "beanClass");
         if (beanClass.isRecord()) {
@@ -77,6 +86,9 @@ public class SimpleResultSetBeanMapper<T> {
         }
     }
 
+    /**
+     * Builds mapper and validates that mapped columns exist in {@code columnLabels}.
+     */
     public SimpleResultSetBeanMapper(Class<T> beanClass, Collection<String> columnLabels) throws SQLException {
         this(beanClass);
         if (columnLabels == null) {
@@ -100,6 +112,9 @@ public class SimpleResultSetBeanMapper<T> {
         }
     }
 
+    /**
+     * Maps current row of {@code rs} to target bean/record instance.
+     */
     public T mapRow(ResultSet rs) throws SQLException {
         if (beanClass.isRecord()) {
             return mapRecordRow(rs);
@@ -126,6 +141,9 @@ public class SimpleResultSetBeanMapper<T> {
         return instance;
     }
 
+    /**
+     * Registers custom converter for target type. Primitive types are normalized to wrappers.
+     */
     public <C> SimpleResultSetBeanMapper<T> withConverter(@NonNull Class<C> type, @NonNull TypeConverter<C> converter) {
         converters.put(ReflectionUtil.primitiveToWrapper(type), converter);
         return this;
@@ -213,10 +231,15 @@ public class SimpleResultSetBeanMapper<T> {
         Class<?> boxed = ReflectionUtil.primitiveToWrapper(fieldType);
 
         if (boxed == String.class) {
-            if (raw instanceof String s) {
-                return s;
-            }
+            if (raw instanceof String s) return s;
+            if (raw instanceof Clob clob) return LobUtils.convertClobToString(clob);
             return Objects.toString(raw, null);
+        }
+
+        if (boxed == byte[].class) {
+            if (raw instanceof byte[] bytes) return bytes;
+            if (raw instanceof Blob blob) return LobUtils.convertBlobToByteArray(blob);
+            return null;
         }
 
         if (boxed.isInstance(raw) && !(raw instanceof Number)) {
@@ -282,6 +305,18 @@ public class SimpleResultSetBeanMapper<T> {
                     throw new SQLException("Cannot map column '" + columnName + "' to java.sql.Date", e);
                 }
             }
+            return null;
+        }
+
+        if (boxed == Clob.class) {
+            if (raw instanceof Clob clob) return clob;
+            if (raw instanceof String s) return LobUtils.createClob(s);
+            return null;
+        }
+
+        if (boxed == Blob.class) {
+            if (raw instanceof Blob blob) return blob;
+            if (raw instanceof byte[] bytes) return LobUtils.createBlob(bytes);
             return null;
         }
 

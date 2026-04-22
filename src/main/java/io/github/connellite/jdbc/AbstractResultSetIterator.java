@@ -28,6 +28,9 @@ public abstract class AbstractResultSetIterator<V> implements Iterator<Map<Strin
     protected final List<String> columnNames;
     protected boolean hasNextValue;
 
+    /**
+     * Executes {@code query} on {@code conn} and prepares forward-only iteration over rows.
+     */
     public AbstractResultSetIterator(Connection conn, String query) throws SQLException {
         Statement statement;
         // Prefer forward-only read-only cursors; fall back to default statement if the driver rejects that type/concurrency.
@@ -48,6 +51,9 @@ public abstract class AbstractResultSetIterator<V> implements Iterator<Map<Strin
         this.hasNextValue = resultSet.next();
     }
 
+    /**
+     * Wraps an already opened {@link ResultSet} and prepares iteration over current/remaining rows.
+     */
     public AbstractResultSetIterator(ResultSet resultSet) throws SQLException {
         this.resultSet = resultSet;
         ResultSetMetaData metadata = resultSet.getMetaData();
@@ -85,6 +91,9 @@ public abstract class AbstractResultSetIterator<V> implements Iterator<Map<Strin
     @Override
     public abstract Map<String, V> next();
 
+    /**
+     * Closes underlying {@link ResultSet}.
+     */
     @Override
     public void close() throws Exception {
         if (resultSet != null) resultSet.close();

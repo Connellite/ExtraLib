@@ -22,7 +22,7 @@ public class LobUtils {
      * @param clob JDBC {@link Clob}; may be {@code null}
      * @return the concatenated text, or {@code null} if {@code clob} is {@code null}
      */
-    public static String convertClobToString(Clob clob) throws SQLException, IOException {
+    public static String convertClobToString(Clob clob) throws SQLException {
         if (clob == null) {
             return null;
         }
@@ -33,6 +33,8 @@ public class LobUtils {
             while ((line = br.readLine()) != null) {
                 sb.append(line);
             }
+        } catch (IOException e) {
+            throw new SQLException(e);
         }
         return sb.toString();
     }
@@ -43,12 +45,14 @@ public class LobUtils {
      * @param blob JDBC {@link Blob}; may be {@code null}
      * @return a new byte array with the full contents, or {@code null} if {@code blob} is {@code null}
      */
-    public static byte[] convertBlobToByteArray(Blob blob) throws SQLException, IOException {
+    public static byte[] convertBlobToByteArray(Blob blob) throws SQLException {
         if (blob == null) {
             return null;
         }
         try (InputStream in = blob.getBinaryStream()) {
             return in.readAllBytes();
+        } catch (IOException e) {
+            throw new SQLException(e);
         }
     }
 

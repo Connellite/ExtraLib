@@ -36,6 +36,7 @@ import java.util.Locale;
  * }
  * }</pre>
  */
+@FunctionalInterface
 public interface FmtFormattable {
 
     /**

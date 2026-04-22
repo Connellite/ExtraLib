@@ -24,14 +24,23 @@ import java.util.Optional;
  */
 public class ResultSetStringIterator extends AbstractResultSetIterator<String> {
 
+    /**
+     * Executes {@code query} and iterates resulting rows as {@code Map<String, String>}.
+     */
     public ResultSetStringIterator(Connection conn, String query) throws SQLException {
         super(conn, query);
     }
 
+    /**
+     * Wraps an already opened {@link ResultSet}.
+     */
     public ResultSetStringIterator(ResultSet resultSet) throws SQLException {
         super(resultSet);
     }
 
+    /**
+     * Reads all rows into an immutable list.
+     */
     public static List<Map<String, String>> findAll(Connection conn, String query) throws SQLException {
         List<Map<String, String>> out = new ArrayList<>();
         try (ResultSetStringIterator it = new ResultSetStringIterator(conn, query)) {
@@ -46,6 +55,9 @@ public class ResultSetStringIterator extends AbstractResultSetIterator<String> {
         return Collections.unmodifiableList(out);
     }
 
+    /**
+     * Reads the first row, if present.
+     */
     public static Optional<Map<String, String>> findFirst(Connection conn, String query) throws SQLException {
         try (ResultSetStringIterator it = new ResultSetStringIterator(conn, query)) {
             if (it.hasNext()) {
@@ -59,6 +71,9 @@ public class ResultSetStringIterator extends AbstractResultSetIterator<String> {
         }
     }
 
+    /**
+     * Reads all rows from an existing {@link ResultSet} into an immutable list.
+     */
     public static List<Map<String, String>> findAll(ResultSet resultSet) throws SQLException {
         List<Map<String, String>> out = new ArrayList<>();
         try (ResultSetStringIterator it = new ResultSetStringIterator(resultSet)) {
@@ -73,6 +88,9 @@ public class ResultSetStringIterator extends AbstractResultSetIterator<String> {
         return Collections.unmodifiableList(out);
     }
 
+    /**
+     * Reads the first row from an existing {@link ResultSet}, if present.
+     */
     public static Optional<Map<String, String>> findFirst(ResultSet resultSet) throws SQLException {
         try (ResultSetStringIterator it = new ResultSetStringIterator(resultSet)) {
             if (it.hasNext()) {
@@ -86,6 +104,9 @@ public class ResultSetStringIterator extends AbstractResultSetIterator<String> {
         }
     }
 
+    /**
+     * Returns the current row as a column-to-value map (stringified values) and advances cursor.
+     */
     @Override
     public Map<String, String> next() {
         if (!hasNextValue) {

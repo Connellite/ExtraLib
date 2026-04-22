@@ -1,9 +1,14 @@
 package io.github.connellite.jdbc;
 
+import io.github.connellite.exception.ResultSetException;
 import io.github.connellite.jdbc.annotation.Column;
 import org.junit.jupiter.api.Test;
 
+import java.lang.reflect.Proxy;
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
+import java.sql.Blob;
+import java.sql.Clob;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -12,13 +17,16 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -127,6 +135,27 @@ class BeanIteratorSimpleResultSetBeanMapperSqliteTest {
                  ResultSetBeanIterator<PojoMinimal> it = new ResultSetBeanIterator<>(rs, PojoMinimal.class)) {
                 assertTrue(it.hasNext());
                 PojoMinimal row = it.next();
+                assertEquals("row-1", row.name);
+                assertTrue(row.active);
+            }
+        }
+    }
+
+    @Test
+    void inheritanceMapsBaseAndChildFields() throws Exception {
+        UUID id = UUID.randomUUID();
+        try (Connection c = SqliteMemory.open()) {
+            try (Statement s = c.createStatement()) {
+                s.execute("CREATE TABLE inh_row (id TEXT, name TEXT, active_flag TEXT)");
+                s.execute("INSERT INTO inh_row (id, name, active_flag) VALUES ('" + id + "', 'row-1', 'true')");
+            }
+            try (ResultSetBeanIterator<InheritedRow> it = new ResultSetBeanIterator<>(
+                    c,
+                    "SELECT id, name, active_flag FROM inh_row",
+                    InheritedRow.class)) {
+                assertTrue(it.hasNext());
+                InheritedRow row = it.next();
+                assertEquals(id, row.id);
                 assertEquals("row-1", row.name);
                 assertTrue(row.active);
             }
@@ -359,6 +388,60 @@ class BeanIteratorSimpleResultSetBeanMapperSqliteTest {
         }
     }
 
+    @Test
+    void recordPrimitiveComponentCannotBeMappedFromNull() throws Exception {
+        try (Connection c = SqliteMemory.open()) {
+            try (Statement s = c.createStatement()) {
+                s.execute("CREATE TABLE rec_null_primitive (id TEXT, active_flag INTEGER)");
+                s.execute("INSERT INTO rec_null_primitive (id, active_flag) VALUES ('r1', NULL)");
+            }
+            try (ResultSetBeanIterator<RecordRow3> it = new ResultSetBeanIterator<>(
+                    c,
+                    "SELECT id, active_flag, '10.25' AS amount_value FROM rec_null_primitive",
+                    RecordRow3.class)) {
+                assertTrue(it.hasNext());
+                ResultSetException ex = assertThrows(ResultSetException.class, it::next);
+                assertInstanceOf(SQLException.class, ex.getCause());
+                assertTrue(ex.getCause().getMessage().contains("Cannot map null to primitive record component 'active'"));
+            }
+        }
+    }
+
+    @Test
+    void simpleBeanMapperMapsClobAndBlobThroughLobUtils() throws Exception {
+        Clob clob = LobUtils.createClob("hello");
+        Blob blob = LobUtils.createBlob("abc".getBytes(StandardCharsets.UTF_8));
+        ResultSet rs = fakeRowResultSet(
+                "text_value", clob,
+                "bytes_value", blob,
+                "as_clob", "hello",
+                "as_blob", "abc".getBytes(StandardCharsets.UTF_8)
+        );
+
+        SimpleResultSetBeanMapper<LobRow> mapper = new SimpleResultSetBeanMapper<>(LobRow.class);
+        LobRow row = mapper.mapRow(rs);
+
+        assertEquals("hello", row.textValue);
+        assertEquals("abc", new String(row.bytesValue, StandardCharsets.UTF_8));
+        assertEquals("hello", LobUtils.convertClobToString(row.asClob));
+        assertEquals("abc", new String(LobUtils.convertBlobToByteArray(row.asBlob), StandardCharsets.UTF_8));
+    }
+
+    @Test
+    void simpleBeanMapperMapsBaseUuidFromClobAndBlobViaInheritance() throws Exception {
+        UUID id = UUID.randomUUID();
+        ResultSet rs = fakeRowResultSet(
+                "id", id.toString(),
+                "name", "inh-lob",
+                "bytes_value", LobUtils.createBlob("xyz".getBytes(StandardCharsets.UTF_8))
+        );
+        SimpleResultSetBeanMapper<InheritedLobRow> mapper = new SimpleResultSetBeanMapper<>(InheritedLobRow.class);
+        InheritedLobRow row = mapper.mapRow(rs);
+        assertEquals(id, row.id);
+        assertEquals("inh-lob", row.name);
+        assertEquals("xyz", new String(row.bytesValue, StandardCharsets.UTF_8));
+    }
+
     static class PojoRow {
         @Column("id")
         UUID id;
@@ -402,5 +485,55 @@ class BeanIteratorSimpleResultSetBeanMapperSqliteTest {
         RecordWithExtraCtor(String id) {
             this(id, false);
         }
+    }
+
+    static class UuidBase {
+        @Column("id")
+        UUID id;
+    }
+
+    static class InheritedRow extends UuidBase {
+        String name;
+        @Column("active_flag")
+        Boolean active;
+    }
+
+    static class InheritedLobRow extends UuidBase {
+        String name;
+        @Column("bytes_value")
+        byte[] bytesValue;
+    }
+
+    static class LobRow {
+        @Column("text_value")
+        String textValue;
+        @Column("bytes_value")
+        byte[] bytesValue;
+        @Column("as_clob")
+        Clob asClob;
+        @Column("as_blob")
+        Blob asBlob;
+    }
+
+    private static ResultSet fakeRowResultSet(Object... keyValues) {
+        Map<String, Object> row = new HashMap<>();
+        for (int i = 0; i < keyValues.length; i += 2) {
+            row.put(String.valueOf(keyValues[i]), keyValues[i + 1]);
+        }
+        return (ResultSet) Proxy.newProxyInstance(
+                ResultSet.class.getClassLoader(),
+                new Class[]{ResultSet.class},
+                (proxy, method, args) -> {
+                    if ("getObject".equals(method.getName()) && args != null && args.length == 1) {
+                        return row.get(String.valueOf(args[0]));
+                    }
+                    if ("close".equals(method.getName())) {
+                        return null;
+                    }
+                    if ("isClosed".equals(method.getName())) {
+                        return false;
+                    }
+                    throw new UnsupportedOperationException("Unsupported ResultSet method: " + method.getName());
+                });
     }
 }

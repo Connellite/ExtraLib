@@ -22,14 +22,23 @@ import java.util.Optional;
  */
 public class ResultSetIterator extends AbstractResultSetIterator<Object> {
 
+    /**
+     * Executes {@code query} and iterates resulting rows as {@code Map<String, Object>}.
+     */
     public ResultSetIterator(Connection conn, String query) throws SQLException {
         super(conn, query);
     }
 
+    /**
+     * Wraps an already opened {@link ResultSet}.
+     */
     public ResultSetIterator(ResultSet resultSet) throws SQLException {
         super(resultSet);
     }
 
+    /**
+     * Reads all rows into an immutable list.
+     */
     public static List<Map<String, Object>> findAll(Connection conn, String query) throws SQLException {
         List<Map<String, Object>> out = new ArrayList<>();
         try (ResultSetIterator it = new ResultSetIterator(conn, query)) {
@@ -44,6 +53,9 @@ public class ResultSetIterator extends AbstractResultSetIterator<Object> {
         return Collections.unmodifiableList(out);
     }
 
+    /**
+     * Reads the first row, if present.
+     */
     public static Optional<Map<String, Object>> findFirst(Connection conn, String query) throws SQLException {
         try (ResultSetIterator it = new ResultSetIterator(conn, query)) {
             if (it.hasNext()) {
@@ -57,6 +69,9 @@ public class ResultSetIterator extends AbstractResultSetIterator<Object> {
         }
     }
 
+    /**
+     * Reads all rows from an existing {@link ResultSet} into an immutable list.
+     */
     public static List<Map<String, Object>> findAll(ResultSet resultSet) throws SQLException {
         List<Map<String, Object>> out = new ArrayList<>();
         try (ResultSetIterator it = new ResultSetIterator(resultSet)) {
@@ -71,6 +86,9 @@ public class ResultSetIterator extends AbstractResultSetIterator<Object> {
         return Collections.unmodifiableList(out);
     }
 
+    /**
+     * Reads the first row from an existing {@link ResultSet}, if present.
+     */
     public static Optional<Map<String, Object>> findFirst(ResultSet resultSet) throws SQLException {
         try (ResultSetIterator it = new ResultSetIterator(resultSet)) {
             if (it.hasNext()) {

@@ -31,6 +31,9 @@ public class ResultSetBeanIterator<T> implements Iterator<T>, AutoCloseable {
     private final SimpleResultSetBeanMapper<T> mapper;
     private boolean hasNextValue;
 
+    /**
+     * Executes {@code query} and iterates rows mapped to {@code beanClass}.
+     */
     public ResultSetBeanIterator(Connection conn, String query, Class<T> beanClass) throws SQLException {
         Statement statement;
         try {
@@ -49,12 +52,18 @@ public class ResultSetBeanIterator<T> implements Iterator<T>, AutoCloseable {
         this.hasNextValue = resultSet.next();
     }
 
+    /**
+     * Wraps an already opened {@link ResultSet} and maps rows to {@code beanClass}.
+     */
     public ResultSetBeanIterator(ResultSet resultSet, Class<T> beanClass) throws SQLException {
         this.resultSet = resultSet;
         this.mapper = new SimpleResultSetBeanMapper<>(beanClass, ResultSetMetaDataUtils.getColumnLabels(resultSet));
         this.hasNextValue = resultSet.next();
     }
 
+    /**
+     * Reads all mapped rows into an immutable list.
+     */
     public static <T> List<T> findAll(Connection conn, String query, Class<T> beanClass) throws SQLException {
         List<T> out = new ArrayList<>();
         try (ResultSetBeanIterator<T> it = new ResultSetBeanIterator<>(conn, query, beanClass)) {
@@ -69,6 +78,9 @@ public class ResultSetBeanIterator<T> implements Iterator<T>, AutoCloseable {
         return Collections.unmodifiableList(out);
     }
 
+    /**
+     * Reads the first mapped row, if present.
+     */
     public static <T> Optional<T> findFirst(Connection conn, String query, Class<T> beanClass) throws SQLException {
         try (ResultSetBeanIterator<T> it = new ResultSetBeanIterator<>(conn, query, beanClass)) {
             if (it.hasNext()) {
@@ -82,6 +94,9 @@ public class ResultSetBeanIterator<T> implements Iterator<T>, AutoCloseable {
         }
     }
 
+    /**
+     * Reads all mapped rows from an existing {@link ResultSet} into an immutable list.
+     */
     public static <T> List<T> findAll(ResultSet resultSet, Class<T> beanClass) throws SQLException {
         List<T> out = new ArrayList<>();
         try (ResultSetBeanIterator<T> it = new ResultSetBeanIterator<>(resultSet, beanClass)) {
@@ -96,6 +111,9 @@ public class ResultSetBeanIterator<T> implements Iterator<T>, AutoCloseable {
         return Collections.unmodifiableList(out);
     }
 
+    /**
+     * Reads the first mapped row from an existing {@link ResultSet}, if present.
+     */
     public static <T> Optional<T> findFirst(ResultSet resultSet, Class<T> beanClass) throws SQLException {
         try (ResultSetBeanIterator<T> it = new ResultSetBeanIterator<>(resultSet, beanClass)) {
             if (it.hasNext()) {
@@ -122,6 +140,9 @@ public class ResultSetBeanIterator<T> implements Iterator<T>, AutoCloseable {
         return hasNextValue;
     }
 
+    /**
+     * Returns the current mapped bean and advances cursor.
+     */
     @Override
     public T next() {
         if (!hasNextValue) {
@@ -137,6 +158,9 @@ public class ResultSetBeanIterator<T> implements Iterator<T>, AutoCloseable {
         }
     }
 
+    /**
+     * Closes underlying {@link ResultSet}.
+     */
     @Override
     public void close() throws Exception {
         if (resultSet != null) {
