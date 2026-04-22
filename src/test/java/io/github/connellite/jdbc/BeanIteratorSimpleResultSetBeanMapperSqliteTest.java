@@ -47,14 +47,15 @@ class BeanIteratorSimpleResultSetBeanMapperSqliteTest {
                         "created_at TEXT, " +
                         "optional_int INTEGER, " +
                         "primitive_int INTEGER)");
-                s.execute("INSERT INTO bean_demo (id, name, active_num, amount_text, born, created_at, optional_int) VALUES (" +
+                s.execute("INSERT INTO bean_demo (id, name, active_num, amount_text, born, created_at, optional_int, primitive_int) VALUES (" +
                         "'" + id + "', " +
                         "'alpha', " +
                         "1, " +
                         "'12.50', " +
                         "'2024-07-10', " +
                         "'2024-07-10 09:30:45', " +
-                        "NULL)");
+                        "NULL, " +
+                        "0)");
                 s.execute("INSERT INTO bean_demo (id, name, active_num, amount_text, born, created_at, optional_int, primitive_int) VALUES (" +
                         "'" + UUID.randomUUID() + "', " +
                         "'beta', " +
@@ -202,6 +203,35 @@ class BeanIteratorSimpleResultSetBeanMapperSqliteTest {
     }
 
     @Test
+    void scalarFindMethodsForIntegerAndUuidWorkWithoutBeanClass() throws Exception {
+        try (Connection c = SqliteMemory.open()) {
+            SqliteMemory.bootstrapDemoSchema(c);
+
+            List<Integer> ids = ResultSetBeanIterator.findAll(c, "SELECT id FROM demo ORDER BY id", Integer.class);
+            assertEquals(List.of(1, 2), ids);
+            assertEquals(1, ResultSetBeanIterator.findFirst(c, "SELECT id FROM demo ORDER BY id", Integer.class).orElseThrow());
+
+            UUID u1 = UUID.randomUUID();
+            UUID u2 = UUID.randomUUID();
+            try (Statement st = c.createStatement()) {
+                st.execute("CREATE TABLE uuid_demo (id TEXT)");
+                st.execute("INSERT INTO uuid_demo (id) VALUES ('" + u1 + "')");
+                st.execute("INSERT INTO uuid_demo (id) VALUES ('" + u2 + "')");
+            }
+
+            List<UUID> uuids = ResultSetBeanIterator.findAll(c, "SELECT id FROM uuid_demo ORDER BY id", UUID.class);
+            assertEquals(2, uuids.size());
+            assertTrue(uuids.contains(u1));
+            assertTrue(uuids.contains(u2));
+
+            try (Statement st = c.createStatement();
+                 ResultSet rs = st.executeQuery("SELECT id FROM demo ORDER BY id")) {
+                assertEquals(List.of(1, 2), ResultSetBeanIterator.findAll(rs, Integer.class));
+            }
+        }
+    }
+
+    @Test
     void simpleBeanMapperSupportsCustomTypeConverterForPojo() throws Exception {
         try (Connection c = SqliteMemory.open()) {
             try (Statement s = c.createStatement()) {
@@ -236,6 +266,26 @@ class BeanIteratorSimpleResultSetBeanMapperSqliteTest {
             SQLException ex = assertThrows(SQLException.class,
                     () -> new ResultSetBeanIterator<>(c, "SELECT id FROM short_row", PojoRow.class));
             assertTrue(ex.getMessage().contains("Result set has no column label"));
+        }
+    }
+
+    @Test
+    void nullCannotBeMappedToPrimitiveFieldInPojo() throws Exception {
+        try (Connection c = SqliteMemory.open()) {
+            try (Statement s = c.createStatement()) {
+                s.execute("CREATE TABLE primitive_null_pojo (id TEXT, primitive_int INTEGER)");
+                s.execute("INSERT INTO primitive_null_pojo (id, primitive_int) VALUES ('" + UUID.randomUUID() + "', NULL)");
+            }
+            try (ResultSetBeanIterator<PojoRow> it = new ResultSetBeanIterator<>(
+                    c,
+                    "SELECT id, 'name' AS name, 1 AS active_flag, '1.0' AS amount_value, '2024-07-10' AS born, " +
+                            "'2024-07-10 09:30:45' AS created_at, 1 AS optional_int, primitive_int FROM primitive_null_pojo",
+                    PojoRow.class)) {
+                assertTrue(it.hasNext());
+                ResultSetException ex = assertThrows(ResultSetException.class, it::next);
+                assertTrue(ex.getCause() instanceof SQLException);
+                assertTrue(ex.getCause().getMessage().contains("Cannot map null to primitive field"));
+            }
         }
     }
 

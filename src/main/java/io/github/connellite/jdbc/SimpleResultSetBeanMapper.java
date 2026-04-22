@@ -56,6 +56,28 @@ import java.util.UUID;
  */
 public class SimpleResultSetBeanMapper<T> {
 
+    private static final Set<Class<?>> SCALAR_TYPES = new HashSet<>();
+
+    static {
+        SCALAR_TYPES.add(String.class);
+        SCALAR_TYPES.add(UUID.class);
+        SCALAR_TYPES.add(Boolean.class);
+        SCALAR_TYPES.add(Character.class);
+        SCALAR_TYPES.add(byte[].class);
+        SCALAR_TYPES.add(Blob.class);
+        SCALAR_TYPES.add(Clob.class);
+        SCALAR_TYPES.add(java.sql.Date.class);
+        SCALAR_TYPES.add(Time.class);
+        SCALAR_TYPES.add(Timestamp.class);
+        SCALAR_TYPES.add(Date.class);
+        SCALAR_TYPES.add(LocalDate.class);
+        SCALAR_TYPES.add(LocalTime.class);
+        SCALAR_TYPES.add(LocalDateTime.class);
+        SCALAR_TYPES.add(Instant.class);
+        SCALAR_TYPES.add(ZonedDateTime.class);
+        SCALAR_TYPES.add(OffsetDateTime.class);
+    }
+
     /**
      * Custom conversion hook for target field/component type.
      */
@@ -68,6 +90,7 @@ public class SimpleResultSetBeanMapper<T> {
     private final List<FieldBinding> bindings;
     private final Constructor<T> recordConstructor;
     private final List<RecordBinding> recordBindings;
+    private final boolean scalarMode;
     private final Map<Class<?>, TypeConverter<?>> converters = new HashMap<>();
 
     /**
@@ -79,10 +102,17 @@ public class SimpleResultSetBeanMapper<T> {
             this.bindings = List.of();
             this.recordBindings = collectRecordBindings(beanClass);
             this.recordConstructor = resolveRecordConstructor(beanClass);
+            this.scalarMode = false;
+        } else if (isScalarType(beanClass)) {
+            this.bindings = List.of();
+            this.recordBindings = List.of();
+            this.recordConstructor = null;
+            this.scalarMode = true;
         } else {
             this.bindings = collectBindings(beanClass);
             this.recordBindings = List.of();
             this.recordConstructor = null;
+            this.scalarMode = false;
         }
     }
 
@@ -119,6 +149,9 @@ public class SimpleResultSetBeanMapper<T> {
         if (beanClass.isRecord()) {
             return mapRecordRow(rs);
         }
+        if (scalarMode) {
+            return mapScalarRow(rs);
+        }
         final T instance;
         try {
             instance = ReflectionUtil.getInstance(beanClass);
@@ -130,7 +163,7 @@ public class SimpleResultSetBeanMapper<T> {
             Object raw = rs.getObject(b.columnName());
             Object value = coerce(raw, b.field().getType(), b.columnName());
             if (value == null && b.field().getType().isPrimitive()) {
-                continue;
+                throw new SQLException("Cannot map null to primitive field '" + b.field().getName() + "'");
             }
             try {
                 ReflectionUtil.setValueField(instance, b.field(), value);
@@ -139,6 +172,16 @@ public class SimpleResultSetBeanMapper<T> {
             }
         }
         return instance;
+    }
+
+    @SuppressWarnings("unchecked")
+    private T mapScalarRow(ResultSet rs) throws SQLException {
+        Object raw = rs.getObject(1);
+        Object value = coerce(raw, beanClass, "1");
+        if (value == null && beanClass.isPrimitive()) {
+            throw new SQLException("Cannot map null to primitive scalar type '" + beanClass.getName() + "'");
+        }
+        return (T) value;
     }
 
     /**
@@ -211,6 +254,13 @@ public class SimpleResultSetBeanMapper<T> {
             out.add(new RecordBinding(component.getName(), component.getType(), columnName));
         }
         return out;
+    }
+
+    private static boolean isScalarType(Class<?> beanClass) {
+        Class<?> boxed = ReflectionUtil.primitiveToWrapper(beanClass);
+        return SCALAR_TYPES.contains(boxed)
+                || Number.class.isAssignableFrom(boxed)
+                || boxed.isEnum();
     }
 
     @SuppressWarnings("unchecked")
