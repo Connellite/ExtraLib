@@ -228,7 +228,7 @@ public class ResultSetBeanIterator<T> implements Iterator<T>, AutoCloseable {
     /**
      * Registers custom type converter in the underlying mapper and returns this iterator.
      */
-    public <C> ResultSetBeanIterator<T> withConverter(Class<C> type, SimpleResultSetBeanMapper.TypeConverter<C> converter) {
+    public <C> ResultSetBeanIterator<T> withConverter(Class<C> type, TypeConverter<C> converter) {
         mapper.withConverter(type, converter);
         return this;
     }

@@ -1,6 +1,6 @@
 package io.github.connellite.jdbc.annotation;
 
-import io.github.connellite.jdbc.SimpleResultSetBeanMapper;
+import io.github.connellite.jdbc.TypeConverter;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -24,8 +24,8 @@ public @interface Column {
 
     /**
      * Optional converter class for this field/component.
-     * Use {@link SimpleResultSetBeanMapper.DefaultConverter} to indicate "no explicit converter".
+     * Use {@link TypeConverter.DefaultConverter} to indicate "no explicit converter".
      */
-    Class<? extends SimpleResultSetBeanMapper.TypeConverter<?>> converter()
-            default SimpleResultSetBeanMapper.DefaultConverter.class;
+    Class<? extends TypeConverter<?>> converter()
+            default TypeConverter.DefaultConverter.class;
 }

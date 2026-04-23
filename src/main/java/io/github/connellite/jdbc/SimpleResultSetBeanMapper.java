@@ -78,24 +78,6 @@ public class SimpleResultSetBeanMapper<T> {
         SCALAR_TYPES.add(OffsetDateTime.class);
     }
 
-    /**
-     * Custom conversion hook for target field/component type.
-     */
-    @FunctionalInterface
-    public interface TypeConverter<T> {
-        T convert(Object raw) throws SQLException;
-    }
-
-    /**
-     * Annotation default marker: means no explicit field/component converter is configured.
-     */
-    public static final class DefaultConverter implements TypeConverter<Object> {
-        @Override
-        public Object convert(Object raw) {
-            return raw;
-        }
-    }
-
     private final Class<T> beanClass;
     private final List<FieldBinding> bindings;
     private final Constructor<T> recordConstructor;
@@ -290,7 +272,7 @@ public class SimpleResultSetBeanMapper<T> {
     }
 
     private static TypeConverter<?> resolveAnnotationConverter(Column col) throws SQLException {
-        if (col == null || col.converter() == DefaultConverter.class) {
+        if (col == null || col.converter() == TypeConverter.DefaultConverter.class) {
             return null;
         }
         try {

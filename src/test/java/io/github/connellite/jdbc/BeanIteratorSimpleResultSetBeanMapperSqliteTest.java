@@ -593,7 +593,7 @@ class BeanIteratorSimpleResultSetBeanMapperSqliteTest {
                                          @Column(value = "active_flag", converter = TruthyBooleanConverter.class) boolean active) {
     }
 
-    public static final class TruthyBooleanConverter implements SimpleResultSetBeanMapper.TypeConverter<Boolean> {
+    public static final class TruthyBooleanConverter implements TypeConverter<Boolean> {
         @Override
         public Boolean convert(Object raw) {
             if (raw == null) {
