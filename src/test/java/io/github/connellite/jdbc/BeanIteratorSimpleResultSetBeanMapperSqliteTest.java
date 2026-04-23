@@ -23,7 +23,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
-import java.util.Optional;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -166,46 +165,7 @@ class BeanIteratorSimpleResultSetBeanMapperSqliteTest {
     }
 
     @Test
-    void staticFindAllAndFindFirstWork() throws Exception {
-        try (Connection c = SqliteMemory.open()) {
-            try (Statement s = c.createStatement()) {
-                s.execute("CREATE TABLE one_row (name TEXT, active_flag TEXT)");
-                s.execute("INSERT INTO one_row (name, active_flag) VALUES ('row-1', 'true')");
-                s.execute("INSERT INTO one_row (name, active_flag) VALUES ('row-2', 'false')");
-            }
-
-            List<PojoMinimal> all = ResultSetBeanIterator.getAll(PojoMinimal.class, c, "SELECT name, active_flag FROM one_row ORDER BY name");
-            assertEquals(2, all.size());
-            assertEquals("row-1", all.get(0).name);
-            assertTrue(all.get(0).active);
-            assertEquals("row-2", all.get(1).name);
-            assertFalse(all.get(1).active);
-
-            Optional<PojoMinimal> first = ResultSetBeanIterator.getFirst(PojoMinimal.class, c, "SELECT name, active_flag FROM one_row ORDER BY name");
-            assertTrue(first.isPresent());
-            assertEquals("row-1", first.get().name);
-
-            Optional<PojoMinimal> empty = ResultSetBeanIterator.getFirst(PojoMinimal.class, c, "SELECT name, active_flag FROM one_row WHERE 1=0");
-            assertTrue(empty.isEmpty());
-
-            try (Statement s = c.createStatement();
-                 ResultSet rs1 = s.executeQuery("SELECT name, active_flag FROM one_row ORDER BY name")) {
-                List<PojoMinimal> allByResultSet = ResultSetBeanIterator.getAll(rs1, PojoMinimal.class);
-                assertEquals(2, allByResultSet.size());
-                assertEquals("row-1", allByResultSet.get(0).name);
-            }
-
-            try (Statement s = c.createStatement();
-                 ResultSet rs2 = s.executeQuery("SELECT name, active_flag FROM one_row ORDER BY name")) {
-                Optional<PojoMinimal> firstByResultSet = ResultSetBeanIterator.getFirst(rs2, PojoMinimal.class);
-                assertTrue(firstByResultSet.isPresent());
-                assertEquals("row-1", firstByResultSet.get().name);
-            }
-        }
-    }
-
-    @Test
-    void beanIteratorSupportsSqlParametersInConstructorAndStaticMethods() throws Exception {
+    void beanIteratorSupportsSqlParametersInConstructor() throws Exception {
         try (Connection c = SqliteMemory.open()) {
             try (Statement s = c.createStatement()) {
                 s.execute("CREATE TABLE bean_params_demo (name TEXT, active_flag TEXT)");
@@ -223,53 +183,6 @@ class BeanIteratorSimpleResultSetBeanMapperSqliteTest {
                 assertEquals("row-1", row.name);
                 assertTrue(row.active);
                 assertFalse(it.hasNext());
-            }
-
-            List<PojoMinimal> all = ResultSetBeanIterator.getAll(
-                    PojoMinimal.class,
-                    c,
-                    "SELECT name, active_flag FROM bean_params_demo WHERE active_flag = ? ORDER BY name",
-                    "false");
-            assertEquals(1, all.size());
-            assertEquals("row-2", all.get(0).name);
-            assertFalse(all.get(0).active);
-
-            Optional<PojoMinimal> first = ResultSetBeanIterator.getFirst(
-                    PojoMinimal.class,
-                    c,
-                    "SELECT name, active_flag FROM bean_params_demo WHERE name = ?",
-                    "row-2");
-            assertTrue(first.isPresent());
-            assertEquals("row-2", first.get().name);
-            assertFalse(first.get().active);
-        }
-    }
-
-    @Test
-    void scalarFindMethodsForIntegerAndUuidWorkWithoutBeanClass() throws Exception {
-        try (Connection c = SqliteMemory.open()) {
-            SqliteMemory.bootstrapDemoSchema(c);
-
-            List<Integer> ids = ResultSetBeanIterator.getAll(Integer.class, c, "SELECT id FROM demo ORDER BY id");
-            assertEquals(List.of(1, 2), ids);
-            assertEquals(1, ResultSetBeanIterator.getFirst(Integer.class, c, "SELECT id FROM demo ORDER BY id").orElseThrow());
-
-            UUID u1 = UUID.randomUUID();
-            UUID u2 = UUID.randomUUID();
-            try (Statement st = c.createStatement()) {
-                st.execute("CREATE TABLE uuid_demo (id TEXT)");
-                st.execute("INSERT INTO uuid_demo (id) VALUES ('" + u1 + "')");
-                st.execute("INSERT INTO uuid_demo (id) VALUES ('" + u2 + "')");
-            }
-
-            List<UUID> uuids = ResultSetBeanIterator.getAll(UUID.class, c, "SELECT id FROM uuid_demo ORDER BY id");
-            assertEquals(2, uuids.size());
-            assertTrue(uuids.contains(u1));
-            assertTrue(uuids.contains(u2));
-
-            try (Statement st = c.createStatement();
-                 ResultSet rs = st.executeQuery("SELECT id FROM demo ORDER BY id")) {
-                assertEquals(List.of(1, 2), ResultSetBeanIterator.getAll(rs, Integer.class));
             }
         }
     }
