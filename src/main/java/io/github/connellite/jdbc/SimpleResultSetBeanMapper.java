@@ -50,6 +50,9 @@ import java.util.UUID;
  * {@link ResultSetMetaDataUtils#getColumnLabels(ResultSet)}): every mapped column must
  * appear in that collection or construction throws {@link SQLException}. A {@code null}
  * {@code columnLabels} argument skips that check.
+ * <p>
+ * A row may also be supplied as a {@link Map} of string label to value; see {@link #mapRow(Map)}.
+ * Scalar types ({@code Integer}, {@code String}, and so on) are supported only with {@link #mapRow(ResultSet)}, not with {@link #mapRow(Map)}.
  *
  * @param <T> bean type (no-arg constructor for class beans; canonical constructor for records)
  */
@@ -132,9 +135,17 @@ public class SimpleResultSetBeanMapper<T> {
     }
 
     /**
+     * Registers custom converter for target type. Primitive types are normalized to wrappers.
+     */
+    public <C> SimpleResultSetBeanMapper<T> withConverter(@NonNull Class<C> type, @NonNull TypeConverter<C> converter) {
+        converters.put(ReflectionUtil.primitiveToWrapper(type), converter);
+        return this;
+    }
+
+    /**
      * Maps current row of {@code rs} to target bean/record instance.
      */
-    public T mapRow(ResultSet rs) throws SQLException {
+    public T mapRow(@NonNull ResultSet rs) throws SQLException {
         if (beanClass.isRecord()) {
             return mapRecordRow(rs);
         }
@@ -163,6 +174,48 @@ public class SimpleResultSetBeanMapper<T> {
         return instance;
     }
 
+    /**
+     * Maps one logical row expressed as a map from string key to value. Keys must match the labels this mapper uses
+     * for properties (the same labels as for {@link #mapRow(ResultSet)}). The map may come from any source as long as
+     * keys and values are compatible with the mapper's coercion rules.
+     * <p>
+     * A missing key behaves like a {@code null} value for the corresponding mapped property.
+     * <p>
+     * Scalar target types (for example {@code Integer.class}) are not supported for this overload;
+     *
+     * @param row one row as label to value; must not be {@code null}
+     * @return mapped bean or record instance
+     * @throws SQLException if the mapper was built for a scalar type or coercion fails
+     */
+    public T mapRow(@NonNull Map<String, Object> row) throws SQLException {
+        if (scalarMode) {
+            throw new SQLException("Scalar mapping is not supported for mapRow(Map<String, Object>);");
+        }
+        if (beanClass.isRecord()) {
+            return mapRecordRowFromMap(row);
+        }
+        final T instance;
+        try {
+            instance = ReflectionUtil.getInstance(beanClass);
+        } catch (ReflectiveOperationException e) {
+            throw new SQLException("Cannot instantiate " + beanClass.getName(), e);
+        }
+
+        for (FieldBinding b : bindings) {
+            Object raw = row.get(b.columnName());
+            Object value = coerce(raw, b.field().getType(), b.columnName(), b.converter());
+            if (value == null && b.field().getType().isPrimitive()) {
+                throw new SQLException("Cannot map null to primitive field '" + b.field().getName() + "'");
+            }
+            try {
+                ReflectionUtil.setValueField(instance, b.field(), value);
+            } catch (IllegalAccessException e) {
+                throw new SQLException("Cannot set field " + b.field().getDeclaringClass().getName() + "#" + b.field().getName(), e);
+            }
+        }
+        return instance;
+    }
+
     @SuppressWarnings("unchecked")
     private T mapScalarRow(ResultSet rs) throws SQLException {
         Object raw = rs.getObject(1);
@@ -174,19 +227,29 @@ public class SimpleResultSetBeanMapper<T> {
         return (T) value;
     }
 
-    /**
-     * Registers custom converter for target type. Primitive types are normalized to wrappers.
-     */
-    public <C> SimpleResultSetBeanMapper<T> withConverter(@NonNull Class<C> type, @NonNull TypeConverter<C> converter) {
-        converters.put(ReflectionUtil.primitiveToWrapper(type), converter);
-        return this;
-    }
-
     private T mapRecordRow(ResultSet rs) throws SQLException {
         Object[] args = new Object[recordBindings.size()];
         for (int i = 0; i < recordBindings.size(); i++) {
             RecordBinding b = recordBindings.get(i);
             Object raw = rs.getObject(b.columnName());
+            Object value = coerce(raw, b.type(), b.columnName(), b.converter());
+            if (value == null && b.type().isPrimitive()) {
+                throw new SQLException("Cannot map null to primitive record component '" + b.name() + "'");
+            }
+            args[i] = value;
+        }
+        try {
+            return recordConstructor.newInstance(args);
+        } catch (ReflectiveOperationException e) {
+            throw new SQLException("Cannot instantiate record " + beanClass.getName(), e);
+        }
+    }
+
+    private T mapRecordRowFromMap(Map<String, Object> row) throws SQLException {
+        Object[] args = new Object[recordBindings.size()];
+        for (int i = 0; i < recordBindings.size(); i++) {
+            RecordBinding b = recordBindings.get(i);
+            Object raw = row.get(b.columnName());
             Object value = coerce(raw, b.type(), b.columnName(), b.converter());
             if (value == null && b.type().isPrimitive()) {
                 throw new SQLException("Cannot map null to primitive record component '" + b.name() + "'");
