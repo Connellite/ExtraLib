@@ -69,7 +69,7 @@ class BeanIteratorSimpleResultSetBeanMapperSqliteTest {
                         "7)");
             }
 
-            try (ResultSetBeanIterator<PojoRow> it = new ResultSetBeanIterator<>(c, """
+            try (ResultSetBeanIterator<PojoRow> it = new ResultSetBeanIterator<>(PojoRow.class, c, """
                     SELECT
                         id,
                         name,
@@ -81,7 +81,7 @@ class BeanIteratorSimpleResultSetBeanMapperSqliteTest {
                         primitive_int
                     FROM bean_demo
                     ORDER BY name
-                    """, PojoRow.class)) {
+                    """)) {
 
                 List<PojoRow> rows = new ArrayList<>();
                 for (PojoRow row : it.asIterable()) {
@@ -153,9 +153,9 @@ class BeanIteratorSimpleResultSetBeanMapperSqliteTest {
                 s.execute("INSERT INTO inh_row (id, name, active_flag) VALUES ('" + id + "', 'row-1', 'true')");
             }
             try (ResultSetBeanIterator<InheritedRow> it = new ResultSetBeanIterator<>(
+                    InheritedRow.class,
                     c,
-                    "SELECT id, name, active_flag FROM inh_row",
-                    InheritedRow.class)) {
+                    "SELECT id, name, active_flag FROM inh_row")) {
                 assertTrue(it.hasNext());
                 InheritedRow row = it.next();
                 assertEquals(id, row.getId());
@@ -174,18 +174,18 @@ class BeanIteratorSimpleResultSetBeanMapperSqliteTest {
                 s.execute("INSERT INTO one_row (name, active_flag) VALUES ('row-2', 'false')");
             }
 
-            List<PojoMinimal> all = ResultSetBeanIterator.getAll(c, "SELECT name, active_flag FROM one_row ORDER BY name", PojoMinimal.class);
+            List<PojoMinimal> all = ResultSetBeanIterator.getAll(PojoMinimal.class, c, "SELECT name, active_flag FROM one_row ORDER BY name");
             assertEquals(2, all.size());
             assertEquals("row-1", all.get(0).name);
             assertTrue(all.get(0).active);
             assertEquals("row-2", all.get(1).name);
             assertFalse(all.get(1).active);
 
-            Optional<PojoMinimal> first = ResultSetBeanIterator.getFirst(c, "SELECT name, active_flag FROM one_row ORDER BY name", PojoMinimal.class);
+            Optional<PojoMinimal> first = ResultSetBeanIterator.getFirst(PojoMinimal.class, c, "SELECT name, active_flag FROM one_row ORDER BY name");
             assertTrue(first.isPresent());
             assertEquals("row-1", first.get().name);
 
-            Optional<PojoMinimal> empty = ResultSetBeanIterator.getFirst(c, "SELECT name, active_flag FROM one_row WHERE 1=0", PojoMinimal.class);
+            Optional<PojoMinimal> empty = ResultSetBeanIterator.getFirst(PojoMinimal.class, c, "SELECT name, active_flag FROM one_row WHERE 1=0");
             assertTrue(empty.isEmpty());
 
             try (Statement s = c.createStatement();
@@ -205,13 +205,54 @@ class BeanIteratorSimpleResultSetBeanMapperSqliteTest {
     }
 
     @Test
+    void beanIteratorSupportsSqlParametersInConstructorAndStaticMethods() throws Exception {
+        try (Connection c = SqliteMemory.open()) {
+            try (Statement s = c.createStatement()) {
+                s.execute("CREATE TABLE bean_params_demo (name TEXT, active_flag TEXT)");
+                s.execute("INSERT INTO bean_params_demo (name, active_flag) VALUES ('row-1', 'true')");
+                s.execute("INSERT INTO bean_params_demo (name, active_flag) VALUES ('row-2', 'false')");
+            }
+
+            try (ResultSetBeanIterator<PojoMinimal> it = new ResultSetBeanIterator<>(
+                    PojoMinimal.class,
+                    c,
+                    "SELECT name, active_flag FROM bean_params_demo WHERE name = ?",
+                    "row-1")) {
+                assertTrue(it.hasNext());
+                PojoMinimal row = it.next();
+                assertEquals("row-1", row.name);
+                assertTrue(row.active);
+                assertFalse(it.hasNext());
+            }
+
+            List<PojoMinimal> all = ResultSetBeanIterator.getAll(
+                    PojoMinimal.class,
+                    c,
+                    "SELECT name, active_flag FROM bean_params_demo WHERE active_flag = ? ORDER BY name",
+                    "false");
+            assertEquals(1, all.size());
+            assertEquals("row-2", all.get(0).name);
+            assertFalse(all.get(0).active);
+
+            Optional<PojoMinimal> first = ResultSetBeanIterator.getFirst(
+                    PojoMinimal.class,
+                    c,
+                    "SELECT name, active_flag FROM bean_params_demo WHERE name = ?",
+                    "row-2");
+            assertTrue(first.isPresent());
+            assertEquals("row-2", first.get().name);
+            assertFalse(first.get().active);
+        }
+    }
+
+    @Test
     void scalarFindMethodsForIntegerAndUuidWorkWithoutBeanClass() throws Exception {
         try (Connection c = SqliteMemory.open()) {
             SqliteMemory.bootstrapDemoSchema(c);
 
-            List<Integer> ids = ResultSetBeanIterator.getAll(c, "SELECT id FROM demo ORDER BY id", Integer.class);
+            List<Integer> ids = ResultSetBeanIterator.getAll(Integer.class, c, "SELECT id FROM demo ORDER BY id");
             assertEquals(List.of(1, 2), ids);
-            assertEquals(1, ResultSetBeanIterator.getFirst(c, "SELECT id FROM demo ORDER BY id", Integer.class).orElseThrow());
+            assertEquals(1, ResultSetBeanIterator.getFirst(Integer.class, c, "SELECT id FROM demo ORDER BY id").orElseThrow());
 
             UUID u1 = UUID.randomUUID();
             UUID u2 = UUID.randomUUID();
@@ -221,7 +262,7 @@ class BeanIteratorSimpleResultSetBeanMapperSqliteTest {
                 st.execute("INSERT INTO uuid_demo (id) VALUES ('" + u2 + "')");
             }
 
-            List<UUID> uuids = ResultSetBeanIterator.getAll(c, "SELECT id FROM uuid_demo ORDER BY id", UUID.class);
+            List<UUID> uuids = ResultSetBeanIterator.getAll(UUID.class, c, "SELECT id FROM uuid_demo ORDER BY id");
             assertEquals(2, uuids.size());
             assertTrue(uuids.contains(u1));
             assertTrue(uuids.contains(u2));
@@ -302,7 +343,7 @@ class BeanIteratorSimpleResultSetBeanMapperSqliteTest {
             }
 
             SQLException ex = assertThrows(SQLException.class,
-                    () -> new ResultSetBeanIterator<>(c, "SELECT id FROM short_row", PojoRow.class));
+                    () -> new ResultSetBeanIterator<>(PojoRow.class, c, "SELECT id FROM short_row"));
             assertTrue(ex.getMessage().contains("Result set has no column label"));
         }
     }
@@ -315,10 +356,10 @@ class BeanIteratorSimpleResultSetBeanMapperSqliteTest {
                 s.execute("INSERT INTO primitive_null_pojo (id, primitive_int) VALUES ('" + UUID.randomUUID() + "', NULL)");
             }
             try (ResultSetBeanIterator<PojoRow> it = new ResultSetBeanIterator<>(
+                    PojoRow.class,
                     c,
                     "SELECT id, 'name' AS name, 1 AS active_flag, '1.0' AS amount_value, '2024-07-10' AS born, " +
-                            "'2024-07-10 09:30:45' AS created_at, 1 AS optional_int, primitive_int FROM primitive_null_pojo",
-                    PojoRow.class)) {
+                            "'2024-07-10 09:30:45' AS created_at, 1 AS optional_int, primitive_int FROM primitive_null_pojo")) {
                 assertTrue(it.hasNext());
                 ResultSetException ex = assertThrows(ResultSetException.class, it::next);
                 assertTrue(ex.getCause() instanceof SQLException);
@@ -335,9 +376,9 @@ class BeanIteratorSimpleResultSetBeanMapperSqliteTest {
                 s.execute("INSERT INTO one_row (name, active_flag, extra_col) VALUES ('row-1', 'true', 'ignored')");
             }
             try (ResultSetBeanIterator<PojoMinimal> it = new ResultSetBeanIterator<>(
+                    PojoMinimal.class,
                     c,
-                    "SELECT name, active_flag, extra_col FROM one_row",
-                    PojoMinimal.class)) {
+                    "SELECT name, active_flag, extra_col FROM one_row")) {
                 assertTrue(it.hasNext());
                 PojoMinimal row = it.next();
                 assertEquals("row-1", row.name);
@@ -354,9 +395,9 @@ class BeanIteratorSimpleResultSetBeanMapperSqliteTest {
                 s.execute("INSERT INTO one_row (name, active_flag) VALUES ('row-1', 'true')");
             }
             try (ResultSetBeanIterator<PojoWithStaticFinal> it = new ResultSetBeanIterator<>(
+                    PojoWithStaticFinal.class,
                     c,
-                    "SELECT name, active_flag FROM one_row",
-                    PojoWithStaticFinal.class)) {
+                    "SELECT name, active_flag FROM one_row")) {
                 assertTrue(it.hasNext());
                 PojoWithStaticFinal row = it.next();
                 assertEquals("row-1", row.name);
@@ -375,7 +416,7 @@ class BeanIteratorSimpleResultSetBeanMapperSqliteTest {
             }
 
             SQLException ex = assertThrows(SQLException.class,
-                    () -> new ResultSetBeanIterator<>(c, "SELECT id FROM rec_short", RecordRow3.class));
+                    () -> new ResultSetBeanIterator<>(RecordRow3.class, c, "SELECT id FROM rec_short"));
             assertTrue(ex.getMessage().contains("Result set has no column label"));
         }
     }
@@ -388,9 +429,9 @@ class BeanIteratorSimpleResultSetBeanMapperSqliteTest {
                 s.execute("INSERT INTO rec_extra (id, active_flag, amount_value, extra_col) VALUES ('r1', 1, '10.25', 'ignored')");
             }
             try (ResultSetBeanIterator<RecordRow3> it = new ResultSetBeanIterator<>(
+                    RecordRow3.class,
                     c,
-                    "SELECT id, active_flag, amount_value, extra_col FROM rec_extra",
-                    RecordRow3.class)) {
+                    "SELECT id, active_flag, amount_value, extra_col FROM rec_extra")) {
                 assertTrue(it.hasNext());
                 RecordRow3 row = it.next();
                 assertEquals("r1", row.id());
@@ -403,7 +444,7 @@ class BeanIteratorSimpleResultSetBeanMapperSqliteTest {
     @Test
     void iteratorNextWithoutRowsThrowsNoSuchElement() throws Exception {
         try (Connection c = SqliteMemory.open();
-             ResultSetBeanIterator<PojoMinimal> it = new ResultSetBeanIterator<>(c, "SELECT 'x' AS name, 1 AS active_flag WHERE 1=0", PojoMinimal.class)) {
+             ResultSetBeanIterator<PojoMinimal> it = new ResultSetBeanIterator<>(PojoMinimal.class, c, "SELECT 'x' AS name, 1 AS active_flag WHERE 1=0")) {
             assertFalse(it.hasNext());
             assertThrows(NoSuchElementException.class, it::next);
         }
@@ -412,7 +453,7 @@ class BeanIteratorSimpleResultSetBeanMapperSqliteTest {
     @Test
     void beanIteratorMapsRecordWithSingleAnnotatedComponent() throws Exception {
         try (Connection c = SqliteMemory.open()) {
-            try (ResultSetBeanIterator<RecordRow> it = new ResultSetBeanIterator<>(c, "SELECT 'rec' AS name", RecordRow.class)) {
+            try (ResultSetBeanIterator<RecordRow> it = new ResultSetBeanIterator<>(RecordRow.class, c, "SELECT 'rec' AS name")) {
                 assertTrue(it.hasNext());
                 RecordRow row = it.next();
                 assertEquals("rec", row.name());
@@ -427,8 +468,8 @@ class BeanIteratorSimpleResultSetBeanMapperSqliteTest {
                 s.execute("CREATE TABLE rec_demo (id TEXT, active_flag INTEGER, amount_value TEXT)");
                 s.execute("INSERT INTO rec_demo (id, active_flag, amount_value) VALUES ('r1', 1, '10.25')");
             }
-            try (ResultSetBeanIterator<RecordRow3> it = new ResultSetBeanIterator<>(c,
-                    "SELECT id, active_flag, amount_value FROM rec_demo", RecordRow3.class)) {
+            try (ResultSetBeanIterator<RecordRow3> it = new ResultSetBeanIterator<>(RecordRow3.class, c,
+                    "SELECT id, active_flag, amount_value FROM rec_demo")) {
                 assertTrue(it.hasNext());
                 RecordRow3 row = it.next();
                 assertEquals("r1", row.id());
@@ -446,9 +487,9 @@ class BeanIteratorSimpleResultSetBeanMapperSqliteTest {
                 s.execute("INSERT INTO rec_ctor_demo (id, active_flag) VALUES ('r1', 1)");
             }
             try (ResultSetBeanIterator<RecordWithExtraCtor> it = new ResultSetBeanIterator<>(
+                    RecordWithExtraCtor.class,
                     c,
-                    "SELECT id, active_flag FROM rec_ctor_demo",
-                    RecordWithExtraCtor.class)) {
+                    "SELECT id, active_flag FROM rec_ctor_demo")) {
                 assertTrue(it.hasNext());
                 RecordWithExtraCtor row = it.next();
                 assertEquals("r1", row.id());
@@ -484,9 +525,9 @@ class BeanIteratorSimpleResultSetBeanMapperSqliteTest {
                 s.execute("INSERT INTO rec_null_primitive (id, active_flag) VALUES ('r1', NULL)");
             }
             try (ResultSetBeanIterator<RecordRow3> it = new ResultSetBeanIterator<>(
+                    RecordRow3.class,
                     c,
-                    "SELECT id, active_flag, '10.25' AS amount_value FROM rec_null_primitive",
-                    RecordRow3.class)) {
+                    "SELECT id, active_flag, '10.25' AS amount_value FROM rec_null_primitive")) {
                 assertTrue(it.hasNext());
                 ResultSetException ex = assertThrows(ResultSetException.class, it::next);
                 assertInstanceOf(SQLException.class, ex.getCause());

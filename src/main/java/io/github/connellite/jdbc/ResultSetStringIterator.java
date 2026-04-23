@@ -27,8 +27,8 @@ public class ResultSetStringIterator extends AbstractResultSetIterator<String> {
     /**
      * Executes {@code query} and iterates resulting rows as {@code Map<String, String>}.
      */
-    public ResultSetStringIterator(Connection conn, String query) throws SQLException {
-        super(conn, query);
+    public ResultSetStringIterator(Connection conn, String query, Object... params) throws SQLException {
+        super(conn, query, params);
     }
 
     /**
@@ -41,9 +41,9 @@ public class ResultSetStringIterator extends AbstractResultSetIterator<String> {
     /**
      * Reads all rows into an immutable list.
      */
-    public static List<Map<String, String>> getAll(Connection conn, String query) throws SQLException {
+    public static List<Map<String, String>> getAll(Connection conn, String query, Object... params) throws SQLException {
         List<Map<String, String>> out = new ArrayList<>();
-        try (ResultSetStringIterator it = new ResultSetStringIterator(conn, query)) {
+        try (ResultSetStringIterator it = new ResultSetStringIterator(conn, query, params)) {
             while (it.hasNext()) {
                 out.add(it.next());
             }
@@ -58,8 +58,8 @@ public class ResultSetStringIterator extends AbstractResultSetIterator<String> {
     /**
      * Reads the first row, if present.
      */
-    public static Optional<Map<String, String>> getFirst(Connection conn, String query) throws SQLException {
-        try (ResultSetStringIterator it = new ResultSetStringIterator(conn, query)) {
+    public static Optional<Map<String, String>> getFirst(Connection conn, String query, Object... params) throws SQLException {
+        try (ResultSetStringIterator it = new ResultSetStringIterator(conn, query, params)) {
             if (it.hasNext()) {
                 return Optional.of(it.next());
             }

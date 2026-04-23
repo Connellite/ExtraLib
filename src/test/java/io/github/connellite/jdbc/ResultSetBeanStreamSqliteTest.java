@@ -24,15 +24,41 @@ class ResultSetBeanStreamSqliteTest {
             }
 
             try (Stream<RowBean> stream = ResultSetBeanStream.stream(
+                    RowBean.class,
                     c,
-                    "SELECT name, active_flag FROM bean_stream_demo ORDER BY name",
-                    RowBean.class
+                    "SELECT name, active_flag FROM bean_stream_demo ORDER BY name"
             )) {
                 List<RowBean> rows = stream.toList();
                 assertEquals(2, rows.size());
                 assertEquals("row-1", rows.get(0).name);
                 assertTrue(rows.get(0).active);
                 assertEquals("row-2", rows.get(1).name);
+            }
+        }
+    }
+
+    @Test
+    void streamFromConnectionAndSqlWithParams() throws Exception {
+        try (Connection c = SqliteMemory.open()) {
+            try (Statement s = c.createStatement()) {
+                s.execute("CREATE TABLE bean_stream_params_demo (name TEXT, active_flag TEXT)");
+                s.execute("INSERT INTO bean_stream_params_demo (name, active_flag) VALUES ('row-1', 'true')");
+                s.execute("INSERT INTO bean_stream_params_demo (name, active_flag) VALUES ('row-2', 'false')");
+                s.execute("INSERT INTO bean_stream_params_demo (name, active_flag) VALUES ('row-3', 'true')");
+            }
+
+            try (Stream<RowBean> stream = ResultSetBeanStream.stream(
+                    RowBean.class,
+                    c,
+                    "SELECT name, active_flag FROM bean_stream_params_demo WHERE active_flag = ? ORDER BY name",
+                    "true"
+            )) {
+                List<RowBean> rows = stream.toList();
+                assertEquals(2, rows.size());
+                assertEquals("row-1", rows.get(0).name);
+                assertTrue(rows.get(0).active);
+                assertEquals("row-3", rows.get(1).name);
+                assertTrue(rows.get(1).active);
             }
         }
     }

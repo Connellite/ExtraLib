@@ -4,9 +4,9 @@ import io.github.connellite.exception.ResultSetException;
 import lombok.Getter;
 
 import java.sql.Connection;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
@@ -36,20 +36,24 @@ public class ResultSetBeanIterator<T> implements Iterator<T>, AutoCloseable {
     /**
      * Executes {@code query} and iterates rows mapped to {@code beanClass}.
      */
-    public ResultSetBeanIterator(Connection conn, String query, Class<T> beanClass) throws SQLException {
-        Statement statement;
+    public ResultSetBeanIterator(Class<T> beanClass, Connection conn, String query, Object... params) throws SQLException {
+        Object[] safeParams = params == null ? new Object[0] : params;
+        PreparedStatement statement;
         try {
-            statement = conn.createStatement(ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY);
+            statement = conn.prepareStatement(query, ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY);
         } catch (Exception e) {
             // Prefer forward-only read-only cursors; fall back to default statement if the driver rejects that type/concurrency.
-            statement = conn.createStatement();
+            statement = conn.prepareStatement(query);
         }
 
         try {
             statement.setFetchSize(1000);
         } catch (Exception ignore) {// Ignore if the driver does not support fetch size hints for this statement type.
         }
-        this.resultSet = new ResultSetWrapper(statement, statement.executeQuery(query));
+        for (int i = 0; i < safeParams.length; i++) {
+            statement.setObject(i + 1, safeParams[i]);
+        }
+        this.resultSet = new ResultSetWrapper(statement, statement.executeQuery());
         this.mapper = new SimpleResultSetBeanMapper<>(beanClass, ResultSetMetaDataUtils.getColumnLabels(resultSet));
         this.hasNextValue = resultSet.next();
     }
@@ -57,20 +61,24 @@ public class ResultSetBeanIterator<T> implements Iterator<T>, AutoCloseable {
     /**
      * Executes {@code query} and iterates rows using provided mapper.
      */
-    public ResultSetBeanIterator(Connection conn, String query, SimpleResultSetBeanMapper<T> mapper) throws SQLException {
-        Statement statement;
+    public ResultSetBeanIterator(SimpleResultSetBeanMapper<T> mapper, Connection conn, String query, Object... params) throws SQLException {
+        Object[] safeParams = params == null ? new Object[0] : params;
+        PreparedStatement statement;
         try {
-            statement = conn.createStatement(ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY);
+            statement = conn.prepareStatement(query, ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY);
         } catch (Exception e) {
             // Prefer forward-only read-only cursors; fall back to default statement if the driver rejects that type/concurrency.
-            statement = conn.createStatement();
+            statement = conn.prepareStatement(query);
         }
 
         try {
             statement.setFetchSize(1000);
         } catch (Exception ignore) {// Ignore if the driver does not support fetch size hints for this statement type.
         }
-        this.resultSet = new ResultSetWrapper(statement, statement.executeQuery(query));
+        for (int i = 0; i < safeParams.length; i++) {
+            statement.setObject(i + 1, safeParams[i]);
+        }
+        this.resultSet = new ResultSetWrapper(statement, statement.executeQuery());
         this.mapper = mapper;
         this.hasNextValue = resultSet.next();
     }
@@ -96,9 +104,9 @@ public class ResultSetBeanIterator<T> implements Iterator<T>, AutoCloseable {
     /**
      * Reads all mapped rows into an immutable list.
      */
-    public static <T> List<T> getAll(Connection conn, String query, Class<T> beanClass) throws SQLException {
+    public static <T> List<T> getAll(Class<T> beanClass, Connection conn, String query, Object... params) throws SQLException {
         List<T> out = new ArrayList<>();
-        try (ResultSetBeanIterator<T> it = new ResultSetBeanIterator<>(conn, query, beanClass)) {
+        try (ResultSetBeanIterator<T> it = new ResultSetBeanIterator<>(beanClass, conn, query, params)) {
             while (it.hasNext()) {
                 out.add(it.next());
             }
@@ -113,9 +121,9 @@ public class ResultSetBeanIterator<T> implements Iterator<T>, AutoCloseable {
     /**
      * Reads all mapped rows into an immutable list using provided mapper.
      */
-    public static <T> List<T> getAll(Connection conn, String query, SimpleResultSetBeanMapper<T> mapper) throws SQLException {
+    public static <T> List<T> getAll(SimpleResultSetBeanMapper<T> mapper, Connection conn, String query, Object... params) throws SQLException {
         List<T> out = new ArrayList<>();
-        try (ResultSetBeanIterator<T> it = new ResultSetBeanIterator<>(conn, query, mapper)) {
+        try (ResultSetBeanIterator<T> it = new ResultSetBeanIterator<>(mapper, conn, query, params)) {
             while (it.hasNext()) {
                 out.add(it.next());
             }
@@ -130,8 +138,8 @@ public class ResultSetBeanIterator<T> implements Iterator<T>, AutoCloseable {
     /**
      * Reads the first mapped row, if present.
      */
-    public static <T> Optional<T> getFirst(Connection conn, String query, Class<T> beanClass) throws SQLException {
-        try (ResultSetBeanIterator<T> it = new ResultSetBeanIterator<>(conn, query, beanClass)) {
+    public static <T> Optional<T> getFirst(Class<T> beanClass, Connection conn, String query, Object... params) throws SQLException {
+        try (ResultSetBeanIterator<T> it = new ResultSetBeanIterator<>(beanClass, conn, query, params)) {
             if (it.hasNext()) {
                 return Optional.ofNullable(it.next());
             }
@@ -146,8 +154,8 @@ public class ResultSetBeanIterator<T> implements Iterator<T>, AutoCloseable {
     /**
      * Reads the first mapped row, if present, using provided mapper.
      */
-    public static <T> Optional<T> getFirst(Connection conn, String query, SimpleResultSetBeanMapper<T> mapper) throws SQLException {
-        try (ResultSetBeanIterator<T> it = new ResultSetBeanIterator<>(conn, query, mapper)) {
+    public static <T> Optional<T> getFirst(SimpleResultSetBeanMapper<T> mapper, Connection conn, String query, Object... params) throws SQLException {
+        try (ResultSetBeanIterator<T> it = new ResultSetBeanIterator<>(mapper, conn, query, params)) {
             if (it.hasNext()) {
                 return Optional.ofNullable(it.next());
             }

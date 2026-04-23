@@ -20,10 +20,10 @@ public final class ResultSetStringStream {
      * @param connection connection used for the query; iterator closes statement/result set when the stream is closed
      * @param sql        query executed once; forward-only read-only cursor
      */
-    public static Stream<Map<String, String>> stream(Connection connection, String sql) throws SQLException {
+    public static Stream<Map<String, String>> stream(Connection connection, String sql, Object... params) throws SQLException {
         ResultSetStringIterator it;
         try {
-            it = new ResultSetStringIterator(connection, sql);
+            it = new ResultSetStringIterator(connection, sql, params);
         } catch (SQLException se) {
             throw se;
         } catch (Exception e) {

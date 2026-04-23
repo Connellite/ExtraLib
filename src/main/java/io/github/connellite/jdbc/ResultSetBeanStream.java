@@ -22,10 +22,10 @@ public final class ResultSetBeanStream {
      * @param sql        query executed once; forward-only read-only cursor
      * @param beanClass  target bean type
      */
-    public static <T> Stream<T> stream(Connection connection, String sql, Class<T> beanClass) throws SQLException {
+    public static <T> Stream<T> stream(Class<T> beanClass, Connection connection, String sql, Object... params) throws SQLException {
         ResultSetBeanIterator<T> it;
         try {
-            it = new ResultSetBeanIterator<>(connection, sql, beanClass);
+            it = new ResultSetBeanIterator<>(beanClass, connection, sql, params);
         } catch (SQLException se) {
             throw se;
         } catch (Exception e) {
@@ -48,10 +48,10 @@ public final class ResultSetBeanStream {
      * @param sql        query executed once; forward-only read-only cursor
      * @param mapper     configured row mapper
      */
-    public static <T> Stream<T> stream(Connection connection, String sql, SimpleResultSetBeanMapper<T> mapper) throws SQLException {
+    public static <T> Stream<T> stream(SimpleResultSetBeanMapper<T> mapper, Connection connection, String sql, Object... params) throws SQLException {
         ResultSetBeanIterator<T> it;
         try {
-            it = new ResultSetBeanIterator<>(connection, sql, mapper);
+            it = new ResultSetBeanIterator<>(mapper, connection, sql, params);
         } catch (SQLException se) {
             throw se;
         } catch (Exception e) {

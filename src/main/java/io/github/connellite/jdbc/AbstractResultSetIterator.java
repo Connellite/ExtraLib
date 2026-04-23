@@ -1,10 +1,10 @@
 package io.github.connellite.jdbc;
 
 import java.sql.Connection;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
-import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -31,13 +31,14 @@ public abstract class AbstractResultSetIterator<V> implements Iterator<Map<Strin
     /**
      * Executes {@code query} on {@code conn} and prepares forward-only iteration over rows.
      */
-    public AbstractResultSetIterator(Connection conn, String query) throws SQLException {
-        Statement statement;
+    public AbstractResultSetIterator(Connection conn, String query, Object... params) throws SQLException {
+        Object[] safeParams = params == null ? new Object[0] : params;
+        PreparedStatement statement;
         // Prefer forward-only read-only cursors; fall back to default statement if the driver rejects that type/concurrency.
         try {
-            statement = conn.createStatement(ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY);
+            statement = conn.prepareStatement(query, ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY);
         } catch (Exception e) {
-            statement = conn.createStatement();
+            statement = conn.prepareStatement(query);
         }
 
         // Ignore if the driver does not support fetch size hints for this statement type.
@@ -45,7 +46,10 @@ public abstract class AbstractResultSetIterator<V> implements Iterator<Map<Strin
             statement.setFetchSize(1000);
         } catch (Exception ignore) {
         }
-        this.resultSet = new ResultSetWrapper(statement, statement.executeQuery(query));
+        for (int i = 0; i < safeParams.length; i++) {
+            statement.setObject(i + 1, safeParams[i]);
+        }
+        this.resultSet = new ResultSetWrapper(statement, statement.executeQuery());
         ResultSetMetaData metadata = resultSet.getMetaData();
         this.columnNames = getColumnNames(metadata);
         this.hasNextValue = resultSet.next();
