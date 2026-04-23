@@ -25,7 +25,6 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.OffsetDateTime;
 import java.time.ZonedDateTime;
-import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -56,27 +55,25 @@ import java.util.UUID;
  */
 public class SimpleResultSetBeanMapper<T> {
 
-    private static final Set<Class<?>> SCALAR_TYPES = new HashSet<>();
-
-    static {
-        SCALAR_TYPES.add(String.class);
-        SCALAR_TYPES.add(UUID.class);
-        SCALAR_TYPES.add(Boolean.class);
-        SCALAR_TYPES.add(Character.class);
-        SCALAR_TYPES.add(byte[].class);
-        SCALAR_TYPES.add(Blob.class);
-        SCALAR_TYPES.add(Clob.class);
-        SCALAR_TYPES.add(java.sql.Date.class);
-        SCALAR_TYPES.add(Time.class);
-        SCALAR_TYPES.add(Timestamp.class);
-        SCALAR_TYPES.add(Date.class);
-        SCALAR_TYPES.add(LocalDate.class);
-        SCALAR_TYPES.add(LocalTime.class);
-        SCALAR_TYPES.add(LocalDateTime.class);
-        SCALAR_TYPES.add(Instant.class);
-        SCALAR_TYPES.add(ZonedDateTime.class);
-        SCALAR_TYPES.add(OffsetDateTime.class);
-    }
+    private static final Set<Class<?>> SCALAR_TYPES = Set.of(
+            String.class,
+            UUID.class,
+            Boolean.class,
+            Character.class,
+            byte[].class,
+            Blob.class,
+            Clob.class,
+            java.sql.Date.class,
+            Time.class,
+            Timestamp.class,
+            Date.class,
+            LocalDate.class,
+            LocalTime.class,
+            LocalDateTime.class,
+            Instant.class,
+            ZonedDateTime.class,
+            OffsetDateTime.class
+    );
 
     private final Class<T> beanClass;
     private final List<FieldBinding> bindings;
@@ -310,7 +307,7 @@ public class SimpleResultSetBeanMapper<T> {
 
         if (boxed == Boolean.class) {
             if (raw instanceof Boolean b) return b;
-            if (raw instanceof Number n) return NumberUtils.toBoolean(n.intValue());
+            if (raw instanceof Number n) return NumberUtils.toBoolean(n.longValue());
             if (raw instanceof String s) return NumberUtils.toBoolean(s);
             return null;
         }
@@ -432,6 +429,9 @@ public class SimpleResultSetBeanMapper<T> {
             if (raw instanceof java.sql.Date d) return DateTimeUtil.toLocalDate(d);
             if (raw instanceof Timestamp ts) return DateTimeUtil.toLocalDate(ts);
             if (raw instanceof Date d) return DateTimeUtil.toLocalDate(d);
+            if (raw instanceof Instant ins) return DateTimeUtil.toLocalDate(ins);
+            if (raw instanceof ZonedDateTime zdt) return DateTimeUtil.toLocalDate(zdt);
+            if (raw instanceof OffsetDateTime odt) return DateTimeUtil.toLocalDate(odt);
             if (raw instanceof String s) {
                 try {
                     return DateTimeUtil.parseLocalDate(s);
@@ -444,12 +444,17 @@ public class SimpleResultSetBeanMapper<T> {
 
         if (boxed == LocalTime.class) {
             if (raw instanceof LocalTime lt) return lt;
+            if (raw instanceof LocalDateTime ldt) return DateTimeUtil.toLocalTime(ldt);
             if (raw instanceof Time t) return DateTimeUtil.toLocalTime(t);
             if (raw instanceof Timestamp ts) return DateTimeUtil.toLocalTime(ts);
+            if (raw instanceof Date d) return DateTimeUtil.toLocalTime(d);
+            if (raw instanceof Instant ins) return DateTimeUtil.toLocalTime(DateTimeUtil.toDate(ins));
+            if (raw instanceof ZonedDateTime zdt) return DateTimeUtil.toLocalTime(DateTimeUtil.toDate(zdt));
+            if (raw instanceof OffsetDateTime odt) return DateTimeUtil.toLocalTime(DateTimeUtil.toDate(odt));
             if (raw instanceof String s) {
                 try {
-                    return LocalTime.parse(s.trim());
-                } catch (DateTimeParseException e) {
+                    return DateTimeUtil.parseLocalTime(s);
+                } catch (IllegalArgumentException e) {
                     throw new SQLException("Cannot map column '" + columnName + "' to LocalTime", e);
                 }
             }
@@ -458,8 +463,12 @@ public class SimpleResultSetBeanMapper<T> {
 
         if (boxed == LocalDateTime.class) {
             if (raw instanceof LocalDateTime ldt) return ldt;
+            if (raw instanceof LocalDate ld) return DateTimeUtil.toLocalDateTime(ld);
             if (raw instanceof Timestamp ts) return DateTimeUtil.toLocalDateTime(ts);
             if (raw instanceof Date d) return DateTimeUtil.toLocalDateTime(d);
+            if (raw instanceof Instant ins) return DateTimeUtil.toLocalDateTime(ins);
+            if (raw instanceof ZonedDateTime zdt) return DateTimeUtil.toLocalDateTime(zdt);
+            if (raw instanceof OffsetDateTime odt) return DateTimeUtil.toLocalDateTime(odt);
             if (raw instanceof String s) {
                 try {
                     return DateTimeUtil.parseLocalDateTime(s);
@@ -472,20 +481,46 @@ public class SimpleResultSetBeanMapper<T> {
 
         if (boxed == Instant.class) {
             if (raw instanceof Instant ins) return ins;
+            if (raw instanceof ZonedDateTime zdt) return zdt.toInstant();
+            if (raw instanceof OffsetDateTime odt) return odt.toInstant();
+            if (raw instanceof LocalDateTime ldt) return DateTimeUtil.toZonedDateTime(ldt).toInstant();
+            if (raw instanceof LocalDate ld) return DateTimeUtil.toZonedDateTime(ld).toInstant();
             if (raw instanceof Timestamp ts) return ts.toInstant();
             if (raw instanceof Date d) return d.toInstant();
+            if (raw instanceof String s) {
+                try {
+                    return DateTimeUtil.toZonedDateTime(DateTimeUtil.parseLocalDateTime(s)).toInstant();
+                } catch (IllegalArgumentException e) {
+                    throw new SQLException("Cannot map column '" + columnName + "' to Instant", e);
+                }
+            }
             return null;
         }
 
         if (boxed == ZonedDateTime.class) {
             if (raw instanceof ZonedDateTime zdt) return zdt;
+            if (raw instanceof OffsetDateTime odt) return odt.toZonedDateTime();
+            if (raw instanceof Instant ins) return DateTimeUtil.toZonedDateTime(ins);
+            if (raw instanceof LocalDateTime ldt) return DateTimeUtil.toZonedDateTime(ldt);
+            if (raw instanceof LocalDate ld) return DateTimeUtil.toZonedDateTime(ld);
             if (raw instanceof Timestamp ts) return DateTimeUtil.toZonedDateTime(ts);
             if (raw instanceof Date d) return DateTimeUtil.toZonedDateTime(d);
+            if (raw instanceof String s) {
+                try {
+                    return DateTimeUtil.toZonedDateTime(DateTimeUtil.parseLocalDateTime(s));
+                } catch (IllegalArgumentException e) {
+                    throw new SQLException("Cannot map column '" + columnName + "' to ZonedDateTime", e);
+                }
+            }
             return null;
         }
 
         if (boxed == OffsetDateTime.class) {
             if (raw instanceof OffsetDateTime odt) return odt;
+            if (raw instanceof Instant ins) return DateTimeUtil.toOffsetDateTime(ins);
+            if (raw instanceof ZonedDateTime zdt) return DateTimeUtil.toOffsetDateTime(zdt);
+            if (raw instanceof LocalDateTime ldt) return DateTimeUtil.toOffsetDateTime(ldt);
+            if (raw instanceof LocalDate ld) return DateTimeUtil.toOffsetDateTime(DateTimeUtil.toLocalDateTime(ld));
             if (raw instanceof Timestamp ts) return DateTimeUtil.toOffsetDateTime(ts);
             if (raw instanceof Date d) return DateTimeUtil.toOffsetDateTime(d);
             if (raw instanceof String s) {

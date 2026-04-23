@@ -46,6 +46,34 @@ class NumberUtilsTest {
     }
 
     @Test
+    void toBoolean_fromLong() {
+        assertFalse(NumberUtils.toBoolean(0L));
+        assertTrue(NumberUtils.toBoolean(1L));
+        assertTrue(NumberUtils.toBoolean(-1L));
+        assertTrue(NumberUtils.toBoolean(Long.MAX_VALUE));
+    }
+
+    @Test
+    void toBoolean_fromFloat() {
+        assertFalse(NumberUtils.toBoolean(0.0f));
+        assertFalse(NumberUtils.toBoolean(-0.0f));
+        assertTrue(NumberUtils.toBoolean(0.1f));
+        assertTrue(NumberUtils.toBoolean(-0.1f));
+        assertTrue(NumberUtils.toBoolean(Float.NaN));
+        assertTrue(NumberUtils.toBoolean(Float.POSITIVE_INFINITY));
+    }
+
+    @Test
+    void toBoolean_fromDouble() {
+        assertFalse(NumberUtils.toBoolean(0.0d));
+        assertFalse(NumberUtils.toBoolean(-0.0d));
+        assertTrue(NumberUtils.toBoolean(0.1d));
+        assertTrue(NumberUtils.toBoolean(-0.1d));
+        assertTrue(NumberUtils.toBoolean(Double.NaN));
+        assertTrue(NumberUtils.toBoolean(Double.NEGATIVE_INFINITY));
+    }
+
+    @Test
     void parsesWrapperNumbers() {
         assertEquals(Byte.valueOf((byte) 12), NumberUtils.toByte("12"));
         assertEquals(Short.valueOf((short) 123), NumberUtils.toShort("123"));
@@ -208,5 +236,95 @@ class NumberUtilsTest {
         } finally {
             Locale.setDefault(previous);
         }
+    }
+
+    @Test
+    void almostEquals_double_withCustomEpsilon() {
+        assertTrue(NumberUtils.equals(0.1d + 0.2d, 0.3d, 1e-9d));
+        assertFalse(NumberUtils.equals(1.0d, 1.1d, 1e-3d));
+    }
+
+    @Test
+    void almostEquals_double_withDefaultEpsilon() {
+        assertTrue(NumberUtils.equals(1.0000000001d, 1.0000000002d));
+        assertFalse(NumberUtils.equals(1.0d, 1.000001d));
+    }
+
+    @Test
+    void almostEquals_double_specialValues() {
+        assertTrue(NumberUtils.equals(Double.NaN, Double.NaN, 0.0d));
+        assertFalse(NumberUtils.equals(Double.NaN, 1.0d, 1e-9d));
+        assertTrue(NumberUtils.equals(Double.POSITIVE_INFINITY, Double.POSITIVE_INFINITY, 1e-9d));
+        assertFalse(NumberUtils.equals(Double.POSITIVE_INFINITY, Double.NEGATIVE_INFINITY, 1e-9d));
+    }
+
+    @Test
+    void almostEquals_double_invalidEpsilonThrows() {
+        assertThrows(IllegalArgumentException.class, () -> NumberUtils.equals(1.0d, 1.0d, -1e-9d));
+        assertThrows(IllegalArgumentException.class, () -> NumberUtils.equals(1.0d, 1.0d, Double.NaN));
+        assertThrows(IllegalArgumentException.class, () -> NumberUtils.equals(1.0d, 1.0d, Double.POSITIVE_INFINITY));
+    }
+
+    @Test
+    void almostEquals_float_withCustomEpsilon() {
+        assertTrue(NumberUtils.equals(0.1f + 0.2f, 0.3f, 1e-5f));
+        assertFalse(NumberUtils.equals(1.0f, 1.1f, 1e-3f));
+    }
+
+    @Test
+    void almostEquals_float_withDefaultEpsilon() {
+        assertTrue(NumberUtils.equals(1.0000001f, 1.0000002f));
+        assertFalse(NumberUtils.equals(1.0f, 1.01f));
+    }
+
+    @Test
+    void almostEquals_float_specialValues() {
+        assertTrue(NumberUtils.equals(Float.NaN, Float.NaN, 0.0f));
+        assertFalse(NumberUtils.equals(Float.NaN, 1.0f, 1e-6f));
+        assertTrue(NumberUtils.equals(Float.POSITIVE_INFINITY, Float.POSITIVE_INFINITY, 1e-6f));
+        assertFalse(NumberUtils.equals(Float.POSITIVE_INFINITY, Float.NEGATIVE_INFINITY, 1e-6f));
+    }
+
+    @Test
+    void almostEquals_float_invalidEpsilonThrows() {
+        assertThrows(IllegalArgumentException.class, () -> NumberUtils.equals(1.0f, 1.0f, -1e-6f));
+        assertThrows(IllegalArgumentException.class, () -> NumberUtils.equals(1.0f, 1.0f, Float.NaN));
+        assertThrows(IllegalArgumentException.class, () -> NumberUtils.equals(1.0f, 1.0f, Float.POSITIVE_INFINITY));
+    }
+
+    @Test
+    void doubleComparator_usesEpsilonEquality() {
+        NumberUtils.DoubleComparator comparator = new NumberUtils.DoubleComparator(1e-9d);
+        assertEquals(0, comparator.compare(0.1d + 0.2d, 0.3d));
+        assertTrue(comparator.compare(2.0d, 1.0d) > 0);
+        assertTrue(comparator.compare(1.0d, 2.0d) < 0);
+        assertEquals(1e-9d, comparator.epsilon());
+    }
+
+    @Test
+    void doubleComparator_nullAndInvalidEpsilonHandling() {
+        NumberUtils.DoubleComparator comparator = new NumberUtils.DoubleComparator();
+        assertEquals(0, comparator.compare((Double) null, null));
+        assertTrue(comparator.compare(null, 1.0d) < 0);
+        assertTrue(comparator.compare(1.0d, null) > 0);
+        assertThrows(IllegalArgumentException.class, () -> new NumberUtils.DoubleComparator(-1e-9d));
+    }
+
+    @Test
+    void floatComparator_usesEpsilonEquality() {
+        NumberUtils.FloatComparator comparator = new NumberUtils.FloatComparator(1e-5f);
+        assertEquals(0, comparator.compare(0.1f + 0.2f, 0.3f));
+        assertTrue(comparator.compare(2.0f, 1.0f) > 0);
+        assertTrue(comparator.compare(1.0f, 2.0f) < 0);
+        assertEquals(1e-5f, comparator.epsilon());
+    }
+
+    @Test
+    void floatComparator_nullAndInvalidEpsilonHandling() {
+        NumberUtils.FloatComparator comparator = new NumberUtils.FloatComparator();
+        assertEquals(0, comparator.compare((Float) null, null));
+        assertTrue(comparator.compare(null, 1.0f) < 0);
+        assertTrue(comparator.compare(1.0f, null) > 0);
+        assertThrows(IllegalArgumentException.class, () -> new NumberUtils.FloatComparator(Float.NaN));
     }
 }

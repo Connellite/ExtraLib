@@ -4,7 +4,6 @@ import lombok.experimental.UtilityClass;
 
 import javax.sql.rowset.serial.SerialBlob;
 import javax.sql.rowset.serial.SerialClob;
-import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.Reader;
@@ -15,23 +14,25 @@ import java.sql.SQLException;
 @UtilityClass
 public class LobUtils {
 
+    private static final int BUFFER_SIZE = 4096;
+
     /**
-     * Reads all characters from {@code clob} via {@link Clob#getCharacterStream()} and {@link BufferedReader#readLine()},
-     * concatenating lines without re-inserting line terminators.
+     * Reads all characters from {@code clob} via {@link Clob#getCharacterStream()} preserving
+     * original line separators and all other characters.
      *
      * @param clob JDBC {@link Clob}; may be {@code null}
-     * @return the concatenated text, or {@code null} if {@code clob} is {@code null}
+     * @return full text as stored in the CLOB, or {@code null} if {@code clob} is {@code null}
      */
     public static String convertClobToString(Clob clob) throws SQLException {
         if (clob == null) {
             return null;
         }
         StringBuilder sb = new StringBuilder();
-        try (Reader reader = clob.getCharacterStream();
-             BufferedReader br = new BufferedReader(reader)) {
-            String line;
-            while ((line = br.readLine()) != null) {
-                sb.append(line);
+        try (Reader reader = clob.getCharacterStream()) {
+            char[] buffer = new char[BUFFER_SIZE];
+            int read;
+            while ((read = reader.read(buffer)) != -1) {
+                sb.append(buffer, 0, read);
             }
         } catch (IOException e) {
             throw new SQLException(e);

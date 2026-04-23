@@ -7,11 +7,14 @@ import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.text.NumberFormat;
 import java.text.ParsePosition;
+import java.util.Comparator;
 import java.util.Locale;
 import java.util.function.Function;
 
 @UtilityClass
 public class NumberUtils {
+    private static final double DEFAULT_DOUBLE_EPSILON = 1e-9d;
+    private static final float DEFAULT_FLOAT_EPSILON = 1e-6f;
 
     /**
      * Converts the given string to a {@link Byte}.
@@ -80,6 +83,38 @@ public class NumberUtils {
      */
     public static boolean toBoolean(int value) {
         return value != 0;
+    }
+
+    /**
+     * C-style conversion from {@code long} to boolean: {@code 0} is {@code false}, any non-zero value is {@code true}.
+     *
+     * @param value long value
+     * @return {@code false} if {@code value == 0}, otherwise {@code true}
+     */
+    public static boolean toBoolean(long value) {
+        return value != 0L;
+    }
+
+    /**
+     * C-style conversion from {@code float} to boolean: {@code 0.0f} and {@code -0.0f} are {@code false},
+     * any other value (including {@code NaN} and infinities) is {@code true}.
+     *
+     * @param value float value
+     * @return {@code false} if value is zero, otherwise {@code true}
+     */
+    public static boolean toBoolean(float value) {
+        return value != 0.0f;
+    }
+
+    /**
+     * C-style conversion from {@code double} to boolean: {@code 0.0d} and {@code -0.0d} are {@code false},
+     * any other value (including {@code NaN} and infinities) is {@code true}.
+     *
+     * @param value double value
+     * @return {@code false} if value is zero, otherwise {@code true}
+     */
+    public static boolean toBoolean(double value) {
+        return value != 0.0d;
     }
 
     /**
@@ -245,6 +280,208 @@ public class NumberUtils {
         ParsePosition pos = new ParsePosition(0);
         formatter.parse(str, pos);
         return str.length() == pos.getIndex();
+    }
+
+    /**
+     * Compares two {@code double} values using a tolerance.
+     * <p>
+     * Values are considered equal when {@code Math.abs(a - b) <= epsilon}.
+     * For special values this method follows intuitive equality:
+     * two {@code NaN} values are equal, and infinities are equal only when they have the same sign.
+     *
+     * @param a       the first value
+     * @param b       the second value
+     * @param epsilon allowed absolute difference (must be non-negative and finite)
+     * @return {@code true} if values are equal within {@code epsilon}
+     * @throws IllegalArgumentException if {@code epsilon} is negative, {@code NaN}, or infinite
+     */
+    public static boolean equals(double a, double b, double epsilon) {
+        validateEpsilon(epsilon);
+        if (Double.isNaN(a) || Double.isNaN(b)) {
+            return Double.isNaN(a) && Double.isNaN(b);
+        }
+        if (Double.isInfinite(a) || Double.isInfinite(b)) {
+            return a == b;
+        }
+        return Math.abs(a - b) <= epsilon;
+    }
+
+    /**
+     * Compares two {@code double} values using a default tolerance of {@code 1e-9}.
+     *
+     * @param a the first value
+     * @param b the second value
+     * @return {@code true} if values are equal within the default tolerance
+     */
+    public static boolean equals(double a, double b) {
+        return equals(a, b, DEFAULT_DOUBLE_EPSILON);
+    }
+
+    /**
+     * Compares two {@code float} values using a tolerance.
+     * <p>
+     * Values are considered equal when {@code Math.abs(a - b) <= epsilon}.
+     * For special values this method follows intuitive equality:
+     * two {@code NaN} values are equal, and infinities are equal only when they have the same sign.
+     *
+     * @param a       the first value
+     * @param b       the second value
+     * @param epsilon allowed absolute difference (must be non-negative and finite)
+     * @return {@code true} if values are equal within {@code epsilon}
+     * @throws IllegalArgumentException if {@code epsilon} is negative, {@code NaN}, or infinite
+     */
+    public static boolean equals(float a, float b, float epsilon) {
+        validateEpsilon(epsilon);
+        if (Float.isNaN(a) || Float.isNaN(b)) {
+            return Float.isNaN(a) && Float.isNaN(b);
+        }
+        if (Float.isInfinite(a) || Float.isInfinite(b)) {
+            return a == b;
+        }
+        return Math.abs(a - b) <= epsilon;
+    }
+
+    /**
+     * Compares two {@code float} values using a default tolerance of {@code 1e-6}.
+     *
+     * @param a the first value
+     * @param b the second value
+     * @return {@code true} if values are equal within the default tolerance
+     */
+    public static boolean equals(float a, float b) {
+        return equals(a, b, DEFAULT_FLOAT_EPSILON);
+    }
+
+    /**
+     * Returns whether the given {@code double} is effectively zero
+     * using the default {@code double} tolerance.
+     *
+     * @param a the value to test
+     * @return {@code true} if {@code a} is equal to {@code 0.0} within the default epsilon
+     */
+    public static boolean isZero(double a) {
+        return equals(a, 0.0);
+    }
+
+    /**
+     * Returns whether the given {@code double} is effectively zero
+     * using a custom tolerance.
+     *
+     * @param a       the value to test
+     * @param epsilon allowed absolute difference from zero (must be non-negative and finite)
+     * @return {@code true} if {@code a} is equal to {@code 0.0} within {@code epsilon}
+     * @throws IllegalArgumentException if {@code epsilon} is negative, {@code NaN}, or infinite
+     */
+    public static boolean isZero(double a, double epsilon) {
+        return equals(a, 0.0, epsilon);
+    }
+
+    /**
+     * Returns whether the given {@code float} is effectively zero
+     * using the default {@code float} tolerance.
+     *
+     * @param a the value to test
+     * @return {@code true} if {@code a} is equal to {@code 0.0f} within the default epsilon
+     */
+    public static boolean isZero(float a) {
+        return equals(a, 0.0f);
+    }
+
+    /**
+     * Returns whether the given {@code float} is effectively zero
+     * using a custom tolerance.
+     *
+     * @param a       the value to test
+     * @param epsilon allowed absolute difference from zero (must be non-negative and finite)
+     * @return {@code true} if {@code a} is equal to {@code 0.0f} within {@code epsilon}
+     * @throws IllegalArgumentException if {@code epsilon} is negative, {@code NaN}, or infinite
+     */
+    public static boolean isZero(float a, float epsilon) {
+        return equals(a, 0.0f, epsilon);
+    }
+
+    /**
+     * Comparator for {@link Double} values with epsilon-based equality.
+     * Values whose difference is within epsilon are treated as equal (compare returns {@code 0}).
+     */
+    public record DoubleComparator(double epsilon) implements Comparator<Double> {
+        /**
+         * Creates comparator with default epsilon ({@code 1e-9}).
+         */
+        public DoubleComparator() {
+            this(DEFAULT_DOUBLE_EPSILON);
+        }
+
+        /**
+         * Creates comparator with custom epsilon.
+         *
+         * @param epsilon allowed absolute difference (must be non-negative and finite)
+         */
+        public DoubleComparator {
+            validateEpsilon(epsilon);
+        }
+
+        @Override
+        public int compare(Double first, Double second) {
+            if (first == null && second == null) {
+                return 0;
+            }
+            if (first == null) {
+                return -1;
+            }
+            if (second == null) {
+                return 1;
+            }
+            return NumberUtils.equals(first, second, epsilon) ? 0 : Double.compare(first, second);
+        }
+    }
+
+    /**
+     * Comparator for {@link Float} values with epsilon-based equality.
+     * Values whose difference is within epsilon are treated as equal (compare returns {@code 0}).
+     */
+    public record FloatComparator(float epsilon) implements Comparator<Float> {
+        /**
+         * Creates comparator with default epsilon ({@code 1e-6}).
+         */
+        public FloatComparator() {
+            this(DEFAULT_FLOAT_EPSILON);
+        }
+
+        /**
+         * Creates comparator with custom epsilon.
+         *
+         * @param epsilon allowed absolute difference (must be non-negative and finite)
+         */
+        public FloatComparator {
+            validateEpsilon(epsilon);
+        }
+
+        @Override
+        public int compare(Float first, Float second) {
+            if (first == null && second == null) {
+                return 0;
+            }
+            if (first == null) {
+                return -1;
+            }
+            if (second == null) {
+                return 1;
+            }
+            return NumberUtils.equals(first, second, epsilon) ? 0 : Float.compare(first, second);
+        }
+    }
+
+    private static void validateEpsilon(double epsilon) {
+        if (Double.isNaN(epsilon) || Double.isInfinite(epsilon) || epsilon < 0d) {
+            throw new IllegalArgumentException("epsilon must be non-negative and finite");
+        }
+    }
+
+    private static void validateEpsilon(float epsilon) {
+        if (Float.isNaN(epsilon) || Float.isInfinite(epsilon) || epsilon < 0f) {
+            throw new IllegalArgumentException("epsilon must be non-negative and finite");
+        }
     }
 
     private static <T> T parse(String value, Function<String, T> parser) {

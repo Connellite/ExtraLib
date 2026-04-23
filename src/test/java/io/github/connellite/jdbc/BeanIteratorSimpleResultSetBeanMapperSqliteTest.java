@@ -2,6 +2,7 @@ package io.github.connellite.jdbc;
 
 import io.github.connellite.exception.ResultSetException;
 import io.github.connellite.jdbc.annotation.Column;
+import io.github.connellite.util.DateTimeUtil;
 import lombok.Data;
 import lombok.Getter;
 import org.junit.jupiter.api.Test;
@@ -18,6 +19,9 @@ import java.sql.Statement;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.Instant;
+import java.time.OffsetDateTime;
+import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -484,6 +488,59 @@ class BeanIteratorSimpleResultSetBeanMapperSqliteTest {
         assertEquals("xyz", new String(row.bytesValue, StandardCharsets.UTF_8));
     }
 
+    @Test
+    void simpleBeanMapperMapsInstantAndZonedDateTimeFromString() throws Exception {
+        String instantText = "2024-07-10T09:30:45Z";
+        String zonedText = "2024-07-10T12:30:45+03:00[Europe/Moscow]";
+        ResultSet rs = fakeRowResultSet(
+                "instant_value", instantText,
+                "zoned_value", zonedText
+        );
+        SimpleResultSetBeanMapper<TemporalStringRow> mapper = new SimpleResultSetBeanMapper<>(TemporalStringRow.class);
+        TemporalStringRow row = mapper.mapRow(rs);
+        assertEquals(DateTimeUtil.toZonedDateTime(DateTimeUtil.parseLocalDateTime(instantText)).toInstant(), row.instantValue);
+        assertEquals(DateTimeUtil.toZonedDateTime(DateTimeUtil.parseLocalDateTime(zonedText)), row.zonedValue);
+    }
+
+    @Test
+    void simpleBeanMapperMapsCrossTemporalTypes() throws Exception {
+        Instant instant = Instant.parse("2024-07-10T09:30:45Z");
+        ZonedDateTime zoned = ZonedDateTime.parse("2024-07-10T12:30:45+03:00[Europe/Moscow]");
+        ResultSet rs = fakeRowResultSet(
+                "instant_value", zoned,
+                "zoned_value", instant
+        );
+        SimpleResultSetBeanMapper<TemporalStringRow> mapper = new SimpleResultSetBeanMapper<>(TemporalStringRow.class);
+        TemporalStringRow row = mapper.mapRow(rs);
+        assertEquals(zoned.toInstant(), row.instantValue);
+        assertEquals(instant, row.zonedValue.toInstant());
+    }
+
+    @Test
+    void simpleBeanMapperCoversJavaTimeRawTypeMatrix() throws Exception {
+        ZonedDateTime zonedRaw = ZonedDateTime.parse("2024-07-10T12:30:45+03:00[Europe/Moscow]");
+        OffsetDateTime offsetRaw = OffsetDateTime.parse("2024-07-10T12:30:45+03:00");
+        Instant instantRaw = Instant.parse("2024-07-10T09:30:45Z");
+        LocalDate localDateRaw = LocalDate.of(2024, 7, 10);
+        ResultSet rs = fakeRowResultSet(
+                "as_local_date", zonedRaw,
+                "as_local_time", offsetRaw,
+                "as_local_datetime", instantRaw,
+                "as_instant", localDateRaw,
+                "as_zoned_datetime", instantRaw,
+                "as_offset_datetime", zonedRaw
+        );
+        SimpleResultSetBeanMapper<TemporalMatrixRow> mapper = new SimpleResultSetBeanMapper<>(TemporalMatrixRow.class);
+        TemporalMatrixRow row = mapper.mapRow(rs);
+
+        assertEquals(DateTimeUtil.toLocalDate(zonedRaw), row.asLocalDate);
+        assertEquals(DateTimeUtil.toLocalTime(DateTimeUtil.toDate(offsetRaw)), row.asLocalTime);
+        assertEquals(DateTimeUtil.toLocalDateTime(instantRaw), row.asLocalDateTime);
+        assertEquals(DateTimeUtil.toZonedDateTime(localDateRaw).toInstant(), row.asInstant);
+        assertEquals(instantRaw, row.asZonedDateTime.toInstant());
+        assertEquals(zonedRaw.toInstant(), row.asOffsetDateTime.toInstant());
+    }
+
     @Data
     static class PojoRow {
         @Column("id")
@@ -585,6 +642,28 @@ class BeanIteratorSimpleResultSetBeanMapperSqliteTest {
         private Clob asClob;
         @Column("as_blob")
         private Blob asBlob;
+    }
+
+    static class TemporalStringRow {
+        @Column("instant_value")
+        private Instant instantValue;
+        @Column("zoned_value")
+        private ZonedDateTime zonedValue;
+    }
+
+    static class TemporalMatrixRow {
+        @Column("as_local_date")
+        private LocalDate asLocalDate;
+        @Column("as_local_time")
+        private LocalTime asLocalTime;
+        @Column("as_local_datetime")
+        private LocalDateTime asLocalDateTime;
+        @Column("as_instant")
+        private Instant asInstant;
+        @Column("as_zoned_datetime")
+        private ZonedDateTime asZonedDateTime;
+        @Column("as_offset_datetime")
+        private OffsetDateTime asOffsetDateTime;
     }
 
     private static ResultSet fakeRowResultSet(Object... keyValues) {
