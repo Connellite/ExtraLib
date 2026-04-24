@@ -4,7 +4,7 @@ import java.io.IOException;
 import java.util.Locale;
 
 /**
- * Custom formatting hook, analogous in role to a C++ {@code fmt::formatter<T, CharT>} specialization.
+ * Custom formatting hook.
  *
  * <p>In {fmt}, the library picks {@code formatter<T>} by static type and calls {@code parse()} on the
  * part after {@code ':'} inside a replacement field, then {@code format()} to write the value. Here
