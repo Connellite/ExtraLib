@@ -11,7 +11,7 @@ import java.util.Objects;
 import java.util.function.Consumer;
 
 /**
- * Minimal Java-only "fmt-style" formatting: {@code String} in UTF-16, no wide-string layer.
+ * Minimal Java-only "fmt-style" formatting.
  *
  * <p><b>Null arguments</b> (similar in spirit to SLF4J / typical Java logging): with no format spec,
  * values use a default string form (like {@link String#valueOf(Object)} for non-arrays); {@code null}
