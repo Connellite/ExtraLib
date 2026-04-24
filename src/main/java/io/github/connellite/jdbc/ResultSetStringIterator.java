@@ -39,6 +39,34 @@ public class ResultSetStringIterator extends AbstractResultSetIterator<String> {
     }
 
     /**
+     * Returns the current row as a column-to-value map (stringified values) and advances cursor.
+     */
+    @Override
+    public Map<String, String> next() {
+        if (!hasNextValue) {
+            throw new NoSuchElementException();
+        }
+
+        Map<String, String> row = new LinkedHashMap<>();
+        try {
+            for (String columnName : columnNames) {
+                Object value = resultSet.getObject(columnName);
+                if (value instanceof Number n) {
+                    row.put(columnName, new BigDecimal(n.toString()).stripTrailingZeros().toPlainString());
+                } else {
+                    row.put(columnName, Objects.toString(value, null));
+                }
+            }
+            hasNextValue = resultSet.next();
+        } catch (Exception e) {
+            hasNextValue = false;
+            throw new ResultSetException(e);
+        }
+
+        return Collections.unmodifiableMap(row);
+    }
+
+    /**
      * Reads all rows into an immutable list.
      */
     public static List<Map<String, String>> getAll(Connection conn, String query, Object... params) throws SQLException {
@@ -102,33 +130,5 @@ public class ResultSetStringIterator extends AbstractResultSetIterator<String> {
         } catch (Exception e) {
             throw new SQLException(e);
         }
-    }
-
-    /**
-     * Returns the current row as a column-to-value map (stringified values) and advances cursor.
-     */
-    @Override
-    public Map<String, String> next() {
-        if (!hasNextValue) {
-            throw new NoSuchElementException();
-        }
-
-        Map<String, String> row = new LinkedHashMap<>();
-        try {
-            for (String columnName : columnNames) {
-                Object value = resultSet.getObject(columnName);
-                if (value instanceof Number n) {
-                    row.put(columnName, new BigDecimal(n.toString()).stripTrailingZeros().toPlainString());
-                } else {
-                    row.put(columnName, Objects.toString(value, null));
-                }
-            }
-            hasNextValue = resultSet.next();
-        } catch (Exception e) {
-            hasNextValue = false;
-            throw new ResultSetException(e);
-        }
-
-        return Collections.unmodifiableMap(row);
     }
 }

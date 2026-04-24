@@ -37,6 +37,35 @@ public class ResultSetIterator extends AbstractResultSetIterator<Object> {
     }
 
     /**
+     * Returns the current row as a column-to-value map and advances the cursor.
+     *
+     * @return ordered map of column name to value for the current row
+     * @throws NoSuchElementException if no more rows are available
+     * @throws ResultSetException if row extraction fails
+     */
+    @Override
+    public Map<String, Object> next() {
+        if (!hasNextValue) {
+            throw new NoSuchElementException();
+        }
+
+        Map<String, Object> row = new LinkedHashMap<>();
+        try {
+            for (String columnName : columnNames) {
+                Object value = resultSet.getObject(columnName);
+                row.put(columnName, value);
+            }
+            hasNextValue = resultSet.next();
+        } catch (Exception e) {
+            hasNextValue = false;
+            throw new ResultSetException(e);
+        }
+
+        return Collections.unmodifiableMap(row);
+    }
+
+
+    /**
      * Reads all rows into an immutable list.
      */
     public static List<Map<String, Object>> getAll(Connection conn, String query, Object... params) throws SQLException {
@@ -100,33 +129,5 @@ public class ResultSetIterator extends AbstractResultSetIterator<Object> {
         } catch (Exception e) {
             throw new SQLException(e);
         }
-    }
-
-    /**
-     * Returns the current row as a column-to-value map and advances the cursor.
-     *
-     * @return ordered map of column name to value for the current row
-     * @throws NoSuchElementException if no more rows are available
-     * @throws ResultSetException if row extraction fails
-     */
-    @Override
-    public Map<String, Object> next() {
-        if (!hasNextValue) {
-            throw new NoSuchElementException();
-        }
-
-        Map<String, Object> row = new LinkedHashMap<>();
-        try {
-            for (String columnName : columnNames) {
-                Object value = resultSet.getObject(columnName);
-                row.put(columnName, value);
-            }
-            hasNextValue = resultSet.next();
-        } catch (Exception e) {
-            hasNextValue = false;
-            throw new ResultSetException(e);
-        }
-
-        return Collections.unmodifiableMap(row);
     }
 }
