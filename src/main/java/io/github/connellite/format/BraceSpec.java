@@ -47,7 +47,7 @@ final class BraceSpec {
         return p.render(locale, value, spec);
     }
 
-    private record Parsed(char fill, Align align, String signFlags, boolean alternate, boolean zero, int width,
+    private record Parsed(char fill, Align align, String signFlags, boolean minusSign, boolean alternate, boolean zero, int width,
                           int precision, boolean localeAware, SpecialConversion specialConversion,
                           Character explicitJavaConv) {
 
@@ -56,6 +56,9 @@ final class BraceSpec {
                 return finishPad(formatIeee754Bits(value, spec));
             }
             char conv = explicitJavaConv != null ? explicitJavaConv : inferJavaConversion(value);
+            if (minusSign && !isNumericForSign(conv)) {
+                throw new FormatException("'-' sign flag is valid only for numeric format; use '<' for left alignment");
+            }
             if (conv == 'c') {
                 return finishPad(formatAsChar(value, spec));
             }
@@ -146,7 +149,7 @@ final class BraceSpec {
             if (zero && align != Align.LEFT) {
                 sb.append('0');
             }
-            if (width >= 0) {
+            if (width > 0) {
                 sb.append(width);
             }
             if (precision >= 0) {
@@ -161,9 +164,6 @@ final class BraceSpec {
             sb.append(signFlags);
             if (alternate) {
                 sb.append('#');
-            }
-            if (zero) {
-                sb.append('0');
             }
             if (precision >= 0) {
                 sb.append('.').append(precision);
@@ -204,6 +204,11 @@ final class BraceSpec {
                 return false;
             }
             return conv == 'd' || conv == 'f' || conv == 'e' || conv == 'E' || conv == 'g' || conv == 'G';
+        }
+
+        private static boolean isNumericForSign(char conv) {
+            return conv == 'd' || conv == 'f' || conv == 'e' || conv == 'E' || conv == 'g'
+                    || conv == 'G' || conv == 'a' || conv == 'A';
         }
 
         private String formatLocaleNumeric(Locale locale, Object value, char conv) {
@@ -284,6 +289,12 @@ final class BraceSpec {
                 return s + repeat(f, padCount);
             }
             if (a == Align.RIGHT) {
+                if (f == '0') {
+                    String adjusted = signAwareZeroPad(s, padCount);
+                    if (adjusted != null) {
+                        return adjusted;
+                    }
+                }
                 return repeat(f, padCount) + s;
             }
             if (a == Align.CENTER) {
@@ -301,6 +312,27 @@ final class BraceSpec {
             char[] buf = new char[n];
             Arrays.fill(buf, c);
             return new String(buf);
+        }
+
+        private static String signAwareZeroPad(String s, int padCount) {
+            if (s.isEmpty() || padCount <= 0) {
+                return null;
+            }
+            int prefixLen = 0;
+            char first = s.charAt(0);
+            if (first == '+' || first == '-' || first == ' ') {
+                prefixLen = 1;
+            }
+            if (s.length() - prefixLen >= 2 && s.charAt(prefixLen) == '0') {
+                char x = s.charAt(prefixLen + 1);
+                if (x == 'x' || x == 'X' || x == 'b' || x == 'B') {
+                    prefixLen += 2;
+                }
+            }
+            if (prefixLen == 0) {
+                return null;
+            }
+            return s.substring(0, prefixLen) + repeat('0', padCount) + s.substring(prefixLen);
         }
     }
 
@@ -320,6 +352,7 @@ final class BraceSpec {
         }
 
         StringBuilder signFlags = new StringBuilder();
+        boolean minusSign = false;
         while (i < n) {
             char c = spec.charAt(i);
             if (c == '+') {
@@ -329,6 +362,7 @@ final class BraceSpec {
                 signFlags.append(' ');
                 i++;
             } else if (c == '-') {
+                minusSign = true;
                 i++;
             } else {
                 break;
@@ -342,13 +376,17 @@ final class BraceSpec {
         }
 
         boolean zero = false;
+        int width = -1;
         if (i < n && spec.charAt(i) == '0') {
-            zero = true;
+            if (i + 1 < n && Character.isDigit(spec.charAt(i + 1))) {
+                zero = true;
+            } else {
+                width = 0;
+            }
             i++;
         }
 
-        int width = -1;
-        if (i < n && Character.isDigit(spec.charAt(i))) {
+        if (width < 0 && i < n && Character.isDigit(spec.charAt(i))) {
             int w = 0;
             while (i < n && Character.isDigit(spec.charAt(i))) {
                 w = w * 10 + (spec.charAt(i) - '0');
@@ -408,7 +446,7 @@ final class BraceSpec {
             return null;
         }
 
-        return new Parsed(fill, align, signFlags.toString(), alternate, zero, width, precision, localeAware, specialConversion, explicitJavaConv);
+        return new Parsed(fill, align, signFlags.toString(), minusSign, alternate, zero, width, precision, localeAware, specialConversion, explicitJavaConv);
     }
 
     /**

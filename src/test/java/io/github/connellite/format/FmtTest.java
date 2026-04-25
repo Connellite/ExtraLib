@@ -2,7 +2,9 @@ package io.github.connellite.format;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -12,7 +14,10 @@ import java.io.StringWriter;
 import java.nio.charset.StandardCharsets;
 import java.time.DayOfWeek;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.FormatStyle;
@@ -25,11 +30,15 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.stream.Stream;
 
 import io.github.connellite.exception.FormatException;
 import io.github.connellite.util.DateTimeUtilFormat;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 class FmtTest {
     private final Locale previousDefaultLocale = Fmt.getDefaultLocale();
@@ -112,6 +121,152 @@ class FmtTest {
     @Test
     void formatLocaleAwareNumberL() {
         assertEquals("1,000,000", Fmt.format(Locale.US, "{:L}", 1_000_000));
+    }
+
+    @ParameterizedTest
+    @MethodSource("simpleSpecCases")
+    void simpleSpecCases(String expected, String pattern, Object arg) {
+        assertEquals(expected, Fmt.format(pattern, arg));
+    }
+
+    @Test
+    void negativeWidthThrows() {
+        assertThrows(FormatException.class, () -> Fmt.format("{:{}}", "hi", -5));
+    }
+
+    @Test
+    void zeroWidth() {
+        assertEquals("hi", Fmt.format("{:0}", "hi"));
+    }
+
+    @Test
+    void localeAwareOnCharFormat() {
+        assertEquals("A", Fmt.format(Locale.US, "{:Lc}", 65));
+    }
+
+    @Test
+    void unclosedBraceInSpecThrows() {
+        assertThrows(FormatException.class, () -> Fmt.format("{0:{1}", 42, 5));
+    }
+
+    @ParameterizedTest
+    @MethodSource("invalidFormatCases")
+    void invalidFormatCases(String pattern, Object arg) {
+        assertThrows(FormatException.class, () -> Fmt.format(pattern, arg));
+    }
+
+    @Test
+    void fullSpecComboFillAlignSignWidthPrecisionType() {
+        assertEquals("+00003.142", Fmt.format(Locale.US, "{:0>+#10.3f}", 3.14159));
+    }
+
+    @Test
+    void fullSpecComboCenterWithFill() {
+        assertEquals("***3.14***", Fmt.format(Locale.US, "{:*^10.2f}", 3.14159));
+    }
+
+    @Test
+    void fullSpecComboLeftAlignFillSign() {
+        assertEquals("+3.14*****", Fmt.format(Locale.US, "{:*<+10.2f}", 3.14159));
+    }
+
+    @Test
+    void namedArgWithNamedWidth() {
+        assertEquals("   hi", Fmt.format("{msg:{w}s}",
+                Fmt.arg("msg", "hi"), Fmt.arg("w", 5)));
+    }
+
+    @Test
+    void hexFloatForInteger() {
+        assertThrows(FormatException.class, () -> Fmt.format("{:a}", 42));
+    }
+
+    @Test
+    void hexOctalNegative() {
+        assertEquals("ffffffd6", Fmt.format("{:x}", -42));
+        assertEquals("FFFFFFD6", Fmt.format("{:X}", -42));
+        assertEquals("37777777726", Fmt.format("{:o}", -42));
+    }
+
+    @ParameterizedTest
+    @MethodSource("zeroFlagCases")
+    void zeroFlagCases(String expected, String pattern, int value) {
+        assertEquals(expected, Fmt.format(pattern, value));
+    }
+
+    @Test
+    void dynamicWidthNamed() {
+        assertEquals("  42", Fmt.format("{0:{width}}", 42, Fmt.arg("width", 4)));
+    }
+
+    @Test
+    void dynamicWidthNamedWithSpecOnValue() {
+        assertEquals("  42", Fmt.format("{0:{width}d}", 42, Fmt.arg("width", 4)));
+    }
+
+    @Test
+    void dynamicPrecisionNamed() {
+        assertEquals("3.14", Fmt.format(Locale.US, "{0:.{prec}f}", 3.14159, Fmt.arg("prec", 2)));
+    }
+
+    @Test
+    void dynamicWidthAndPrecision() {
+        assertEquals("   3.14", Fmt.format(Locale.US, "{0:{w}.{p}f}", 3.14159, Fmt.arg("w", 7), Fmt.arg("p", 2)));
+    }
+
+    @Test
+    void dashFlagThrowsOrConvertsToLeftAlign() {
+        FormatException ex = assertThrows(FormatException.class,
+                () -> Fmt.format("{:-10}", "hi"));
+        assertTrue(ex.getMessage().contains("'-'") || ex.getMessage().contains("align"), "Error must mention '-' flag, not silently ignored");
+    }
+
+    @Test
+    void alternateWithZeroPrecisionFloat() {
+        assertEquals("42.", Fmt.format(Locale.US, "{:#.0f}", 42.0));
+    }
+
+    @Test
+    void percentSpecWithNonDateThrows() {
+        assertThrows(FormatException.class, () -> Fmt.format("{:%Y}", 42));
+        assertThrows(FormatException.class, () -> Fmt.format("{:%Y}", "2024"));
+    }
+
+    @Test
+    void localeAwareOnString() {
+        assertEquals("hello", Fmt.format(Locale.US, "{:L}", "hello"));
+    }
+
+    @Test
+    void localeAwareOnChar() {
+        assertEquals("A", Fmt.format(Locale.US, "{:L}", 'A'));
+    }
+
+    @Test
+    void largeWidth() {
+        String s = Fmt.format("{:10000}", 7);
+        assertEquals(10000, s.length());
+    }
+
+    @Test
+    void strftimeUnknownConversionThrows() {
+        assertThrows(FormatException.class, () -> Fmt.format("{:%Q}", LocalDate.now()));
+    }
+
+    @Test
+    void nestedFormatCalls() {
+        String inner = Fmt.format("[{}]", "x");
+        assertEquals("outer: [x]", Fmt.format("outer: {}", inner));
+    }
+
+    @Test
+    void strftimeForAllDateTypes() {
+        String expected = "2024-06-15";
+        assertEquals(expected, Fmt.format("{:%Y-%m-%d}", LocalDate.of(2024, 6, 15)));
+        assertEquals(expected, Fmt.format("{:%Y-%m-%d}", LocalDateTime.of(2024, 6, 15, 0, 0)));
+        assertEquals(expected, Fmt.format("{:%Y-%m-%d}", ZonedDateTime.of(2024, 6, 15, 0, 0, 0, 0, ZoneOffset.UTC)));
+        assertEquals(expected, Fmt.format("{:%Y-%m-%d}", OffsetDateTime.of(2024, 6, 15, 0, 0, 0, 0, ZoneOffset.UTC)));
+        assertEquals(expected, Fmt.format("{:%Y-%m-%d}", Instant.parse("2024-06-15T00:00:00Z")));
     }
 
     @Test
@@ -519,6 +674,35 @@ class FmtTest {
     @Test
     void fmtStyleFillAlign() {
         assertEquals("*****hi", Fmt.format("{:*>7}", "hi"));
+    }
+
+    private static Stream<Arguments> simpleSpecCases() {
+        return Stream.of(
+                Arguments.of("42", "{:}", 42),
+                Arguments.of("hi", "{:}", "hi"),
+                Arguments.of("hi", "{:0}", "hi")
+        );
+    }
+
+    private static Stream<Arguments> invalidFormatCases() {
+        return Stream.of(
+                Arguments.of("{:+s}", "hello"),
+                Arguments.of("{: s}", "hello"),
+                Arguments.of("{:#s}", "hello"),
+                Arguments.of("{:b}", true),
+                Arguments.of("{:b}", 3.14),
+                Arguments.of("{:b}", BigDecimal.ONE)
+        );
+    }
+
+    private static Stream<Arguments> zeroFlagCases() {
+        return Stream.of(
+                Arguments.of("00042", "{:05d}", 42),
+                Arguments.of("42   ", "{:<05d}", 42),
+                Arguments.of(" 42  ", "{:^05d}", 42),
+                Arguments.of("+0042", "{:+05d}", 42),
+                Arguments.of("-0042", "{:-05d}", -42)
+        );
     }
 
     private static int expectedWeekNumberSundayFirst(LocalDateTime dt) {

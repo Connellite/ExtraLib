@@ -155,24 +155,29 @@ class FormatEngine {
     }
 
     private static Object resolveSpecPlaceholder(String inner, ArgPack pack, int[] counter) {
+        Object resolved;
         if (inner.isEmpty()) {
-            return pack.resolve(new AutoArgId(counter[0]++));
-        }
-        if (isAllDigits(inner)) {
+            resolved = pack.resolve(new AutoArgId(counter[0]++));
+        } else if (isAllDigits(inner)) {
             try {
                 int idx = Integer.parseInt(inner);
                 if (idx < 0) {
                     throw new FormatException("negative argument index: " + idx);
                 }
-                return pack.resolve(new IndexArgId(idx));
+                resolved = pack.resolve(new IndexArgId(idx));
             } catch (NumberFormatException e) {
                 throw new FormatException("invalid argument index: " + inner);
             }
+        } else if (isIdentifier(inner)) {
+            resolved = pack.resolve(new NameArgId(inner));
+        } else {
+            throw new FormatException("invalid nested replacement in specifier: {" + inner + "}");
         }
-        if (isIdentifier(inner)) {
-            return pack.resolve(new NameArgId(inner));
+
+        if (resolved instanceof Number number && number.longValue() < 0) {
+            throw new FormatException("negative width/precision is not allowed");
         }
-        throw new FormatException("invalid nested replacement in specifier: {" + inner + "}");
+        return resolved;
     }
 
     /**
