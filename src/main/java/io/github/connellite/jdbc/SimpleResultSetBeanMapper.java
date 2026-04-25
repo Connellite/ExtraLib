@@ -93,7 +93,7 @@ public class SimpleResultSetBeanMapper<T> {
         if (beanClass.isRecord()) {
             this.bindings = List.of();
             this.recordBindings = collectRecordBindings(beanClass);
-            this.recordConstructor = resolveRecordConstructor(beanClass);
+            this.recordConstructor = ReflectionUtil.resolveRecordConstructor(beanClass);
             this.scalarMode = false;
         } else if (isScalarType(beanClass)) {
             this.bindings = List.of();
@@ -284,19 +284,6 @@ public class SimpleResultSetBeanMapper<T> {
             }
         }
         return out;
-    }
-
-    private static <T> Constructor<T> resolveRecordConstructor(Class<T> beanClass) {
-        try {
-            RecordComponent[] components = beanClass.getRecordComponents();
-            Class<?>[] types = new Class<?>[components.length];
-            for (int i = 0; i < components.length; i++) {
-                types[i] = components[i].getType();
-            }
-            return ReflectionUtil.getConstructor(beanClass, types);
-        } catch (NoSuchMethodException e) {
-            throw new IllegalStateException("Cannot resolve canonical constructor for record " + beanClass.getName(), e);
-        }
     }
 
     private static List<RecordBinding> collectRecordBindings(Class<?> beanClass) throws SQLException {

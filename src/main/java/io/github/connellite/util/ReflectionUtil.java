@@ -8,8 +8,12 @@ import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.RecordComponent;
+import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -208,7 +212,7 @@ public class ReflectionUtil {
                 list.add(method);
             }
         }
-        return list;
+        return Collections.unmodifiableList(list);
     }
 
     /**
@@ -228,6 +232,34 @@ public class ReflectionUtil {
         Constructor<T> constructor = t.getDeclaredConstructor(parameterTypes);
         constructor.trySetAccessible();
         return constructor;
+    }
+
+    /**
+     * Resolves canonical constructor of a record class and makes it accessible.
+     * <p>
+     * For record {@code MyRecord(int id, String name)} returns constructor with parameter types
+     * {@code (int.class, String.class)}.
+     *
+     * @param recordClass record class token
+     * @param <T> record type
+     * @return canonical constructor for the record
+     * @throws IllegalArgumentException if {@code recordClass} is not a record
+     * @throws IllegalStateException if canonical constructor cannot be resolved
+     */
+    public static <T> Constructor<T> resolveRecordConstructor(Class<T> recordClass) {
+        if (!recordClass.isRecord()) {
+            throw new IllegalArgumentException("Class " + recordClass.getName() + " is not a record.");
+        }
+        try {
+            RecordComponent[] components = recordClass.getRecordComponents();
+            Class<?>[] types = new Class<?>[components.length];
+            for (int i = 0; i < components.length; i++) {
+                types[i] = components[i].getType();
+            }
+            return getConstructor(recordClass, types);
+        } catch (NoSuchMethodException e) {
+            throw new IllegalStateException("Cannot resolve canonical constructor for record " + recordClass.getName(), e);
+        }
     }
 
     /**
@@ -385,6 +417,55 @@ public class ReflectionUtil {
             return Void.class;
         }
         return primitive;
+    }
+
+    /**
+     * Extracts all generic argument classes from a {@link Type}.
+     * <p>
+     * Examples:
+     * <ul>
+     *     <li>{@code List<Integer>} -&gt; {@code [Integer.class]}</li>
+     *     <li>{@code Map<Integer, String>} -&gt; {@code [Integer.class, String.class]}</li>
+     * </ul>
+     * Nested generic declarations are traversed recursively.
+     *
+     * @param genericType generic type token, usually from {@link Field#getGenericType()} or
+     *                    {@link Method#getGenericReturnType()}
+     * @return list of classes found inside generic arguments; empty if none
+     */
+    public static List<Class<?>> getAllGenericParameterClasses(Type genericType) {
+        List<Class<?>> classes = new ArrayList<>();
+        collectGenericParameterClasses(genericType, classes);
+        return Collections.unmodifiableList(classes);
+    }
+
+    /**
+     * Shortcut overload for {@link #getAllGenericParameterClasses(Type)} using a reflected field.
+     *
+     * @param field reflected field; must not be {@code null}
+     * @return list of classes found inside the field generic arguments; empty if none
+     */
+    public static List<Class<?>> getAllGenericParameterClasses(Field field) {
+        return getAllGenericParameterClasses(field.getGenericType());
+    }
+
+    private static void collectGenericParameterClasses(Type type, List<Class<?>> target) {
+        if (!(type instanceof ParameterizedType parameterizedType)) {
+            return;
+        }
+        for (Type actualTypeArgument : parameterizedType.getActualTypeArguments()) {
+            if (actualTypeArgument instanceof Class<?> clazz) {
+                target.add(clazz);
+                continue;
+            }
+            if (actualTypeArgument instanceof ParameterizedType nestedParameterizedType) {
+                Type rawType = nestedParameterizedType.getRawType();
+                if (rawType instanceof Class<?> rawClass) {
+                    target.add(rawClass);
+                }
+                collectGenericParameterClasses(nestedParameterizedType, target);
+            }
+        }
     }
 
     private static Class<?> reflectParameterType(Object arg, int index) {

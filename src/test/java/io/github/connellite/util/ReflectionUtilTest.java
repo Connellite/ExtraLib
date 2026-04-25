@@ -78,6 +78,17 @@ class ReflectionUtilTest {
         }
     }
 
+    @SuppressWarnings("unused")
+    static class GenericFixture {
+        private List<Integer> ints;
+        private Map<Integer, String> indexToName;
+        private List<Map<Long, Double>> nested;
+        private String plain;
+    }
+
+    record RecFixture(int id, String name) {
+    }
+
     @Test
     void invokeStatic_and_invoke_instance() throws Exception {
         assertEquals(99, ReflectionUtil.invokeStatic(Fixture.class, "staticM"));
@@ -145,6 +156,15 @@ class ReflectionUtilTest {
     }
 
     @Test
+    void resolveRecordConstructor_forRecordAndNonRecord() {
+        assertEquals(
+                List.of(int.class, String.class),
+                List.of(ReflectionUtil.resolveRecordConstructor(RecFixture.class).getParameterTypes())
+        );
+        assertThrows(IllegalArgumentException.class, () -> ReflectionUtil.resolveRecordConstructor(Fixture.class));
+    }
+
+    @Test
     void getInstance_nullArgThrows() {
         assertThrows(IllegalArgumentException.class, () -> ReflectionUtil.getInstance(Fixture.class, new Object[]{null}));
     }
@@ -201,5 +221,29 @@ class ReflectionUtilTest {
         assertEquals("x", ReflectionUtil.castFieldValue(String.class, "x"));
         assertNull(ReflectionUtil.castFieldValue(Integer.class, null));
         assertThrows(ClassCastException.class, () -> ReflectionUtil.castFieldValue(Integer.class, "7"));
+    }
+
+    @Test
+    void getAllGenericParameterClasses_forList() throws Exception {
+        Field field = GenericFixture.class.getDeclaredField("ints");
+        List<Class<?>> classes = ReflectionUtil.getAllGenericParameterClasses(field.getGenericType());
+        assertEquals(List.of(Integer.class), classes);
+    }
+
+    @Test
+    void getAllGenericParameterClasses_forMap() throws Exception {
+        Field field = GenericFixture.class.getDeclaredField("indexToName");
+        List<Class<?>> classes = ReflectionUtil.getAllGenericParameterClasses(field);
+        assertEquals(List.of(Integer.class, String.class), classes);
+    }
+
+    @Test
+    void getAllGenericParameterClasses_forNestedAndNonGeneric() throws Exception {
+        Field nested = GenericFixture.class.getDeclaredField("nested");
+        List<Class<?>> nestedClasses = ReflectionUtil.getAllGenericParameterClasses(nested.getGenericType());
+        assertEquals(List.of(Map.class, Long.class, Double.class), nestedClasses);
+
+        Field plain = GenericFixture.class.getDeclaredField("plain");
+        assertTrue(ReflectionUtil.getAllGenericParameterClasses(plain.getGenericType()).isEmpty());
     }
 }
