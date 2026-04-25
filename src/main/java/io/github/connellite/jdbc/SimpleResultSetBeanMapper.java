@@ -29,13 +29,13 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Maps the current row of a {@link ResultSet} into a simple POJO (no collections, arrays,
@@ -83,7 +83,7 @@ public class SimpleResultSetBeanMapper<T> {
     private final Constructor<T> recordConstructor;
     private final List<RecordBinding> recordBindings;
     private final boolean scalarMode;
-    private final Map<Class<?>, TypeConverter<?>> converters = new HashMap<>();
+    private final Map<Class<?>, TypeConverter<?>> converters = new ConcurrentHashMap<>();
 
     /**
      * Builds mapper without metadata validation.
@@ -146,7 +146,7 @@ public class SimpleResultSetBeanMapper<T> {
      * Maps current row of {@code rs} to target bean/record instance.
      */
     public T mapRow(@NonNull ResultSet rs) throws SQLException {
-        if (scalarMode || hasRootConverter()) {
+        if (scalarMode || isOverriddenByRootConverter()) {
             return mapScalarRow(rs);
         }
         if (beanClass.isRecord()) {
@@ -306,7 +306,7 @@ public class SimpleResultSetBeanMapper<T> {
     }
 
     // Checks whether a custom converter is registered for the root bean type itself.
-    private boolean hasRootConverter() {
+    private boolean isOverriddenByRootConverter() {
         Class<?> boxedBeanClass = ReflectionUtil.primitiveToWrapper(beanClass);
         return converters.containsKey(boxedBeanClass);
     }
