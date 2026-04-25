@@ -216,6 +216,38 @@ class BeanIteratorSimpleResultSetBeanMapperSqliteTest {
     }
 
     @Test
+    void simpleBeanMapperUsesRootBeanConverterForSingleColumnValue() throws Exception {
+        ResultSet rs = fakeRowResultSet("1", "{\"name\":\"alpha\"}");
+        SimpleResultSetBeanMapper<MockJsonValue> mapper = new SimpleResultSetBeanMapper<>(MockJsonValue.class)
+                .withConverter(MockJsonValue.class, raw -> raw == null ? null : new MockJsonValue(raw.toString()));
+
+        MockJsonValue value = mapper.mapRow(rs);
+
+        assertEquals("{\"name\":\"alpha\"}", value.value());
+    }
+
+    @Test
+    void simpleBeanMapperUsesRootBeanConverterForRecordSingleColumnValue() throws Exception {
+        ResultSet rs = fakeRowResultSet("1", "{\"name\":\"alpha-record\"}");
+        SimpleResultSetBeanMapper<MockJsonValueRecord> mapper = new SimpleResultSetBeanMapper<>(MockJsonValueRecord.class)
+                .withConverter(MockJsonValueRecord.class, raw -> raw == null ? null : new MockJsonValueRecord(raw.toString()));
+
+        MockJsonValueRecord value = mapper.mapRow(rs);
+
+        assertEquals("{\"name\":\"alpha-record\"}", value.value());
+    }
+
+    @Test
+    void simpleBeanMapperFailsForRootBeanWithoutConverter() throws Exception {
+        ResultSet rs = fakeRowResultSet("1", "{\"name\":\"alpha\"}");
+        SimpleResultSetBeanMapper<MockJsonValue> mapper = new SimpleResultSetBeanMapper<>(MockJsonValue.class);
+
+        SQLException ex = assertThrows(SQLException.class, () -> mapper.mapRow(rs));
+        String message = ex.getMessage();
+        assertTrue(message.contains("Cannot instantiate") || message.contains("Unsupported field type"));
+    }
+
+    @Test
     void annotationConverterIsAppliedForPojoField() throws Exception {
         ResultSet rs = fakeRowResultSet(
                 "name", "row-annotated",
@@ -664,6 +696,22 @@ class BeanIteratorSimpleResultSetBeanMapperSqliteTest {
         private ZonedDateTime asZonedDateTime;
         @Column("as_offset_datetime")
         private OffsetDateTime asOffsetDateTime;
+    }
+
+    @SuppressWarnings("ClassCanBeRecord")
+    static final class MockJsonValue {
+        private final String value;
+
+        MockJsonValue(String value) {
+            this.value = value;
+        }
+
+        String value() {
+            return value;
+        }
+    }
+
+    record MockJsonValueRecord(String value) {
     }
 
     private static ResultSet fakeRowResultSet(Object... keyValues) {

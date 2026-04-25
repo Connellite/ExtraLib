@@ -146,11 +146,11 @@ public class SimpleResultSetBeanMapper<T> {
      * Maps current row of {@code rs} to target bean/record instance.
      */
     public T mapRow(@NonNull ResultSet rs) throws SQLException {
+        if (scalarMode || hasRootConverter()) {
+            return mapScalarRow(rs);
+        }
         if (beanClass.isRecord()) {
             return mapRecordRow(rs);
-        }
-        if (scalarMode) {
-            return mapScalarRow(rs);
         }
         final T instance;
         try {
@@ -303,6 +303,12 @@ public class SimpleResultSetBeanMapper<T> {
         return SCALAR_TYPES.contains(boxed)
                 || Number.class.isAssignableFrom(boxed)
                 || boxed.isEnum();
+    }
+
+    // Checks whether a custom converter is registered for the root bean type itself.
+    private boolean hasRootConverter() {
+        Class<?> boxedBeanClass = ReflectionUtil.primitiveToWrapper(beanClass);
+        return converters.containsKey(boxedBeanClass);
     }
 
     @SuppressWarnings("unchecked")
