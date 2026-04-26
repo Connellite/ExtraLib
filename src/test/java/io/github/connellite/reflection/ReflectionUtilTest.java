@@ -1,4 +1,4 @@
-package io.github.connellite.util;
+package io.github.connellite.reflection;
 
 import org.junit.jupiter.api.Test;
 

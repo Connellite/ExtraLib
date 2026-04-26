@@ -3,7 +3,7 @@ package io.github.connellite.jdbc;
 import io.github.connellite.jdbc.annotation.Column;
 import io.github.connellite.util.DateTimeUtil;
 import io.github.connellite.util.NumberUtils;
-import io.github.connellite.util.ReflectionUtil;
+import io.github.connellite.reflection.ReflectionUtil;
 import io.github.connellite.util.UuidUtil;
 import lombok.NonNull;
 

@@ -1,7 +1,7 @@
 package io.github.connellite.cloner;
 
 import io.github.connellite.exception.CloningException;
-import io.github.connellite.util.ReflectionUtil;
+import io.github.connellite.reflection.ReflectionUtil;
 import lombok.experimental.UtilityClass;
 
 import java.lang.reflect.Array;

@@ -1,4 +1,4 @@
-package io.github.connellite.util;
+package io.github.connellite.reflection;
 
 import lombok.experimental.UtilityClass;
 
