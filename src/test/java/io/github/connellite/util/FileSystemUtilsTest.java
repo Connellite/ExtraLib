@@ -128,7 +128,7 @@ class FileSystemUtilsTest {
     void readAllLines_readsUtf8(@TempDir Path dir) throws IOException {
         Path f = dir.resolve("lines.txt");
         Files.writeString(f, "a\nb\n", StandardCharsets.UTF_8);
-        String joined = FileSystemUtils.readAllLines(f).collect(Collectors.joining("|"));
+        String joined = FileSystemUtils.readAllLines(f, StandardCharsets.UTF_8).collect(Collectors.joining("|"));
         assertEquals("a|b", joined);
     }
 

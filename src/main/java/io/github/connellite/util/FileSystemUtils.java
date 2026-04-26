@@ -6,6 +6,7 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.nio.charset.Charset;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -167,6 +168,12 @@ public class FileSystemUtils {
             throw new IllegalArgumentException("Source File must denote a directory or file");
         }
 
+        Path absSrc = src.toAbsolutePath().normalize();
+        Path absDest = dest.toAbsolutePath().normalize();
+        if (absDest.startsWith(absSrc)) {
+            throw new IllegalArgumentException("Destination must not be equal to or nested under the source path");
+        }
+
         Files.walkFileTree(src, EnumSet.of(FOLLOW_LINKS), Integer.MAX_VALUE, new SimpleFileVisitor<>() {
             @Override
             public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) throws IOException {
@@ -193,14 +200,27 @@ public class FileSystemUtils {
     }
 
     /**
-     * Read the lines of a file and return it as a stream
+     * Read the lines of a file and return it as a stream using the
+     * {@linkplain Charset#defaultCharset() platform default charset}.
      *
      * @param path File path to read
      * @return The lines as a stream
      */
     public static Stream<String> readAllLines(Path path) {
+        return readAllLines(path, Charset.defaultCharset());
+    }
+
+    /**
+     * Read the lines of a file and return it as a stream.
+     *
+     * @param path    File path to read
+     * @param charset Charset to decode bytes as characters
+     * @return The lines as a stream
+     */
+    public static Stream<String> readAllLines(Path path, Charset charset) {
+        Objects.requireNonNull(charset, "Charset must not be null");
         try {
-            return new BufferedReader(new InputStreamReader(Files.newInputStream(path))).lines();
+            return new BufferedReader(new InputStreamReader(Files.newInputStream(path), charset)).lines();
         } catch (IOException e) {
             throw new RuntimeException("Error while trying to read file!", e);
         }
