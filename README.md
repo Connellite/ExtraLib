@@ -38,6 +38,7 @@ Fmt.formatTo(sb, "count={}", 10);
 | Package | What it offers |
 |--------|----------------|
 | `io.github.connellite.jdbc` | `ResultSet` iterators/streams, query and DB metadata helpers. |
+| `io.github.connellite.reflection` | Reflection helpers, object/map mappers. |
 | `io.github.connellite.collections` | Null-skipping collections, case-insensitive `Map`/`Set`, `UniqueArrayList`, delegating wrappers. |
 | `io.github.connellite.util` | Date/UUID parsing, strings, networking, process runner, reflection, ASCII conversion, and more. |
 | `io.github.connellite.match` | Substring search: KMP, Boyer–Moore–Horspool, wildcard patterns. |
