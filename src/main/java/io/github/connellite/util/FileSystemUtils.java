@@ -1,5 +1,7 @@
 package io.github.connellite.util;
 
+import lombok.experimental.UtilityClass;
+
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
@@ -20,6 +22,7 @@ import static java.nio.file.FileVisitOption.FOLLOW_LINKS;
  * Utility methods for working with the file system.
  *
  */
+@UtilityClass
 public class FileSystemUtils {
 
     /**
