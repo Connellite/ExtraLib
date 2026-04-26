@@ -1,10 +1,8 @@
 package io.github.connellite.jdbc;
 
 import io.github.connellite.jdbc.annotation.Column;
-import io.github.connellite.util.DateTimeUtil;
-import io.github.connellite.util.NumberUtils;
+import io.github.connellite.reflection.internal.ReflectionTypeCoercionUtil;
 import io.github.connellite.reflection.ReflectionUtil;
-import io.github.connellite.util.UuidUtil;
 import lombok.NonNull;
 
 import java.lang.reflect.Constructor;
@@ -50,10 +48,6 @@ import java.util.concurrent.ConcurrentHashMap;
  * {@link ResultSetMetaDataUtils#getColumnLabels(ResultSet)}): every mapped column must
  * appear in that collection or construction throws {@link SQLException}. A {@code null}
  * {@code columnLabels} argument skips that check.
- * <p>
- * A row may also be supplied as a {@link Map} of string label to value; see {@link #mapRow(Map)}.
- * Scalar types ({@code Integer}, {@code String}, and so on) are supported only with {@link #mapRow(ResultSet)}, not with {@link #mapRow(Map)}.
- *
  * @param <T> bean type (no-arg constructor for class beans; canonical constructor for records)
  */
 public class SimpleResultSetBeanMapper<T> {
@@ -175,48 +169,6 @@ public class SimpleResultSetBeanMapper<T> {
         return instance;
     }
 
-    /**
-     * Maps one logical row expressed as a map from string key to value. Keys must match the labels this mapper uses
-     * for properties (the same labels as for {@link #mapRow(ResultSet)}). The map may come from any source as long as
-     * keys and values are compatible with the mapper's coercion rules.
-     * <p>
-     * A missing key behaves like a {@code null} value for the corresponding mapped property.
-     * <p>
-     * Scalar target types (for example {@code Integer.class}) are not supported for this overload;
-     *
-     * @param row one row as label to value; must not be {@code null}
-     * @return mapped bean or record instance
-     * @throws SQLException if the mapper was built for a scalar type or coercion fails
-     */
-    public T mapRow(@NonNull Map<String, Object> row) throws SQLException {
-        if (scalarMode) {
-            throw new SQLException("Scalar mapping is not supported for mapRow(Map<String, Object>);");
-        }
-        if (beanClass.isRecord()) {
-            return mapRecordRowFromMap(row);
-        }
-        final T instance;
-        try {
-            instance = ReflectionUtil.getInstance(beanClass);
-        } catch (ReflectiveOperationException e) {
-            throw new SQLException("Cannot instantiate " + beanClass.getName(), e);
-        }
-
-        for (FieldBinding b : bindings) {
-            Object raw = row.get(b.columnName());
-            Object value = coerce(raw, b.field().getType(), b.columnName(), b.converter());
-            if (value == null && b.field().getType().isPrimitive()) {
-                throw new SQLException("Cannot map null to primitive field '" + b.field().getName() + "'");
-            }
-            try {
-                ReflectionUtil.setValueField(instance, b.field(), value);
-            } catch (IllegalAccessException e) {
-                throw new SQLException("Cannot set field " + b.field().getDeclaringClass().getName() + "#" + b.field().getName(), e);
-            }
-        }
-        return instance;
-    }
-
     @SuppressWarnings("unchecked")
     private T mapScalarRow(ResultSet rs) throws SQLException {
         Object raw = rs.getObject(1);
@@ -233,24 +185,6 @@ public class SimpleResultSetBeanMapper<T> {
         for (int i = 0; i < recordBindings.size(); i++) {
             RecordBinding b = recordBindings.get(i);
             Object raw = rs.getObject(b.columnName());
-            Object value = coerce(raw, b.type(), b.columnName(), b.converter());
-            if (value == null && b.type().isPrimitive()) {
-                throw new SQLException("Cannot map null to primitive record component '" + b.name() + "'");
-            }
-            args[i] = value;
-        }
-        try {
-            return recordConstructor.newInstance(args);
-        } catch (ReflectiveOperationException e) {
-            throw new SQLException("Cannot instantiate record " + beanClass.getName(), e);
-        }
-    }
-
-    private T mapRecordRowFromMap(Map<String, Object> row) throws SQLException {
-        Object[] args = new Object[recordBindings.size()];
-        for (int i = 0; i < recordBindings.size(); i++) {
-            RecordBinding b = recordBindings.get(i);
-            Object raw = row.get(b.columnName());
             Object value = coerce(raw, b.type(), b.columnName(), b.converter());
             if (value == null && b.type().isPrimitive()) {
                 throw new SQLException("Cannot map null to primitive record component '" + b.name() + "'");
@@ -322,7 +256,11 @@ public class SimpleResultSetBeanMapper<T> {
         if (converter != null) {
             return ((TypeConverter<Object>) converter).convert(raw);
         }
-        return coerceDefault(raw, fieldType, columnName);
+        try {
+            return ReflectionTypeCoercionUtil.coerceDefault(raw, fieldType, columnName);
+        } catch (Exception e) {
+            throw new SQLException(e);
+        }
     }
 
     private static TypeConverter<?> resolveAnnotationConverter(Column col) throws SQLException {
@@ -334,277 +272,6 @@ public class SimpleResultSetBeanMapper<T> {
         } catch (ReflectiveOperationException e) {
             throw new SQLException("Cannot instantiate converter " + col.converter().getName(), e);
         }
-    }
-
-    @SuppressWarnings({"unchecked", "rawtypes"})
-    private static Object coerceDefault(Object raw, Class<?> fieldType, String columnName) throws SQLException {
-        if (raw == null) {
-            return null;
-        }
-        Class<?> boxed = ReflectionUtil.primitiveToWrapper(fieldType);
-
-        if (boxed == String.class) {
-            if (raw instanceof String s) return s;
-            if (raw instanceof Clob clob) return LobUtils.convertClobToString(clob);
-            return Objects.toString(raw, null);
-        }
-
-        if (boxed == byte[].class) {
-            if (raw instanceof byte[] bytes) return bytes;
-            if (raw instanceof Blob blob) return LobUtils.convertBlobToByteArray(blob);
-            return null;
-        }
-
-        if (boxed.isInstance(raw) && !(raw instanceof Number)) {
-            return raw;
-        }
-        if (boxed.isInstance(raw)) {
-            return narrowNumber((Number) raw, boxed);
-        }
-
-        if (boxed == Boolean.class) {
-            if (raw instanceof Boolean b) return b;
-            if (raw instanceof Number n) return NumberUtils.toBoolean(n.longValue());
-            if (raw instanceof String s) return NumberUtils.toBoolean(s);
-            return null;
-        }
-
-        if (Number.class.isAssignableFrom(boxed)) {
-            if (raw instanceof Number n) return narrowNumber(n, boxed);
-            if (raw instanceof String s) {
-                Class<? extends Number> numClass = (Class<? extends Number>) boxed;
-                return NumberUtils.parseNumber(s, numClass);
-            }
-            return null;
-        }
-
-        if (boxed == Character.class) {
-            if (raw instanceof Character c) return c;
-            if (raw instanceof Number n) return (char) n.intValue();
-            if (raw instanceof String s) return s.isEmpty() ? null : s.charAt(0);
-            return null;
-        }
-
-        if (boxed == UUID.class) {
-            try {
-                return UuidUtil.convert2Uuid(raw);
-            } catch (IllegalArgumentException e) {
-                throw new SQLException("Cannot map column '" + columnName + "' to UUID", e);
-            }
-        }
-
-        if (boxed.isEnum()) {
-            Class<? extends Enum> enumClass = (Class<? extends Enum>) boxed;
-            if (raw instanceof String s) {
-                String name = s.trim();
-                if (name.isEmpty()) return null;
-                try {
-                    return Enum.valueOf(enumClass, name);
-                } catch (IllegalArgumentException e) {
-                    throw new SQLException("Cannot map column '" + columnName + "' to enum " + enumClass.getName(), e);
-                }
-            }
-            if (enumClass.isInstance(raw)) return raw;
-            throw new SQLException("Cannot map column '" + columnName + "' to enum " + enumClass.getName());
-        }
-
-        if (boxed == java.sql.Date.class) {
-            if (raw instanceof java.sql.Date d) return d;
-            if (raw instanceof Date d) return new java.sql.Date(d.getTime());
-            if (raw instanceof String s) {
-                try {
-                    return java.sql.Date.valueOf(DateTimeUtil.parseLocalDate(s));
-                } catch (IllegalArgumentException e) {
-                    throw new SQLException("Cannot map column '" + columnName + "' to java.sql.Date", e);
-                }
-            }
-            return null;
-        }
-
-        if (boxed == Clob.class) {
-            if (raw instanceof Clob clob) return clob;
-            if (raw instanceof String s) return LobUtils.createClob(s);
-            return null;
-        }
-
-        if (boxed == Blob.class) {
-            if (raw instanceof Blob blob) return blob;
-            if (raw instanceof byte[] bytes) return LobUtils.createBlob(bytes);
-            return null;
-        }
-
-        if (boxed == Time.class) {
-            if (raw instanceof Time t) return t;
-            if (raw instanceof Timestamp ts) return new Time(ts.getTime());
-            if (raw instanceof Date d) return new Time(d.getTime());
-            if (raw instanceof String s) {
-                try {
-                    return Time.valueOf(DateTimeUtil.parseLocalTime(s));
-                } catch (IllegalArgumentException e) {
-                    throw new SQLException("Cannot map column '" + columnName + "' to java.sql.Time", e);
-                }
-            }
-            return null;
-        }
-
-        if (boxed == Timestamp.class) {
-            if (raw instanceof Timestamp ts) return ts;
-            if (raw instanceof Date d) return new Timestamp(d.getTime());
-            if (raw instanceof String s) {
-                try {
-                    return Timestamp.valueOf(DateTimeUtil.parseLocalDateTime(s));
-                } catch (IllegalArgumentException e) {
-                    throw new SQLException("Cannot map column '" + columnName + "' to java.sql.Timestamp", e);
-                }
-            }
-            return null;
-        }
-
-        if (boxed == Date.class) {
-            if (raw instanceof Timestamp ts) return new Date(ts.getTime());
-            if (raw instanceof java.sql.Date d) return new Date(d.getTime());
-            if (raw instanceof Date d) return d;
-            if (raw instanceof LocalDateTime ldt) return DateTimeUtil.toDate(ldt);
-            if (raw instanceof LocalDate ld) return DateTimeUtil.toDate(ld);
-            if (raw instanceof Instant ins) return DateTimeUtil.toDate(ins);
-            if (raw instanceof String s) {
-                try {
-                    return DateTimeUtil.toDate(DateTimeUtil.parseLocalDateTime(s));
-                } catch (IllegalArgumentException e) {
-                    try {
-                        return DateTimeUtil.toDate(DateTimeUtil.parseLocalDate(s));
-                    } catch (IllegalArgumentException e2) {
-                        throw new SQLException("Cannot map column '" + columnName + "' to java.util.Date", e2);
-                    }
-                }
-            }
-            return null;
-        }
-
-        if (boxed == LocalDate.class) {
-            if (raw instanceof LocalDate ld) return ld;
-            if (raw instanceof java.sql.Date d) return DateTimeUtil.toLocalDate(d);
-            if (raw instanceof Timestamp ts) return DateTimeUtil.toLocalDate(ts);
-            if (raw instanceof Date d) return DateTimeUtil.toLocalDate(d);
-            if (raw instanceof Instant ins) return DateTimeUtil.toLocalDate(ins);
-            if (raw instanceof ZonedDateTime zdt) return DateTimeUtil.toLocalDate(zdt);
-            if (raw instanceof OffsetDateTime odt) return DateTimeUtil.toLocalDate(odt);
-            if (raw instanceof String s) {
-                try {
-                    return DateTimeUtil.parseLocalDate(s);
-                } catch (IllegalArgumentException e) {
-                    throw new SQLException("Cannot map column '" + columnName + "' to LocalDate", e);
-                }
-            }
-            return null;
-        }
-
-        if (boxed == LocalTime.class) {
-            if (raw instanceof LocalTime lt) return lt;
-            if (raw instanceof LocalDateTime ldt) return DateTimeUtil.toLocalTime(ldt);
-            if (raw instanceof Time t) return DateTimeUtil.toLocalTime(t);
-            if (raw instanceof Timestamp ts) return DateTimeUtil.toLocalTime(ts);
-            if (raw instanceof Date d) return DateTimeUtil.toLocalTime(d);
-            if (raw instanceof Instant ins) return DateTimeUtil.toLocalTime(DateTimeUtil.toDate(ins));
-            if (raw instanceof ZonedDateTime zdt) return DateTimeUtil.toLocalTime(DateTimeUtil.toDate(zdt));
-            if (raw instanceof OffsetDateTime odt) return DateTimeUtil.toLocalTime(DateTimeUtil.toDate(odt));
-            if (raw instanceof String s) {
-                try {
-                    return DateTimeUtil.parseLocalTime(s);
-                } catch (IllegalArgumentException e) {
-                    throw new SQLException("Cannot map column '" + columnName + "' to LocalTime", e);
-                }
-            }
-            return null;
-        }
-
-        if (boxed == LocalDateTime.class) {
-            if (raw instanceof LocalDateTime ldt) return ldt;
-            if (raw instanceof LocalDate ld) return DateTimeUtil.toLocalDateTime(ld);
-            if (raw instanceof Timestamp ts) return DateTimeUtil.toLocalDateTime(ts);
-            if (raw instanceof Date d) return DateTimeUtil.toLocalDateTime(d);
-            if (raw instanceof Instant ins) return DateTimeUtil.toLocalDateTime(ins);
-            if (raw instanceof ZonedDateTime zdt) return DateTimeUtil.toLocalDateTime(zdt);
-            if (raw instanceof OffsetDateTime odt) return DateTimeUtil.toLocalDateTime(odt);
-            if (raw instanceof String s) {
-                try {
-                    return DateTimeUtil.parseLocalDateTime(s);
-                } catch (IllegalArgumentException e) {
-                    throw new SQLException("Cannot map column '" + columnName + "' to LocalDateTime", e);
-                }
-            }
-            return null;
-        }
-
-        if (boxed == Instant.class) {
-            if (raw instanceof Instant ins) return ins;
-            if (raw instanceof ZonedDateTime zdt) return zdt.toInstant();
-            if (raw instanceof OffsetDateTime odt) return odt.toInstant();
-            if (raw instanceof LocalDateTime ldt) return DateTimeUtil.toZonedDateTime(ldt).toInstant();
-            if (raw instanceof LocalDate ld) return DateTimeUtil.toZonedDateTime(ld).toInstant();
-            if (raw instanceof Timestamp ts) return ts.toInstant();
-            if (raw instanceof Date d) return d.toInstant();
-            if (raw instanceof String s) {
-                try {
-                    return DateTimeUtil.toZonedDateTime(DateTimeUtil.parseLocalDateTime(s)).toInstant();
-                } catch (IllegalArgumentException e) {
-                    throw new SQLException("Cannot map column '" + columnName + "' to Instant", e);
-                }
-            }
-            return null;
-        }
-
-        if (boxed == ZonedDateTime.class) {
-            if (raw instanceof ZonedDateTime zdt) return zdt;
-            if (raw instanceof OffsetDateTime odt) return odt.toZonedDateTime();
-            if (raw instanceof Instant ins) return DateTimeUtil.toZonedDateTime(ins);
-            if (raw instanceof LocalDateTime ldt) return DateTimeUtil.toZonedDateTime(ldt);
-            if (raw instanceof LocalDate ld) return DateTimeUtil.toZonedDateTime(ld);
-            if (raw instanceof Timestamp ts) return DateTimeUtil.toZonedDateTime(ts);
-            if (raw instanceof Date d) return DateTimeUtil.toZonedDateTime(d);
-            if (raw instanceof String s) {
-                try {
-                    return DateTimeUtil.toZonedDateTime(DateTimeUtil.parseLocalDateTime(s));
-                } catch (IllegalArgumentException e) {
-                    throw new SQLException("Cannot map column '" + columnName + "' to ZonedDateTime", e);
-                }
-            }
-            return null;
-        }
-
-        if (boxed == OffsetDateTime.class) {
-            if (raw instanceof OffsetDateTime odt) return odt;
-            if (raw instanceof Instant ins) return DateTimeUtil.toOffsetDateTime(ins);
-            if (raw instanceof ZonedDateTime zdt) return DateTimeUtil.toOffsetDateTime(zdt);
-            if (raw instanceof LocalDateTime ldt) return DateTimeUtil.toOffsetDateTime(ldt);
-            if (raw instanceof LocalDate ld) return DateTimeUtil.toOffsetDateTime(DateTimeUtil.toLocalDateTime(ld));
-            if (raw instanceof Timestamp ts) return DateTimeUtil.toOffsetDateTime(ts);
-            if (raw instanceof Date d) return DateTimeUtil.toOffsetDateTime(d);
-            if (raw instanceof String s) {
-                try {
-                    return DateTimeUtil.toOffsetDateTime(DateTimeUtil.parseLocalDateTime(s));
-                } catch (IllegalArgumentException e) {
-                    throw new SQLException("Cannot map column '" + columnName + "' to OffsetDateTime", e);
-                }
-            }
-            return null;
-        }
-        throw new SQLException("Unsupported field type " + fieldType.getName() + " for column '" + columnName + "'");
-    }
-
-    private static Number narrowNumber(Number n, Class<?> boxed) {
-        if (boxed == Byte.class) return n.byteValue();
-        if (boxed == Short.class) return n.shortValue();
-        if (boxed == Integer.class) return n.intValue();
-        if (boxed == Long.class) return n.longValue();
-        if (boxed == Float.class) return n.floatValue();
-        if (boxed == Double.class) return n.doubleValue();
-        if (boxed == BigDecimal.class) return new BigDecimal(n.toString());
-        if (boxed == BigInteger.class) {
-            if (n instanceof BigDecimal bd) return bd.toBigInteger();
-            return BigInteger.valueOf(n.longValue());
-        }
-        return n;
     }
 
     private record FieldBinding(Field field, String columnName, TypeConverter<?> converter) {

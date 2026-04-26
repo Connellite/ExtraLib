@@ -19,5 +19,6 @@ module io.github.connellite.ExtraLib {
     exports io.github.connellite.cloner;
     exports io.github.connellite.compress;
     exports io.github.connellite.reflection;
+    exports io.github.connellite.reflection.annotation;
     exports io.github.connellite.util;
 }
