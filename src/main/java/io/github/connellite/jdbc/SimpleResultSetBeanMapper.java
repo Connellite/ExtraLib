@@ -59,6 +59,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public class SimpleResultSetBeanMapper<T> {
 
     private static final Set<Class<?>> SCALAR_TYPES = Set.of(
+            Object.class,
             String.class,
             UUID.class,
             Boolean.class,

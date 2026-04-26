@@ -238,6 +238,30 @@ class BeanIteratorSimpleResultSetBeanMapperSqliteTest {
     }
 
     @Test
+    void simpleBeanMapperTreatsObjectAsScalarType() throws Exception {
+        ResultSet rs = fakeRowResultSet("1", 123L);
+        SimpleResultSetBeanMapper<Object> mapper = new SimpleResultSetBeanMapper<>(Object.class);
+
+        Object value = mapper.mapRow(rs);
+
+        assertEquals(123L, value);
+    }
+
+    @Test
+    void simpleBeanMapperMapsObjectFieldInsidePojo() throws Exception {
+        ResultSet rs = fakeRowResultSet(
+                "name", "obj-row",
+                "payload", 42
+        );
+        SimpleResultSetBeanMapper<PojoWithObjectField> mapper = new SimpleResultSetBeanMapper<>(PojoWithObjectField.class);
+
+        PojoWithObjectField row = mapper.mapRow(rs);
+
+        assertEquals("obj-row", row.name);
+        assertEquals(42, row.payload);
+    }
+
+    @Test
     void simpleBeanMapperFailsForRootBeanWithoutConverter() throws Exception {
         ResultSet rs = fakeRowResultSet("1", "{\"name\":\"alpha\"}");
         SimpleResultSetBeanMapper<MockJsonValue> mapper = new SimpleResultSetBeanMapper<>(MockJsonValue.class);
@@ -615,6 +639,11 @@ class BeanIteratorSimpleResultSetBeanMapperSqliteTest {
         private String name;
         @Column(converter = TruthyBooleanConverter.class)
         private Boolean active;
+    }
+
+    static class PojoWithObjectField {
+        private String name;
+        private Object payload;
     }
 
     record RecordRow(String name) {
