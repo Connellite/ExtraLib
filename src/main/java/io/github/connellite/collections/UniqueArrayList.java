@@ -25,6 +25,7 @@ public class UniqueArrayList<E> extends ArrayList<E> {
     private static final long serialVersionUID = 1L;
 
     private HashSet<E> uniques;
+    private transient boolean bypassUniqueCheck;
 
     public UniqueArrayList() {
         this.uniques = new HashSet<>();
@@ -49,7 +50,7 @@ public class UniqueArrayList<E> extends ArrayList<E> {
 
     @Override
     public void add(int index, E object) {
-        if (uniques.add(object)) {
+        if (bypassUniqueCheck || uniques.add(object)) {
             super.add(index, object);
         }
     }
@@ -253,7 +254,17 @@ public class UniqueArrayList<E> extends ArrayList<E> {
 
         @Override
         public void add(E object) {
-            delegate.add(object);
+            if (!uniques.add(object)) {
+                last = null;
+                return;
+            }
+            bypassUniqueCheck = true;
+            try {
+                delegate.add(object);
+            } finally {
+                bypassUniqueCheck = false;
+            }
+            last = null;
         }
     }
 }
