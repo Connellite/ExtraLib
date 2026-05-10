@@ -1,0 +1,1019 @@
+package io.github.connellite.jdbc;
+
+import java.io.InputStream;
+import java.io.Reader;
+import java.math.BigDecimal;
+import java.net.URL;
+import java.sql.Array;
+import java.sql.Blob;
+import java.sql.Clob;
+import java.sql.Connection;
+import java.sql.Date;
+import java.sql.NClob;
+import java.sql.PreparedStatement;
+import java.sql.Ref;
+import java.sql.ResultSet;
+import java.sql.RowId;
+import java.sql.SQLException;
+import java.sql.SQLType;
+import java.sql.SQLXML;
+import java.sql.Time;
+import java.sql.Timestamp;
+import java.sql.Types;
+import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
+
+/**
+ * PreparedStatement wrapper with named parameters (e.g. {@code :id}).
+ * Internally converts SQL to positional placeholders ({@code ?}) for drivers
+ * that only support JDBC positional parameters.
+ */
+@SuppressWarnings({"UnusedReturnValue", "JavadocLinkAsPlainText"})
+public final class NamedPreparedStatement implements AutoCloseable {
+    private static final SqlParser SQL_PARSER = new ColonPrefixSqlParser();
+
+    private final PreparedStatement statement;
+    private final ParsedSql parsedSql;
+    private final Map<String, List<Integer>> namedIndexes;
+    private final Set<String> boundValues = new HashSet<>();
+
+    /**
+     * Creates a named-parameter statement and compiles SQL to JDBC positional placeholders.
+     *
+     * @param connection JDBC connection used to create underlying prepared statement
+     * @param sql SQL with named parameters (for example {@code :id})
+     */
+    public NamedPreparedStatement(Connection connection, String sql) throws SQLException {
+        Objects.requireNonNull(connection, "connection");
+        this.parsedSql = SQL_PARSER.parse(sql);
+        this.namedIndexes = indexNamedParameters(parsedSql.parameters());
+        this.statement = connection.prepareStatement(parsedSql.sql());
+    }
+
+    /**
+     * Static factory for {@link NamedPreparedStatement}.
+     */
+    public static NamedPreparedStatement of(Connection connection, String sql) throws SQLException {
+        return new NamedPreparedStatement(connection, sql);
+    }
+
+    /**
+     * Binds object value to all occurrences of named parameter.
+     */
+    public NamedPreparedStatement setObject(String name, Object value) throws SQLException {
+        return setByIndex(name, index -> statement.setObject(index, value));
+    }
+
+    /**
+     * Binds int value to all occurrences of named parameter.
+     */
+    public NamedPreparedStatement setInt(String name, int value) throws SQLException {
+        return setByIndex(name, index -> statement.setInt(index, value));
+    }
+
+    /**
+     * Binds long value to all occurrences of named parameter.
+     */
+    public NamedPreparedStatement setLong(String name, long value) throws SQLException {
+        return setByIndex(name, index -> statement.setLong(index, value));
+    }
+
+    /**
+     * Binds string value to all occurrences of named parameter.
+     */
+    public NamedPreparedStatement setString(String name, String value) throws SQLException {
+        return setByIndex(name, index -> statement.setString(index, value));
+    }
+
+    /**
+     * Binds boolean value to all occurrences of named parameter.
+     */
+    public NamedPreparedStatement setBoolean(String name, boolean value) throws SQLException {
+        return setByIndex(name, index -> statement.setBoolean(index, value));
+    }
+
+    /**
+     * Binds byte value to all occurrences of named parameter.
+     */
+    public NamedPreparedStatement setByte(String name, byte value) throws SQLException {
+        return setByIndex(name, index -> statement.setByte(index, value));
+    }
+
+    /**
+     * Binds short value to all occurrences of named parameter.
+     */
+    public NamedPreparedStatement setShort(String name, short value) throws SQLException {
+        return setByIndex(name, index -> statement.setShort(index, value));
+    }
+
+    /**
+     * Binds float value to all occurrences of named parameter.
+     */
+    public NamedPreparedStatement setFloat(String name, float value) throws SQLException {
+        return setByIndex(name, index -> statement.setFloat(index, value));
+    }
+
+    /**
+     * Binds double value to all occurrences of named parameter.
+     */
+    public NamedPreparedStatement setDouble(String name, double value) throws SQLException {
+        return setByIndex(name, index -> statement.setDouble(index, value));
+    }
+
+    /**
+     * Binds {@link BigDecimal} value to all occurrences of named parameter.
+     */
+    public NamedPreparedStatement setBigDecimal(String name, BigDecimal value) throws SQLException {
+        return setByIndex(name, index -> statement.setBigDecimal(index, value));
+    }
+
+    /**
+     * Binds byte array value to all occurrences of named parameter.
+     */
+    public NamedPreparedStatement setBytes(String name, byte[] value) throws SQLException {
+        return setByIndex(name, index -> statement.setBytes(index, value));
+    }
+
+    /**
+     * Binds {@link Date} value to all occurrences of named parameter.
+     */
+    public NamedPreparedStatement setDate(String name, Date value) throws SQLException {
+        return setByIndex(name, index -> statement.setDate(index, value));
+    }
+
+    /**
+     * Binds {@link Date} value with calendar to all occurrences of named parameter.
+     */
+    public NamedPreparedStatement setDate(String name, Date value, Calendar cal) throws SQLException {
+        return setByIndex(name, index -> statement.setDate(index, value, cal));
+    }
+
+    /**
+     * Binds {@link Time} value to all occurrences of named parameter.
+     */
+    public NamedPreparedStatement setTime(String name, Time value) throws SQLException {
+        return setByIndex(name, index -> statement.setTime(index, value));
+    }
+
+    /**
+     * Binds {@link Time} value with calendar to all occurrences of named parameter.
+     */
+    public NamedPreparedStatement setTime(String name, Time value, Calendar cal) throws SQLException {
+        return setByIndex(name, index -> statement.setTime(index, value, cal));
+    }
+
+    /**
+     * Binds {@link Timestamp} value to all occurrences of named parameter.
+     */
+    public NamedPreparedStatement setTimestamp(String name, Timestamp value) throws SQLException {
+        return setByIndex(name, index -> statement.setTimestamp(index, value));
+    }
+
+    /**
+     * Binds {@link Timestamp} value with calendar to all occurrences of named parameter.
+     */
+    public NamedPreparedStatement setTimestamp(String name, Timestamp value, Calendar cal) throws SQLException {
+        return setByIndex(name, index -> statement.setTimestamp(index, value, cal));
+    }
+
+    /**
+     * Binds SQL NULL of generic type {@link Types#NULL}.
+     */
+    public NamedPreparedStatement setNull(String name) throws SQLException {
+        return setNull(name, Types.NULL);
+    }
+
+    /**
+     * Binds SQL NULL with explicit JDBC type.
+     */
+    public NamedPreparedStatement setNull(String name, int sqlType) throws SQLException {
+        return setByIndex(name, index -> statement.setNull(index, sqlType));
+    }
+
+    /**
+     * Binds SQL NULL with explicit JDBC type and database-specific type name.
+     */
+    public NamedPreparedStatement setNull(String name, int sqlType, String typeName) throws SQLException {
+        return setByIndex(name, index -> statement.setNull(index, sqlType, typeName));
+    }
+
+    /**
+     * Binds object with explicit JDBC SQL type.
+     */
+    public NamedPreparedStatement setObject(String name, Object value, int targetSqlType) throws SQLException {
+        return setByIndex(name, index -> statement.setObject(index, value, targetSqlType));
+    }
+
+    /**
+     * Binds object with explicit JDBC SQL type and scale/length.
+     */
+    public NamedPreparedStatement setObject(String name, Object value, int targetSqlType, int scaleOrLength) throws SQLException {
+        return setByIndex(name, index -> statement.setObject(index, value, targetSqlType, scaleOrLength));
+    }
+
+    /**
+     * Binds object with {@link SQLType}.
+     */
+    public NamedPreparedStatement setObject(String name, Object value, SQLType targetSqlType) throws SQLException {
+        return setByIndex(name, index -> statement.setObject(index, value, targetSqlType));
+    }
+
+    /**
+     * Binds object with {@link SQLType} and scale/length.
+     */
+    public NamedPreparedStatement setObject(String name, Object value, SQLType targetSqlType, int scaleOrLength) throws SQLException {
+        return setByIndex(name, index -> statement.setObject(index, value, targetSqlType, scaleOrLength));
+    }
+
+    /**
+     * Binds SQL array value.
+     */
+    public NamedPreparedStatement setArray(String name, Array value) throws SQLException {
+        return setByIndex(name, index -> statement.setArray(index, value));
+    }
+
+    /**
+     * Binds SQL reference value.
+     */
+    public NamedPreparedStatement setRef(String name, Ref value) throws SQLException {
+        return setByIndex(name, index -> statement.setRef(index, value));
+    }
+
+    /**
+     * Binds URL value.
+     */
+    public NamedPreparedStatement setURL(String name, URL value) throws SQLException {
+        return setByIndex(name, index -> statement.setURL(index, value));
+    }
+
+    /**
+     * Binds JDBC row id value.
+     */
+    public NamedPreparedStatement setRowId(String name, RowId value) throws SQLException {
+        return setByIndex(name, index -> statement.setRowId(index, value));
+    }
+
+    /**
+     * Binds SQLXML value.
+     */
+    public NamedPreparedStatement setSQLXML(String name, SQLXML value) throws SQLException {
+        return setByIndex(name, index -> statement.setSQLXML(index, value));
+    }
+
+    /**
+     * Binds {@link Blob} value.
+     */
+    public NamedPreparedStatement setBlob(String name, Blob value) throws SQLException {
+        return setByIndex(name, index -> statement.setBlob(index, value));
+    }
+
+    /**
+     * Binds blob binary stream value.
+     */
+    public NamedPreparedStatement setBlob(String name, InputStream inputStream) throws SQLException {
+        return setByIndex(name, index -> statement.setBlob(index, inputStream));
+    }
+
+    /**
+     * Binds blob binary stream value with explicit length.
+     */
+    public NamedPreparedStatement setBlob(String name, InputStream inputStream, long length) throws SQLException {
+        return setByIndex(name, index -> statement.setBlob(index, inputStream, length));
+    }
+
+    /**
+     * Binds {@link Clob} value.
+     */
+    public NamedPreparedStatement setClob(String name, Clob value) throws SQLException {
+        return setByIndex(name, index -> statement.setClob(index, value));
+    }
+
+    /**
+     * Binds character reader as CLOB.
+     */
+    public NamedPreparedStatement setClob(String name, Reader reader) throws SQLException {
+        return setByIndex(name, index -> statement.setClob(index, reader));
+    }
+
+    /**
+     * Binds character reader as CLOB with explicit length.
+     */
+    public NamedPreparedStatement setClob(String name, Reader reader, long length) throws SQLException {
+        return setByIndex(name, index -> statement.setClob(index, reader, length));
+    }
+
+    /**
+     * Binds {@link NClob} value.
+     */
+    public NamedPreparedStatement setNClob(String name, NClob value) throws SQLException {
+        return setByIndex(name, index -> statement.setNClob(index, value));
+    }
+
+    /**
+     * Binds reader as NCLOB.
+     */
+    public NamedPreparedStatement setNClob(String name, Reader reader) throws SQLException {
+        return setByIndex(name, index -> statement.setNClob(index, reader));
+    }
+
+    /**
+     * Binds reader as NCLOB with explicit length.
+     */
+    public NamedPreparedStatement setNClob(String name, Reader reader, long length) throws SQLException {
+        return setByIndex(name, index -> statement.setNClob(index, reader, length));
+    }
+
+    /**
+     * Binds ASCII stream.
+     */
+    public NamedPreparedStatement setAsciiStream(String name, InputStream value) throws SQLException {
+        return setByIndex(name, index -> statement.setAsciiStream(index, value));
+    }
+
+    /**
+     * Binds ASCII stream with int length.
+     */
+    public NamedPreparedStatement setAsciiStream(String name, InputStream value, int length) throws SQLException {
+        return setByIndex(name, index -> statement.setAsciiStream(index, value, length));
+    }
+
+    /**
+     * Binds ASCII stream with long length.
+     */
+    public NamedPreparedStatement setAsciiStream(String name, InputStream value, long length) throws SQLException {
+        return setByIndex(name, index -> statement.setAsciiStream(index, value, length));
+    }
+
+    /**
+     * Binds binary stream.
+     */
+    public NamedPreparedStatement setBinaryStream(String name, InputStream value) throws SQLException {
+        return setByIndex(name, index -> statement.setBinaryStream(index, value));
+    }
+
+    /**
+     * Binds binary stream with int length.
+     */
+    public NamedPreparedStatement setBinaryStream(String name, InputStream value, int length) throws SQLException {
+        return setByIndex(name, index -> statement.setBinaryStream(index, value, length));
+    }
+
+    /**
+     * Binds binary stream with long length.
+     */
+    public NamedPreparedStatement setBinaryStream(String name, InputStream value, long length) throws SQLException {
+        return setByIndex(name, index -> statement.setBinaryStream(index, value, length));
+    }
+
+    /**
+     * Binds character stream.
+     */
+    public NamedPreparedStatement setCharacterStream(String name, Reader reader) throws SQLException {
+        return setByIndex(name, index -> statement.setCharacterStream(index, reader));
+    }
+
+    /**
+     * Binds character stream with int length.
+     */
+    public NamedPreparedStatement setCharacterStream(String name, Reader reader, int length) throws SQLException {
+        return setByIndex(name, index -> statement.setCharacterStream(index, reader, length));
+    }
+
+    /**
+     * Binds character stream with long length.
+     */
+    public NamedPreparedStatement setCharacterStream(String name, Reader reader, long length) throws SQLException {
+        return setByIndex(name, index -> statement.setCharacterStream(index, reader, length));
+    }
+
+    /**
+     * Binds NCHAR character stream.
+     */
+    public NamedPreparedStatement setNCharacterStream(String name, Reader value) throws SQLException {
+        return setByIndex(name, index -> statement.setNCharacterStream(index, value));
+    }
+
+    /**
+     * Binds NCHAR character stream with explicit length.
+     */
+    public NamedPreparedStatement setNCharacterStream(String name, Reader value, long length) throws SQLException {
+        return setByIndex(name, index -> statement.setNCharacterStream(index, value, length));
+    }
+
+    /**
+     * Binds national character string value.
+     */
+    public NamedPreparedStatement setNString(String name, String value) throws SQLException {
+        return setByIndex(name, index -> statement.setNString(index, value));
+    }
+
+    private NamedPreparedStatement setByIndex(String name, ThrowingConsumer<Integer> setter) throws SQLException {
+        List<Integer> indexes = indexesFor(name);
+        for (int index : indexes) {
+            setter.accept(index);
+        }
+        boundValues.add(name);
+        return this;
+    }
+
+    /**
+     * Binds all entries from map using {@link #setObject(String, Object)}.
+     */
+    @SuppressWarnings("resource")
+    public NamedPreparedStatement setAll(Map<String, ?> params) throws SQLException {
+        if (params == null || params.isEmpty()) {
+            return this;
+        }
+        for (Map.Entry<String, ?> e : params.entrySet()) {
+            setObject(e.getKey(), e.getValue());
+        }
+        return this;
+    }
+
+    /**
+     * Clears both wrapper binding state and underlying JDBC parameter values.
+     */
+    public void clearParameters() throws SQLException {
+        boundValues.clear();
+        statement.clearParameters();
+    }
+
+    /**
+     * Executes query after ensuring that all named parameters are bound.
+     */
+    public ResultSet executeQuery() throws SQLException {
+        ensureAllNamedParametersAreBound();
+        return statement.executeQuery();
+    }
+
+    /**
+     * Executes update after ensuring that all named parameters are bound.
+     */
+    public int executeUpdate() throws SQLException {
+        ensureAllNamedParametersAreBound();
+        return statement.executeUpdate();
+    }
+
+    /**
+     * Executes statement after ensuring that all named parameters are bound.
+     */
+    public boolean execute() throws SQLException {
+        ensureAllNamedParametersAreBound();
+        return statement.execute();
+    }
+
+    /**
+     * Adds current parameter set to batch after binding validation.
+     */
+    public void addBatch() throws SQLException {
+        ensureAllNamedParametersAreBound();
+        statement.addBatch();
+    }
+
+    /**
+     * Executes JDBC batch on underlying statement.
+     */
+    public int[] executeBatch() throws SQLException {
+        return statement.executeBatch();
+    }
+
+    /**
+     * Returns underlying JDBC prepared statement.
+     */
+    public PreparedStatement unwrap() {
+        return statement;
+    }
+
+    /**
+     * Debug helper: names of parameters bound since last {@link #clearParameters()}.
+     */
+    public Set<String> getBoundValues() {
+        return Collections.unmodifiableSet(boundValues);
+    }
+
+    /**
+     * Returns parsed SQL transformed to JDBC placeholders.
+     */
+    public String getParsedSql() {
+        return parsedSql.sql();
+    }
+
+    /**
+     * Returns parameter names in positional order (including repeated occurrences).
+     */
+    public List<String> getParameterOrder() {
+        return parsedSql.parameters().parameterNames();
+    }
+
+    private void ensureAllNamedParametersAreBound() {
+        List<String> missing = new ArrayList<>();
+        for (String name : namedIndexes.keySet()) {
+            if (!boundValues.contains(name)) {
+                missing.add(name);
+            }
+        }
+        if (!missing.isEmpty()) {
+            throw new IllegalStateException("Not all named parameters are bound: " + missing);
+        }
+    }
+
+    private List<Integer> indexesFor(String name) {
+        List<Integer> indexes = namedIndexes.get(name);
+        if (indexes == null || indexes.isEmpty()) {
+            throw new IllegalArgumentException("Unknown named parameter: " + name);
+        }
+        return indexes;
+    }
+
+    private static Map<String, List<Integer>> indexNamedParameters(ParsedParameters parameters) {
+        if (parameters.positional()) {
+            return Collections.emptyMap();
+        }
+
+        Map<String, List<Integer>> indexes = new LinkedHashMap<>();
+        List<String> parameterNames = parameters.parameterNames();
+        for (int i = 0; i < parameterNames.size(); i++) {
+            String name = parameterNames.get(i);
+            indexes.computeIfAbsent(name, key -> new ArrayList<>()).add(i + 1);
+        }
+
+        Map<String, List<Integer>> immutableIndexes = new LinkedHashMap<>();
+        for (Map.Entry<String, List<Integer>> e : indexes.entrySet()) {
+            immutableIndexes.put(e.getKey(), List.copyOf(e.getValue()));
+        }
+        return Collections.unmodifiableMap(immutableIndexes);
+    }
+
+    @Override
+    public void close() throws SQLException {
+        statement.close();
+    }
+
+    @FunctionalInterface
+    private interface ThrowingConsumer<T> {
+        void accept(T value) throws SQLException;
+    }
+
+    private interface SqlParser {
+        /**
+         * Parses the given SQL statement and returns the parsed representation.
+         *
+         * @param sql the SQL statement to parse
+         * @return parsed SQL with JDBC-ready SQL and parameter metadata
+         * <p>
+         * Jdbi reference:
+         * https://github.com/jdbi/jdbi/blob/6e959ba70365fb0e15f19f39e8b2bf32d4998b6c/core/src/main/java/org/jdbi/v3/core/statement/SqlParser.java
+         */
+        ParsedSql parse(String sql);
+
+        /**
+         * Convert a raw parameter name into a name recognized by this parser.
+         *
+         * @param rawName raw name to transform
+         * @return parser-specific parameter name
+         * <p>
+         * Jdbi reference:
+         * https://github.com/jdbi/jdbi/blob/6e959ba70365fb0e15f19f39e8b2bf32d4998b6c/core/src/main/java/org/jdbi/v3/core/statement/SqlParser.java
+         */
+        String nameParameter(String rawName);
+    }
+
+    private abstract static class CachingSqlParser implements SqlParser {
+        public static final int PARSED_SQL_CACHE_SIZE = 1_000;
+
+        private final Map<String, ParsedSql> parsedSqlCache;
+
+        CachingSqlParser() {
+            this(PARSED_SQL_CACHE_SIZE);
+        }
+
+        CachingSqlParser(int cacheSize) {
+            this.parsedSqlCache = Collections.synchronizedMap(new LinkedHashMap<>(16, 0.75f, true) {
+                @Override
+                protected boolean removeEldestEntry(Map.Entry<String, ParsedSql> eldest) {
+                    return size() > cacheSize;
+                }
+            });
+        }
+
+        /**
+         * Parses SQL with caching; equivalent to Jdbi's caching parser contract.
+         *
+         * @param sql SQL text to parse
+         * @return parsed SQL structure
+         * <p>
+         * Jdbi reference:
+         * https://github.com/jdbi/jdbi/blob/6e959ba70365fb0e15f19f39e8b2bf32d4998b6c/core/src/main/java/org/jdbi/v3/core/statement/CachingSqlParser.java
+         */
+        @Override
+        public ParsedSql parse(String sql) {
+            Objects.requireNonNull(sql, "sql");
+            try {
+                ParsedSql parsedSql = parsedSqlCache.get(sql);
+                if (parsedSql == null) {
+                    parsedSql = internalParse(sql);
+                    parsedSqlCache.put(sql, parsedSql);
+                }
+                return parsedSql;
+            } catch (IllegalArgumentException e) {
+                throw new IllegalArgumentException("Exception parsing for named parameter replacement", e);
+            }
+        }
+
+        abstract ParsedSql internalParse(String sql);
+    }
+
+    private static final class ColonPrefixSqlParser extends CachingSqlParser {
+        /**
+         * SQL parser which recognizes named parameter tokens of the form {@code :tokenName}.
+         *
+         * @param rawName parameter name without {@code :}
+         * @return parser-specific name with {@code :} prefix
+         * <p>
+         * Jdbi reference:
+         * https://github.com/jdbi/jdbi/blob/6e959ba70365fb0e15f19f39e8b2bf32d4998b6c/core/src/main/java/org/jdbi/v3/core/statement/ColonPrefixSqlParser.java
+         */
+        @Override
+        public String nameParameter(String rawName) {
+            return ":" + rawName;
+        }
+
+        /**
+         * Parses SQL into SQL text + parameter metadata by token stream,
+         * preserving comments/literals and converting named parameters to {@code ?}.
+         *
+         * @param sql SQL to parse
+         * @return parsed SQL
+         * <p>
+         * Jdbi reference:
+         * https://github.com/jdbi/jdbi/blob/6e959ba70365fb0e15f19f39e8b2bf32d4998b6c/core/src/main/java/org/jdbi/v3/core/statement/ColonPrefixSqlParser.java
+         */
+        @Override
+        ParsedSql internalParse(String sql) {
+            ParsedSql.Builder builder = ParsedSql.builder();
+            ColonStatementLexer lexer = new ColonStatementLexer(sql);
+            Token t = lexer.nextToken();
+            while (t.type() != Token.EOF) {
+                switch (t.type()) {
+                    case Token.COMMENT:
+                    case Token.LITERAL:
+                    case Token.QUOTED_TEXT:
+                    case Token.DOUBLE_QUOTED_TEXT:
+                        builder.append(t.text());
+                        break;
+                    case Token.NAMED_PARAM:
+                        builder.appendNamedParameter(t.text().substring(1));
+                        break;
+                    case Token.POSITIONAL_PARAM:
+                        builder.appendPositionalParameter();
+                        break;
+                    case Token.ESCAPED_TEXT:
+                        builder.append(t.text().substring(1));
+                        break;
+                    default:
+                        break;
+                }
+                t = lexer.nextToken();
+            }
+            return builder.build();
+        }
+    }
+
+    private static final class ColonStatementLexer {
+        private final String sql;
+        private int pos;
+
+        ColonStatementLexer(String sql) {
+            this.sql = sql;
+        }
+
+        /**
+         * Returns next lexer token according to Jdbi's colon statement lexer rules.
+         *
+         * @return next token or {@link Token#EOF}
+         * <p>
+         * Jdbi reference:
+         * https://github.com/jdbi/jdbi/blob/6e959ba70365fb0e15f19f39e8b2bf32d4998b6c/core/src/main/antlr4/org/jdbi/v3/core/internal/lexer/ColonStatementLexer.g4
+         */
+        Token nextToken() {
+            if (pos >= sql.length()) {
+                return new Token(Token.EOF, "");
+            }
+
+            char c = sql.charAt(pos);
+            char next = lookAhead(1);
+
+            if (c == '/' && next == '*') {
+                return readBlockComment();
+            }
+            if (c == '-' && next == '-') {
+                return readLineComment();
+            }
+            if (c == '/' && next == '/') {
+                return readLineComment();
+            }
+            if (c == '\'') {
+                return readQuotedText();
+            }
+            if (c == '"') {
+                return readDoubleQuotedText();
+            }
+            if (c == '\\' && pos + 1 < sql.length()) {
+                String text = sql.substring(pos, pos + 2);
+                pos += 2;
+                return new Token(Token.ESCAPED_TEXT, text);
+            }
+            if (c == ':' && next == ':') {
+                pos += 2;
+                return new Token(Token.LITERAL, "::");
+            }
+            if (c == ':' && isNameChar(next)) {
+                return readNamedParam();
+            }
+            if (c == '?' && next == '?') {
+                pos += 2;
+                return new Token(Token.LITERAL, "??");
+            }
+            if (c == '?') {
+                pos++;
+                return new Token(Token.POSITIONAL_PARAM, "?");
+            }
+            return readLiteral();
+        }
+
+        private Token readBlockComment() {
+            int start = pos;
+            pos += 2;
+            while (pos < sql.length()) {
+                if (sql.charAt(pos) == '*' && lookAhead(1) == '/') {
+                    pos += 2;
+                    break;
+                }
+                pos++;
+            }
+            return new Token(Token.COMMENT, sql.substring(start, pos));
+        }
+
+        private Token readLineComment() {
+            int start = pos;
+            pos += 2;
+            while (pos < sql.length() && sql.charAt(pos) != '\r' && sql.charAt(pos) != '\n') {
+                pos++;
+            }
+            return new Token(Token.COMMENT, sql.substring(start, pos));
+        }
+
+        private Token readQuotedText() {
+            int start = pos++;
+            while (pos < sql.length()) {
+                char c = sql.charAt(pos);
+                if (c == '\\' && lookAhead(1) == '\'') {
+                    pos += 2;
+                } else if (c == '\'' && lookAhead(1) == '\'') {
+                    pos += 2;
+                } else if (c == '\'') {
+                    pos++;
+                    break;
+                } else {
+                    pos++;
+                }
+            }
+            return new Token(Token.QUOTED_TEXT, sql.substring(start, pos));
+        }
+
+        private Token readDoubleQuotedText() {
+            int start = pos++;
+            while (pos < sql.length()) {
+                char c = sql.charAt(pos++);
+                if (c == '"') {
+                    break;
+                }
+            }
+            return new Token(Token.DOUBLE_QUOTED_TEXT, sql.substring(start, pos));
+        }
+
+        private Token readNamedParam() {
+            int start = pos++;
+            while (pos < sql.length()) {
+                if (sql.charAt(pos) == '?' && lookAhead(1) == '.') {
+                    pos += 2;
+                } else if (isNameChar(sql.charAt(pos))) {
+                    pos++;
+                } else {
+                    break;
+                }
+            }
+            return new Token(Token.NAMED_PARAM, sql.substring(start, pos));
+        }
+
+        private Token readLiteral() {
+            int start = pos++;
+            while (pos < sql.length()) {
+                char c = sql.charAt(pos);
+                char next = lookAhead(1);
+                if (c == '\''
+                        || c == '"'
+                        || c == '\\'
+                        || c == '?'
+                        || (c == ':' && (next == ':' || isNameChar(next)))
+                        || (c == '/' && (next == '*' || next == '/'))
+                        || (c == '-' && next == '-')) {
+                    break;
+                }
+                pos++;
+            }
+            return new Token(Token.LITERAL, sql.substring(start, pos));
+        }
+
+        private char lookAhead(int offset) {
+            int index = pos + offset;
+            return index < sql.length() ? sql.charAt(index) : '\0';
+        }
+
+        private static boolean isNameChar(char c) {
+            return c == '.'
+                    || c == '_'
+                    || c == '$'
+                    || Character.isLetterOrDigit(c)
+                    || c > 127;
+        }
+    }
+
+    private record Token(int type, String text) {
+        static final int EOF = -1;
+        static final int COMMENT = 1;
+        static final int LITERAL = 2;
+        static final int QUOTED_TEXT = 3;
+        static final int DOUBLE_QUOTED_TEXT = 4;
+        static final int NAMED_PARAM = 5;
+        static final int POSITIONAL_PARAM = 6;
+        static final int ESCAPED_TEXT = 7;
+
+    }
+
+    private record ParsedSql(String sql, ParsedParameters parameters) {
+        static final String POSITIONAL_PARAM = "?";
+
+        @Override
+        public String toString() {
+            return "ParsedSql{"
+                    + "sql='" + sql + '\''
+                    + ", parameters=" + parameters
+                    + '}';
+        }
+
+        /**
+         * Static factory of parsed SQL.
+         *
+         * @param sql SQL text containing positional placeholders
+         * @param parameters ordered parameter metadata
+         * @return new parsed SQL instance
+         * <p>
+         * Jdbi reference:
+         * https://github.com/jdbi/jdbi/blob/6e959ba70365fb0e15f19f39e8b2bf32d4998b6c/core/src/main/java/org/jdbi/v3/core/statement/ParsedSql.java
+         */
+        static ParsedSql of(String sql, ParsedParameters parameters) {
+            return new ParsedSql(sql, parameters);
+        }
+
+        /**
+         * Creates a new {@link Builder} for parsed SQL.
+         *
+         * @return builder instance
+         * <p>
+         * Jdbi reference:
+         * https://github.com/jdbi/jdbi/blob/6e959ba70365fb0e15f19f39e8b2bf32d4998b6c/core/src/main/java/org/jdbi/v3/core/statement/ParsedSql.java
+         */
+        static Builder builder() {
+            return new Builder();
+        }
+
+        private static final class Builder {
+            private final StringBuilder sql = new StringBuilder();
+            private boolean positional = false;
+            private boolean named = false;
+            private final List<String> parameterNames = new ArrayList<>();
+
+            /**
+             * Appends an SQL fragment to the SQL text.
+             *
+             * @param sqlFragment SQL fragment
+             * @return this builder
+             * <p>
+             * Jdbi reference:
+             * https://github.com/jdbi/jdbi/blob/6e959ba70365fb0e15f19f39e8b2bf32d4998b6c/core/src/main/java/org/jdbi/v3/core/statement/ParsedSql.java
+             */
+            Builder append(String sqlFragment) {
+                sql.append(sqlFragment);
+                return this;
+            }
+
+            /**
+             * Records a named parameter and appends positional {@code ?}.
+             *
+             * @param name named parameter
+             * @return this builder
+             * <p>
+             * Jdbi reference:
+             * https://github.com/jdbi/jdbi/blob/6e959ba70365fb0e15f19f39e8b2bf32d4998b6c/core/src/main/java/org/jdbi/v3/core/statement/ParsedSql.java
+             */
+            Builder appendNamedParameter(String name) {
+                named = true;
+                parameterNames.add(name);
+                return append(POSITIONAL_PARAM);
+            }
+
+            /**
+             * Records a positional parameter and appends positional {@code ?}.
+             *
+             * @return this builder
+             * <p>
+             * Jdbi reference:
+             * https://github.com/jdbi/jdbi/blob/6e959ba70365fb0e15f19f39e8b2bf32d4998b6c/core/src/main/java/org/jdbi/v3/core/statement/ParsedSql.java
+             */
+            Builder appendPositionalParameter() {
+                positional = true;
+                parameterNames.add(POSITIONAL_PARAM);
+                return append(POSITIONAL_PARAM);
+            }
+
+            /**
+             * Finalizes parsed SQL and validates that named and positional parameters are not mixed.
+             *
+             * @return finalized parsed SQL
+             * <p>
+             * Jdbi reference:
+             * https://github.com/jdbi/jdbi/blob/6e959ba70365fb0e15f19f39e8b2bf32d4998b6c/core/src/main/java/org/jdbi/v3/core/statement/ParsedSql.java
+             */
+            ParsedSql build() {
+                if (positional && named) {
+                    throw new IllegalArgumentException(
+                            "Cannot mix named and positional parameters in a SQL statement: " + parameterNames);
+                }
+
+                ParsedParameters parameters = new ParsedParameters(positional, parameterNames);
+                return new ParsedSql(sql.toString(), parameters);
+            }
+        }
+    }
+
+    private record ParsedParameters(boolean positional, List<String> parameterNames) {
+        static final ParsedParameters NONE = new ParsedParameters(true, Collections.emptyList());
+
+        private ParsedParameters(boolean positional, List<String> parameterNames) {
+            this.positional = positional;
+            this.parameterNames = List.copyOf(parameterNames);
+        }
+
+        int getParameterCount() {
+            return parameterNames.size();
+        }
+
+        @Override
+        public String toString() {
+            return "ParsedParameters{"
+                    + "positional=" + positional
+                    + ", parameterNames=" + parameterNames
+                    + '}';
+        }
+
+        /**
+         * Static factory of named parsed parameters.
+         * Input names must be bare names without SQL prefix characters.
+         *
+         * @param names parameter names from SQL
+         * @return new named parsed parameters
+         * @throws IllegalArgumentException when names contain positional marker
+         * <p>
+         * Jdbi reference:
+         * https://github.com/jdbi/jdbi/blob/6e959ba70365fb0e15f19f39e8b2bf32d4998b6c/core/src/main/java/org/jdbi/v3/core/statement/ParsedParameters.java
+         */
+        static ParsedParameters named(List<String> names) {
+            if (names.contains(ParsedSql.POSITIONAL_PARAM)) {
+                throw new IllegalArgumentException("Named parameters list must not contain positional parameter \""
+                        + ParsedSql.POSITIONAL_PARAM + "\"");
+            }
+            return new ParsedParameters(false, names);
+        }
+
+        /**
+         * Static factory of positional parsed parameters.
+         *
+         * @param count number of positional parameters in SQL
+         * @return new positional parsed parameters
+         * <p>
+         * Jdbi reference:
+         * https://github.com/jdbi/jdbi/blob/6e959ba70365fb0e15f19f39e8b2bf32d4998b6c/core/src/main/java/org/jdbi/v3/core/statement/ParsedParameters.java
+         */
+        static ParsedParameters positional(int count) {
+            return new ParsedParameters(true, Collections.nCopies(count, ParsedSql.POSITIONAL_PARAM));
+        }
+    }
+}
