@@ -113,6 +113,79 @@ public class ResultSetBeanIteratorTest {
         }
     }
 
+    @Test
+    void getAllGetFirstAndIteratorFromNamedPreparedStatement() throws Exception {
+        try (Connection c = SqliteMemory.open()) {
+            try (Statement s = c.createStatement()) {
+                s.execute("CREATE TABLE bean_nps (name TEXT, active_flag TEXT)");
+                s.execute("INSERT INTO bean_nps (name, active_flag) VALUES ('row-1', 'true')");
+                s.execute("INSERT INTO bean_nps (name, active_flag) VALUES ('row-2', 'false')");
+            }
+            try (NamedPreparedStatement nps = new NamedPreparedStatement(
+                    c,
+                    "SELECT name, active_flag FROM bean_nps WHERE active_flag = :flag ORDER BY name")) {
+                nps.setString("flag", "true");
+                List<RowBean> all = ResultSetBeanIterator.getAll(RowBean.class, nps);
+                assertEquals(1, all.size());
+                assertEquals("row-1", all.get(0).name);
+                assertTrue(all.get(0).active);
+            }
+            try (NamedPreparedStatement nps = new NamedPreparedStatement(
+                    c,
+                    "SELECT name, active_flag FROM bean_nps WHERE name = :n ORDER BY name")) {
+                nps.setString("n", "row-2");
+                Optional<RowBean> first = ResultSetBeanIterator.getFirst(RowBean.class, nps);
+                assertTrue(first.isPresent());
+                assertEquals("row-2", first.get().name);
+                assertFalse(first.get().active);
+            }
+            try (NamedPreparedStatement nps = new NamedPreparedStatement(
+                    c,
+                    "SELECT name, active_flag FROM bean_nps WHERE 1 = :zero")) {
+                nps.setInt("zero", 0);
+                assertTrue(ResultSetBeanIterator.getFirst(RowBean.class, nps).isEmpty());
+            }
+            try (NamedPreparedStatement nps = new NamedPreparedStatement(
+                    c,
+                    "SELECT name, active_flag FROM bean_nps WHERE active_flag = :flag ORDER BY name")) {
+                nps.setString("flag", "false");
+                try (ResultSetBeanIterator<RowBean> it = new ResultSetBeanIterator<>(RowBean.class, nps)) {
+                    assertTrue(it.hasNext());
+                    RowBean row = it.next();
+                    assertEquals("row-2", row.name);
+                    assertFalse(row.active);
+                    assertFalse(it.hasNext());
+                }
+            }
+        }
+    }
+
+    @Test
+    void getAllGetFirstWithMapperFromNamedPreparedStatement() throws Exception {
+        try (Connection c = SqliteMemory.open()) {
+            try (Statement s = c.createStatement()) {
+                s.execute("CREATE TABLE bean_nps_mapper (name TEXT, active_flag TEXT)");
+                s.execute("INSERT INTO bean_nps_mapper (name, active_flag) VALUES ('only-false', 'false')");
+            }
+            SimpleResultSetBeanMapper<RowBean> mapper = new SimpleResultSetBeanMapper<>(RowBean.class);
+            try (NamedPreparedStatement nps = new NamedPreparedStatement(
+                    c, "SELECT name, active_flag FROM bean_nps_mapper WHERE active_flag = :flag")) {
+                nps.setString("flag", "false");
+                List<RowBean> all = ResultSetBeanIterator.getAll(mapper, nps);
+                assertEquals(1, all.size());
+                assertEquals("only-false", all.get(0).name);
+                assertFalse(all.get(0).active);
+            }
+            try (NamedPreparedStatement nps = new NamedPreparedStatement(
+                    c, "SELECT name, active_flag FROM bean_nps_mapper WHERE name = :nm")) {
+                nps.setString("nm", "only-false");
+                Optional<RowBean> first = ResultSetBeanIterator.getFirst(mapper, nps);
+                assertTrue(first.isPresent());
+                assertEquals("only-false", first.get().name);
+            }
+        }
+    }
+
     static class RowBean {
         String name;
         @Column("active_flag")

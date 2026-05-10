@@ -12,6 +12,7 @@ import java.util.Map;
 import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -119,6 +120,51 @@ class ResultSetStreamSqliteTest {
             try (Statement st = c.createStatement();
                  ResultSet rs2 = st.executeQuery("SELECT id FROM demo ORDER BY id")) {
                 assertEquals(1, ResultSetIterator.getFirst(rs2).orElseThrow().get("id"));
+            }
+        }
+    }
+
+    @Test
+    void streamIteratorAndStaticsFromNamedPreparedStatement() throws Exception {
+        try (Connection c = SqliteMemory.open()) {
+            SqliteMemory.bootstrapDemoSchema(c);
+            try (NamedPreparedStatement nps = new NamedPreparedStatement(
+                    c, "SELECT id, name FROM demo WHERE id > :min ORDER BY id")) {
+                nps.setInt("min", 0);
+                try (Stream<Map<String, Object>> stream = ResultSetStream.stream(nps)) {
+                    List<Map<String, Object>> rows = stream.toList();
+                    assertEquals(2, rows.size());
+                    assertEquals(1, rows.get(0).get("id"));
+                    assertEquals("one", rows.get(0).get("name"));
+                }
+            }
+            try (NamedPreparedStatement nps = new NamedPreparedStatement(
+                    c, "SELECT id, name FROM demo WHERE id > :min ORDER BY id")) {
+                nps.setInt("min", 0);
+                try (ResultSetIterator it = new ResultSetIterator(nps)) {
+                    assertTrue(it.hasNext());
+                    assertEquals(1, it.next().get("id"));
+                    assertTrue(it.hasNext());
+                    assertEquals(2, it.next().get("id"));
+                    assertFalse(it.hasNext());
+                }
+            }
+            try (NamedPreparedStatement npsAll = new NamedPreparedStatement(
+                    c, "SELECT id FROM demo WHERE id > :min ORDER BY id")) {
+                npsAll.setInt("min", 0);
+                List<Map<String, Object>> all = ResultSetIterator.getAll(npsAll);
+                assertEquals(2, all.size());
+                assertEquals(2, all.get(1).get("id"));
+            }
+            try (NamedPreparedStatement npsFirst = new NamedPreparedStatement(
+                    c, "SELECT id FROM demo WHERE id > :min ORDER BY id")) {
+                npsFirst.setInt("min", 0);
+                assertEquals(1, ResultSetIterator.getFirst(npsFirst).orElseThrow().get("id"));
+            }
+            try (NamedPreparedStatement npsEmpty = new NamedPreparedStatement(
+                    c, "SELECT id FROM demo WHERE id > :min AND 1=0 ORDER BY id")) {
+                npsEmpty.setInt("min", 0);
+                assertTrue(ResultSetIterator.getFirst(npsEmpty).isEmpty());
             }
         }
     }

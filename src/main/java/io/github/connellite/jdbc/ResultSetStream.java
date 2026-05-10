@@ -42,6 +42,30 @@ public final class ResultSetStream {
     }
 
     /**
+     * @param nps bound named prepared statement; stream close closes statement and result set
+     */
+    public static Stream<Map<String, Object>> stream(NamedPreparedStatement nps) throws SQLException {
+        ResultSetIterator it;
+        try {
+            it = new ResultSetIterator(nps);
+        } catch (SQLException se) {
+            throw se;
+        } catch (Exception e) {
+            throw new SQLException(e);
+        }
+        return StreamSupport.stream(
+                        Spliterators.spliteratorUnknownSize(it, Spliterator.ORDERED | Spliterator.NONNULL),
+                        false)
+                .onClose(() -> {
+                    try {
+                        it.close();
+                    } catch (Exception e) {
+                        throw new RuntimeException(e);
+                    }
+                });
+    }
+
+    /**
      * @param resultSet open result set; stream close closes this result set
      */
     public static Stream<Map<String, Object>> stream(ResultSet resultSet) throws SQLException {

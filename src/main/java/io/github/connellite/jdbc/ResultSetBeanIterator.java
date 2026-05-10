@@ -12,6 +12,7 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.Objects;
 import java.util.Optional;
 
 /**
@@ -59,6 +60,20 @@ public class ResultSetBeanIterator<T> implements Iterator<T>, AutoCloseable {
     }
 
     /**
+     * Executes a bound {@link NamedPreparedStatement} and iterates rows mapped to {@code beanClass}.
+     */
+    public ResultSetBeanIterator(Class<T> beanClass, NamedPreparedStatement nps) throws SQLException {
+        PreparedStatement statement = Objects.requireNonNull(nps, "nps").unwrap();
+        try {
+            statement.setFetchSize(1000);
+        } catch (Exception ignore) {
+        }
+        this.resultSet = new ResultSetWrapper(statement, nps.executeQuery());
+        this.mapper = new SimpleResultSetBeanMapper<>(beanClass, ResultSetMetaDataUtils.getColumnLabels(resultSet));
+        this.hasNextValue = resultSet.next();
+    }
+
+    /**
      * Executes {@code query} and iterates rows using provided mapper.
      */
     public ResultSetBeanIterator(SimpleResultSetBeanMapper<T> mapper, Connection conn, String query, Object... params) throws SQLException {
@@ -79,6 +94,20 @@ public class ResultSetBeanIterator<T> implements Iterator<T>, AutoCloseable {
             statement.setObject(i + 1, safeParams[i]);
         }
         this.resultSet = new ResultSetWrapper(statement, statement.executeQuery());
+        this.mapper = mapper;
+        this.hasNextValue = resultSet.next();
+    }
+
+    /**
+     * Executes a bound {@link NamedPreparedStatement} and iterates rows using provided mapper.
+     */
+    public ResultSetBeanIterator(SimpleResultSetBeanMapper<T> mapper, NamedPreparedStatement nps) throws SQLException {
+        PreparedStatement statement = Objects.requireNonNull(nps, "nps").unwrap();
+        try {
+            statement.setFetchSize(1000);
+        } catch (Exception ignore) {
+        }
+        this.resultSet = new ResultSetWrapper(statement, nps.executeQuery());
         this.mapper = mapper;
         this.hasNextValue = resultSet.next();
     }
@@ -168,11 +197,45 @@ public class ResultSetBeanIterator<T> implements Iterator<T>, AutoCloseable {
     }
 
     /**
+     * Reads all mapped rows into an immutable list.
+     */
+    public static <T> List<T> getAll(Class<T> beanClass, NamedPreparedStatement nps) throws SQLException {
+        List<T> out = new ArrayList<>();
+        try (ResultSetBeanIterator<T> it = new ResultSetBeanIterator<>(beanClass, nps)) {
+            while (it.hasNext()) {
+                out.add(it.next());
+            }
+        } catch (SQLException se) {
+            throw se;
+        } catch (Exception e) {
+            throw new SQLException(e);
+        }
+        return Collections.unmodifiableList(out);
+    }
+
+    /**
      * Reads all mapped rows into an immutable list using provided mapper.
      */
     public static <T> List<T> getAll(SimpleResultSetBeanMapper<T> mapper, Connection conn, String query, Object... params) throws SQLException {
         List<T> out = new ArrayList<>();
         try (ResultSetBeanIterator<T> it = new ResultSetBeanIterator<>(mapper, conn, query, params)) {
+            while (it.hasNext()) {
+                out.add(it.next());
+            }
+        } catch (SQLException se) {
+            throw se;
+        } catch (Exception e) {
+            throw new SQLException(e);
+        }
+        return Collections.unmodifiableList(out);
+    }
+
+    /**
+     * Reads all mapped rows into an immutable list using provided mapper.
+     */
+    public static <T> List<T> getAll(SimpleResultSetBeanMapper<T> mapper, NamedPreparedStatement nps) throws SQLException {
+        List<T> out = new ArrayList<>();
+        try (ResultSetBeanIterator<T> it = new ResultSetBeanIterator<>(mapper, nps)) {
             while (it.hasNext()) {
                 out.add(it.next());
             }
@@ -201,10 +264,42 @@ public class ResultSetBeanIterator<T> implements Iterator<T>, AutoCloseable {
     }
 
     /**
+     * Reads the first mapped row, if present.
+     */
+    public static <T> Optional<T> getFirst(Class<T> beanClass, NamedPreparedStatement nps) throws SQLException {
+        try (ResultSetBeanIterator<T> it = new ResultSetBeanIterator<>(beanClass, nps)) {
+            if (it.hasNext()) {
+                return Optional.ofNullable(it.next());
+            }
+            return Optional.empty();
+        } catch (SQLException se) {
+            throw se;
+        } catch (Exception e) {
+            throw new SQLException(e);
+        }
+    }
+
+    /**
      * Reads the first mapped row, if present, using provided mapper.
      */
     public static <T> Optional<T> getFirst(SimpleResultSetBeanMapper<T> mapper, Connection conn, String query, Object... params) throws SQLException {
         try (ResultSetBeanIterator<T> it = new ResultSetBeanIterator<>(mapper, conn, query, params)) {
+            if (it.hasNext()) {
+                return Optional.ofNullable(it.next());
+            }
+            return Optional.empty();
+        } catch (SQLException se) {
+            throw se;
+        } catch (Exception e) {
+            throw new SQLException(e);
+        }
+    }
+
+    /**
+     * Reads the first mapped row, if present, using provided mapper.
+     */
+    public static <T> Optional<T> getFirst(SimpleResultSetBeanMapper<T> mapper, NamedPreparedStatement nps) throws SQLException {
+        try (ResultSetBeanIterator<T> it = new ResultSetBeanIterator<>(mapper, nps)) {
             if (it.hasNext()) {
                 return Optional.ofNullable(it.next());
             }

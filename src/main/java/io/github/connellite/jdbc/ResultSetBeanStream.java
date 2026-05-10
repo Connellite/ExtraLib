@@ -44,6 +44,31 @@ public final class ResultSetBeanStream {
     }
 
     /**
+     * @param beanClass target bean type
+     * @param nps       bound named prepared statement; stream close closes statement and result set
+     */
+    public static <T> Stream<T> stream(Class<T> beanClass, NamedPreparedStatement nps) throws SQLException {
+        ResultSetBeanIterator<T> it;
+        try {
+            it = new ResultSetBeanIterator<>(beanClass, nps);
+        } catch (SQLException se) {
+            throw se;
+        } catch (Exception e) {
+            throw new SQLException(e);
+        }
+        return StreamSupport.stream(
+                        Spliterators.spliteratorUnknownSize(it, Spliterator.ORDERED | Spliterator.NONNULL),
+                        false)
+                .onClose(() -> {
+                    try {
+                        it.close();
+                    } catch (Exception e) {
+                        throw new RuntimeException(e);
+                    }
+                });
+    }
+
+    /**
      * @param connection connection used for query execution
      * @param sql        query executed once; forward-only read-only cursor
      * @param mapper     configured row mapper
@@ -52,6 +77,31 @@ public final class ResultSetBeanStream {
         ResultSetBeanIterator<T> it;
         try {
             it = new ResultSetBeanIterator<>(mapper, connection, sql, params);
+        } catch (SQLException se) {
+            throw se;
+        } catch (Exception e) {
+            throw new SQLException(e);
+        }
+        return StreamSupport.stream(
+                        Spliterators.spliteratorUnknownSize(it, Spliterator.ORDERED | Spliterator.NONNULL),
+                        false)
+                .onClose(() -> {
+                    try {
+                        it.close();
+                    } catch (Exception e) {
+                        throw new RuntimeException(e);
+                    }
+                });
+    }
+
+    /**
+     * @param mapper configured row mapper
+     * @param nps    bound named prepared statement; stream close closes statement and result set
+     */
+    public static <T> Stream<T> stream(SimpleResultSetBeanMapper<T> mapper, NamedPreparedStatement nps) throws SQLException {
+        ResultSetBeanIterator<T> it;
+        try {
+            it = new ResultSetBeanIterator<>(mapper, nps);
         } catch (SQLException se) {
             throw se;
         } catch (Exception e) {

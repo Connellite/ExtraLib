@@ -9,6 +9,7 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * Forward-only iterator over JDBC query rows. Subclasses map the current {@link ResultSet} row.
@@ -50,6 +51,23 @@ public abstract class AbstractResultSetIterator<V> implements Iterator<Map<Strin
             statement.setObject(i + 1, safeParams[i]);
         }
         this.resultSet = new ResultSetWrapper(statement, statement.executeQuery());
+        ResultSetMetaData metadata = resultSet.getMetaData();
+        this.columnNames = getColumnNames(metadata);
+        this.hasNextValue = resultSet.next();
+    }
+
+    /**
+     * Executes a bound {@link NamedPreparedStatement} and prepares iteration over rows.
+     * All named parameters must be bound before execution; see {@link NamedPreparedStatement#executeQuery()}.
+     * Closing the iterator closes the underlying {@link java.sql.PreparedStatement} and {@link ResultSet}.
+     */
+    public AbstractResultSetIterator(NamedPreparedStatement nps) throws SQLException {
+        PreparedStatement statement = Objects.requireNonNull(nps, "nps").unwrap();
+        try {
+            statement.setFetchSize(1000);
+        } catch (Exception ignore) {
+        }
+        this.resultSet = new ResultSetWrapper(statement, nps.executeQuery());
         ResultSetMetaData metadata = resultSet.getMetaData();
         this.columnNames = getColumnNames(metadata);
         this.hasNextValue = resultSet.next();

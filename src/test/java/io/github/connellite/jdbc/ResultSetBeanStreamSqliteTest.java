@@ -81,6 +81,39 @@ class ResultSetBeanStreamSqliteTest {
         }
     }
 
+    @Test
+    void streamFromNamedPreparedStatement() throws Exception {
+        try (Connection c = SqliteMemory.open()) {
+            try (Statement s = c.createStatement()) {
+                s.execute("CREATE TABLE bean_nps_stream (name TEXT, active_flag TEXT)");
+                s.execute("INSERT INTO bean_nps_stream (name, active_flag) VALUES ('row-1', 'true')");
+                s.execute("INSERT INTO bean_nps_stream (name, active_flag) VALUES ('row-2', 'false')");
+            }
+            try (NamedPreparedStatement nps = new NamedPreparedStatement(
+                    c,
+                    "SELECT name, active_flag FROM bean_nps_stream WHERE active_flag = :flag ORDER BY name")) {
+                nps.setString("flag", "true");
+                try (Stream<RowBean> stream = ResultSetBeanStream.stream(RowBean.class, nps)) {
+                    List<RowBean> rows = stream.toList();
+                    assertEquals(1, rows.size());
+                    assertEquals("row-1", rows.get(0).name);
+                    assertTrue(rows.get(0).active);
+                }
+            }
+            try (NamedPreparedStatement nps = new NamedPreparedStatement(
+                    c,
+                    "SELECT name, active_flag FROM bean_nps_stream WHERE active_flag = :flag ORDER BY name")) {
+                nps.setString("flag", "false");
+                SimpleResultSetBeanMapper<RowBean> mapper = new SimpleResultSetBeanMapper<>(RowBean.class);
+                try (Stream<RowBean> stream = ResultSetBeanStream.stream(mapper, nps)) {
+                    List<RowBean> rows = stream.toList();
+                    assertEquals(1, rows.size());
+                    assertEquals("row-2", rows.get(0).name);
+                }
+            }
+        }
+    }
+
     static class RowBean {
         String name;
         @Column("active_flag")

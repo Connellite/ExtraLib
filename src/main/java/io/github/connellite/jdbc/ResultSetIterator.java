@@ -30,6 +30,13 @@ public class ResultSetIterator extends AbstractResultSetIterator<Object> {
     }
 
     /**
+     * Executes a bound {@link NamedPreparedStatement}; all named parameters must be bound before use.
+     */
+    public ResultSetIterator(NamedPreparedStatement nps) throws SQLException {
+        super(nps);
+    }
+
+    /**
      * Wraps an already opened {@link ResultSet}.
      */
     public ResultSetIterator(ResultSet resultSet) throws SQLException {
@@ -83,10 +90,43 @@ public class ResultSetIterator extends AbstractResultSetIterator<Object> {
     }
 
     /**
+     * Reads all rows into an immutable list.
+     */
+    public static List<Map<String, Object>> getAll(NamedPreparedStatement nps) throws SQLException {
+        List<Map<String, Object>> out = new ArrayList<>();
+        try (ResultSetIterator it = new ResultSetIterator(nps)) {
+            while (it.hasNext()) {
+                out.add(it.next());
+            }
+        } catch (SQLException se) {
+            throw se;
+        } catch (Exception e) {
+            throw new SQLException(e);
+        }
+        return Collections.unmodifiableList(out);
+    }
+
+    /**
      * Reads the first row, if present.
      */
     public static Optional<Map<String, Object>> getFirst(Connection conn, String query, Object... params) throws SQLException {
         try (ResultSetIterator it = new ResultSetIterator(conn, query, params)) {
+            if (it.hasNext()) {
+                return Optional.of(it.next());
+            }
+            return Optional.empty();
+        } catch (SQLException se) {
+            throw se;
+        } catch (Exception e) {
+            throw new SQLException(e);
+        }
+    }
+
+    /**
+     * Reads the first row, if present.
+     */
+    public static Optional<Map<String, Object>> getFirst(NamedPreparedStatement nps) throws SQLException {
+        try (ResultSetIterator it = new ResultSetIterator(nps)) {
             if (it.hasNext()) {
                 return Optional.of(it.next());
             }

@@ -115,4 +115,41 @@ class ResultSetStringStreamSqliteTest {
             }
         }
     }
+
+    @Test
+    void streamIteratorAndStaticsFromNamedPreparedStatement() throws Exception {
+        try (Connection c = SqliteMemory.open()) {
+            SqliteMemory.bootstrapDemoSchema(c);
+            try (NamedPreparedStatement nps = new NamedPreparedStatement(
+                    c, "SELECT id, name FROM demo WHERE id > :min ORDER BY id")) {
+                nps.setInt("min", 0);
+                try (Stream<Map<String, String>> stream = ResultSetStringStream.stream(nps)) {
+                    List<Map<String, String>> rows = stream.toList();
+                    assertEquals(2, rows.size());
+                    assertEquals("1", rows.get(0).get("id"));
+                    assertEquals("one", rows.get(0).get("name"));
+                }
+            }
+            try (NamedPreparedStatement nps = new NamedPreparedStatement(
+                    c, "SELECT id FROM demo WHERE id > :min ORDER BY id")) {
+                nps.setInt("min", 0);
+                try (ResultSetStringIterator it = new ResultSetStringIterator(nps)) {
+                    assertTrue(it.hasNext());
+                    assertEquals("1", it.next().get("id"));
+                }
+            }
+            try (NamedPreparedStatement npsAll = new NamedPreparedStatement(
+                    c, "SELECT id FROM demo WHERE id > :min ORDER BY id")) {
+                npsAll.setInt("min", 0);
+                List<Map<String, String>> all = ResultSetStringIterator.getAll(npsAll);
+                assertEquals(2, all.size());
+                assertEquals("2", all.get(1).get("id"));
+            }
+            try (NamedPreparedStatement npsFirst = new NamedPreparedStatement(
+                    c, "SELECT id FROM demo WHERE id > :min ORDER BY id")) {
+                npsFirst.setInt("min", 0);
+                assertEquals("1", ResultSetStringIterator.getFirst(npsFirst).orElseThrow().get("id"));
+            }
+        }
+    }
 }

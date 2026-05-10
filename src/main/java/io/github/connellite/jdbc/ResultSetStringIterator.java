@@ -32,6 +32,13 @@ public class ResultSetStringIterator extends AbstractResultSetIterator<String> {
     }
 
     /**
+     * Executes a bound {@link NamedPreparedStatement}; all named parameters must be bound before use.
+     */
+    public ResultSetStringIterator(NamedPreparedStatement nps) throws SQLException {
+        super(nps);
+    }
+
+    /**
      * Wraps an already opened {@link ResultSet}.
      */
     public ResultSetStringIterator(ResultSet resultSet) throws SQLException {
@@ -84,10 +91,43 @@ public class ResultSetStringIterator extends AbstractResultSetIterator<String> {
     }
 
     /**
+     * Reads all rows into an immutable list.
+     */
+    public static List<Map<String, String>> getAll(NamedPreparedStatement nps) throws SQLException {
+        List<Map<String, String>> out = new ArrayList<>();
+        try (ResultSetStringIterator it = new ResultSetStringIterator(nps)) {
+            while (it.hasNext()) {
+                out.add(it.next());
+            }
+        } catch (SQLException se) {
+            throw se;
+        } catch (Exception e) {
+            throw new SQLException(e);
+        }
+        return Collections.unmodifiableList(out);
+    }
+
+    /**
      * Reads the first row, if present.
      */
     public static Optional<Map<String, String>> getFirst(Connection conn, String query, Object... params) throws SQLException {
         try (ResultSetStringIterator it = new ResultSetStringIterator(conn, query, params)) {
+            if (it.hasNext()) {
+                return Optional.of(it.next());
+            }
+            return Optional.empty();
+        } catch (SQLException se) {
+            throw se;
+        } catch (Exception e) {
+            throw new SQLException(e);
+        }
+    }
+
+    /**
+     * Reads the first row, if present.
+     */
+    public static Optional<Map<String, String>> getFirst(NamedPreparedStatement nps) throws SQLException {
+        try (ResultSetStringIterator it = new ResultSetStringIterator(nps)) {
             if (it.hasNext()) {
                 return Optional.of(it.next());
             }
