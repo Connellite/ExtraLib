@@ -63,12 +63,12 @@ public class ResultSetBeanIterator<T> implements Iterator<T>, AutoCloseable {
      * Executes a bound {@link NamedPreparedStatement} and iterates rows mapped to {@code beanClass}.
      */
     public ResultSetBeanIterator(Class<T> beanClass, NamedPreparedStatement nps) throws SQLException {
-        PreparedStatement statement = Objects.requireNonNull(nps, "nps").unwrap();
+        Objects.requireNonNull(nps, "nps");
         try {
-            statement.setFetchSize(1000);
+            nps.unwrap().setFetchSize(1000);
         } catch (Exception ignore) {
         }
-        this.resultSet = new ResultSetWrapper(statement, nps.executeQuery());
+        this.resultSet = nps.executeQuery();
         this.mapper = new SimpleResultSetBeanMapper<>(beanClass, ResultSetMetaDataUtils.getColumnLabels(resultSet));
         this.hasNextValue = resultSet.next();
     }
@@ -102,12 +102,12 @@ public class ResultSetBeanIterator<T> implements Iterator<T>, AutoCloseable {
      * Executes a bound {@link NamedPreparedStatement} and iterates rows using provided mapper.
      */
     public ResultSetBeanIterator(SimpleResultSetBeanMapper<T> mapper, NamedPreparedStatement nps) throws SQLException {
-        PreparedStatement statement = Objects.requireNonNull(nps, "nps").unwrap();
+        Objects.requireNonNull(nps, "nps");
         try {
-            statement.setFetchSize(1000);
+            nps.unwrap().setFetchSize(1000);
         } catch (Exception ignore) {
         }
-        this.resultSet = new ResultSetWrapper(statement, nps.executeQuery());
+        this.resultSet = nps.executeQuery();
         this.mapper = mapper;
         this.hasNextValue = resultSet.next();
     }

@@ -59,15 +59,15 @@ public abstract class AbstractResultSetIterator<V> implements Iterator<Map<Strin
     /**
      * Executes a bound {@link NamedPreparedStatement} and prepares iteration over rows.
      * All named parameters must be bound before execution; see {@link NamedPreparedStatement#executeQuery()}.
-     * Closing the iterator closes the underlying {@link java.sql.PreparedStatement} and {@link ResultSet}.
+     * Closing the iterator closes only the returned {@link ResultSet}; the named statement lifecycle is external.
      */
     public AbstractResultSetIterator(NamedPreparedStatement nps) throws SQLException {
-        PreparedStatement statement = Objects.requireNonNull(nps, "nps").unwrap();
+        Objects.requireNonNull(nps, "nps");
         try {
-            statement.setFetchSize(1000);
+            nps.unwrap().setFetchSize(1000);
         } catch (Exception ignore) {
         }
-        this.resultSet = new ResultSetWrapper(statement, nps.executeQuery());
+        this.resultSet = nps.executeQuery();
         ResultSetMetaData metadata = resultSet.getMetaData();
         this.columnNames = getColumnNames(metadata);
         this.hasNextValue = resultSet.next();
