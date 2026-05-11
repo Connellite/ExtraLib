@@ -57,6 +57,6 @@ Fmt.formatTo(sb, "count={}", 10);
 <dependency>
     <groupId>io.github.connellite</groupId>
     <artifactId>ExtraLib</artifactId>
-    <version>1.0.1</version>
+    <version>1.1</version>
 </dependency>
 ```
