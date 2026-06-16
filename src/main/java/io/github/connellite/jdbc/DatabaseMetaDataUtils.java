@@ -17,10 +17,21 @@ import java.util.Set;
 @UtilityClass
 public class DatabaseMetaDataUtils {
 
+    /** {@link DatabaseMetaData#getTables(String, String, String, String[])} — {@code TABLE_NAME} for {@code TABLE} rows. */
     public static Collection<String> getTables(Connection connection) throws SQLException {
+        return getTables(connection, null);
+    }
+
+    /** {@link DatabaseMetaData#getTables(String, String, String, String[])} — {@code TABLE_NAME} for {@code TABLE} rows. */
+    public static Collection<String> getTables(Connection connection, String catalog) throws SQLException {
+        return getTables(connection, catalog, null);
+    }
+
+    /** {@link DatabaseMetaData#getTables(String, String, String, String[])} — {@code TABLE_NAME} for {@code TABLE} rows. */
+    public static Collection<String> getTables(Connection connection, String catalog, String schemaPattern) throws SQLException {
         Set<String> tablesList = new NullSkippingLinkedHashSet<>();
         DatabaseMetaData meta = connection.getMetaData();
-        try (ResultSet tables = meta.getTables(null, null, "%", new String[]{"TABLE"})) {
+        try (ResultSet tables = meta.getTables(catalog, schemaPattern, "%", new String[]{"TABLE"})) {
             while (tables.next()) {
                 String tableName = tables.getString("TABLE_NAME");
                 tablesList.add(tableName);
@@ -29,10 +40,68 @@ public class DatabaseMetaDataUtils {
         return Collections.unmodifiableCollection(tablesList);
     }
 
+    /** {@link DatabaseMetaData#getTables(String, String, String, String[])} — {@code TABLE_NAME} for {@code VIEW} rows. */
+    public static Collection<String> getViews(Connection connection) throws SQLException {
+        return getViews(connection, null);
+    }
+
+    /** {@link DatabaseMetaData#getTables(String, String, String, String[])} — {@code TABLE_NAME} for {@code VIEW} rows. */
+    public static Collection<String> getViews(Connection connection, String catalog) throws SQLException {
+        return getViews(connection, catalog, null);
+    }
+
+    /** {@link DatabaseMetaData#getTables(String, String, String, String[])} — {@code TABLE_NAME} for {@code VIEW} rows. */
+    public static Collection<String> getViews(Connection connection, String catalog, String schemaPattern) throws SQLException {
+        Set<String> viewsList = new NullSkippingLinkedHashSet<>();
+        DatabaseMetaData meta = connection.getMetaData();
+        try (ResultSet views = meta.getTables(catalog, schemaPattern, "%", new String[]{"VIEW"})) {
+            while (views.next()) {
+                String viewName = views.getString("TABLE_NAME");
+                viewsList.add(viewName);
+            }
+        }
+        return Collections.unmodifiableCollection(viewsList);
+    }
+
+    /** {@link DatabaseMetaData#getTables(String, String, String, String[])} — {@code TABLE_NAME} for {@code TABLE} and {@code VIEW} rows. */
+    public static Collection<String> getTablesAndViews(Connection connection) throws SQLException {
+        return getTablesAndViews(connection, null);
+    }
+
+    /** {@link DatabaseMetaData#getTables(String, String, String, String[])} — {@code TABLE_NAME} for {@code TABLE} and {@code VIEW} rows. */
+    public static Collection<String> getTablesAndViews(Connection connection, String catalog) throws SQLException {
+        return getTablesAndViews(connection, catalog, null);
+    }
+
+    /** {@link DatabaseMetaData#getTables(String, String, String, String[])} — {@code TABLE_NAME} for {@code TABLE} and {@code VIEW} rows. */
+    public static Collection<String> getTablesAndViews(Connection connection, String catalog, String schemaPattern) throws SQLException {
+        Set<String> names = new NullSkippingLinkedHashSet<>();
+        DatabaseMetaData meta = connection.getMetaData();
+        try (ResultSet rs = meta.getTables(catalog, schemaPattern, "%", new String[]{"TABLE", "VIEW"})) {
+            while (rs.next()) {
+                String tableName = rs.getString("TABLE_NAME");
+                names.add(tableName);
+            }
+        }
+        return Collections.unmodifiableCollection(names);
+    }
+
+    /** {@link DatabaseMetaData#getColumns(String, String, String, String)} — {@code COLUMN_NAME} values. */
     public static Collection<String> getColumns(Connection connection, String tableName) throws SQLException {
+        return getColumns(connection, null, tableName);
+    }
+
+    /** {@link DatabaseMetaData#getColumns(String, String, String, String)} — {@code COLUMN_NAME} values. */
+    public static Collection<String> getColumns(Connection connection, String catalog, String tableName) throws SQLException {
+        return getColumns(connection, catalog, null, tableName);
+    }
+
+    /** {@link DatabaseMetaData#getColumns(String, String, String, String)} — {@code COLUMN_NAME} values. */
+    public static Collection<String> getColumns(Connection connection, String catalog, String schemaPattern, String tableName)
+            throws SQLException {
         Set<String> columnsList = new NullSkippingLinkedHashSet<>();
         DatabaseMetaData meta = connection.getMetaData();
-        try (ResultSet columns = meta.getColumns(null, null, tableName, "%")) {
+        try (ResultSet columns = meta.getColumns(catalog, schemaPattern, tableName, "%")) {
             while (columns.next()) {
                 String columnName = columns.getString("COLUMN_NAME");
                 columnsList.add(columnName);

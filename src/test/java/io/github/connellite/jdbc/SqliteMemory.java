@@ -27,6 +27,7 @@ public final class SqliteMemory {
             s.execute("INSERT INTO demo (id, name) VALUES (2, 'two')");
             s.execute("CREATE TABLE child (cid INTEGER PRIMARY KEY, demo_id INTEGER NOT NULL REFERENCES demo(id), tag TEXT)");
             s.execute("INSERT INTO child (cid, demo_id, tag) VALUES (1, 1, 'c')");
+            s.execute("CREATE VIEW demo_view AS SELECT id, name FROM demo");
         }
     }
 }

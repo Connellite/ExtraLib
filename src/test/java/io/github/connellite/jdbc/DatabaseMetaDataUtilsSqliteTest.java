@@ -6,6 +6,7 @@ import java.sql.Connection;
 import java.sql.SQLFeatureNotSupportedException;
 import java.util.Collection;
 
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -22,6 +23,31 @@ class DatabaseMetaDataUtilsSqliteTest {
             Collection<String> cols = DatabaseMetaDataUtils.getColumns(c, "demo");
             assertTrue(cols.contains("id"));
             assertTrue(cols.contains("name"));
+        }
+    }
+
+    @Test
+    void getViewsAndTablesAndViews() throws Exception {
+        try (Connection c = SqliteMemory.open()) {
+            SqliteMemory.bootstrapDemoSchema(c);
+
+            Collection<String> tables = DatabaseMetaDataUtils.getTables(c);
+            assertTrue(tables.contains("demo"));
+            assertTrue(tables.contains("child"));
+            assertFalse(tables.contains("demo_view"));
+
+            Collection<String> views = DatabaseMetaDataUtils.getViews(c);
+            assertTrue(views.contains("demo_view"));
+            assertFalse(views.contains("demo"));
+
+            Collection<String> tablesAndViews = DatabaseMetaDataUtils.getTablesAndViews(c);
+            assertTrue(tablesAndViews.contains("demo"));
+            assertTrue(tablesAndViews.contains("child"));
+            assertTrue(tablesAndViews.contains("demo_view"));
+
+            Collection<String> viewColumns = DatabaseMetaDataUtils.getColumns(c, "demo_view");
+            assertTrue(viewColumns.contains("id"));
+            assertTrue(viewColumns.contains("name"));
         }
     }
 
