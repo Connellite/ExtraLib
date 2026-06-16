@@ -111,6 +111,7 @@ class UuidUtilTest {
         UUID expected = UUID.fromString("550e8400-e29b-41d4-a716-446655440000");
         byte[] hexBytes = "550e8400e29b41d4a716446655440000".getBytes(StandardCharsets.US_ASCII);
         assertEquals(expected, UuidUtil.convert2Uuid(hexBytes));
+        assertEquals(expected, UuidUtil.hex2Uuid(hexBytes));
     }
 
     @Test
@@ -118,6 +119,7 @@ class UuidUtilTest {
         UUID expected = UUID.fromString("550e8400-e29b-41d4-a716-446655440000");
         byte[] canonicalBytes = "550e8400-e29b-41d4-a716-446655440000".getBytes(StandardCharsets.US_ASCII);
         assertEquals(expected, UuidUtil.convert2Uuid(canonicalBytes));
+        assertEquals(expected, UuidUtil.hex2Uuid(canonicalBytes));
     }
 
     @Test

@@ -6,7 +6,6 @@ import java.math.BigInteger;
 import java.nio.BufferUnderflowException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
-import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.UUID;
 
@@ -28,17 +27,17 @@ public class UuidUtil {
      */
     private static final BigInteger L = BigInteger.valueOf(Long.MAX_VALUE);
 
-    private static final int[] HEX_VALUES;
+    private static final byte[] HEX_VALUES;
 
     static {
-        int[] hexValues = new int[128];
-        Arrays.fill(hexValues, -1);
+        byte[] hexValues = new byte[128];
+        Arrays.fill(hexValues, (byte) -1);
         for (int i = 0; i < 10; i++) {
-            hexValues['0' + i] = i;
+            hexValues['0' + i] = (byte) i;
         }
         for (int i = 0; i < 6; i++) {
-            hexValues['a' + i] = i + 10;
-            hexValues['A' + i] = i + 10;
+            hexValues['a' + i] = (byte) (i + 10);
+            hexValues['A' + i] = (byte) (i + 10);
         }
         HEX_VALUES = hexValues;
     }
@@ -141,8 +140,7 @@ public class UuidUtil {
         return switch (bytes.length) {
             case 0 -> null;
             case 16 -> binary2Uuid(bytes);
-            case 32 -> hex2Uuid(bytes);
-            case 36 -> UUID.fromString(new String(bytes, StandardCharsets.US_ASCII));
+            case 32, 36 -> hex2Uuid(bytes);
             default ->
                     throw new IllegalArgumentException("Invalid UUID byte length: " + bytes.length + ". Expected 16, 32 or 36 bytes.");
         };
@@ -185,33 +183,55 @@ public class UuidUtil {
     }
 
     /**
-     * Parses a UUID from 32 bytes that are ASCII hex digits (0-9, a-f, A-F), inserts hyphens,
-     * and parses with {@link UUID#fromString(String)}.
+     * Parses a UUID from 32 or 36 bytes that are ASCII hex digits (0-9, a-f, A-F)
+     * with optional PostgreSQL-compatible hyphen placement.
      *
-     * @param hexBytes exactly 32 ASCII hex bytes, or {@code null}
+     * @param hexBytes exactly 32 or 36 ASCII UUID bytes, or {@code null}
      * @return the UUID, or {@code null} if {@code hexBytes} is {@code null}
-     * @throws IllegalArgumentException if length is not 32
+     * @throws IllegalArgumentException if length is not 32 or 36
      */
     public static UUID hex2Uuid(byte[] hexBytes) {
         if (null == hexBytes) {
             return null;
         }
-        if (hexBytes.length != 32) {
+        if (hexBytes.length != 32 && hexBytes.length != 36) {
             throw new IllegalArgumentException(Arrays.toString(hexBytes) + " is not a valid hex string");
         }
 
+        return parseUuidBytes(hexBytes, 0, hexBytes.length);
+    }
+
+    private static UUID parseUuidBytes(byte[] uuidBytes, int start, int end) {
         long mostSigBits = 0;
         long leastSigBits = 0;
-        for (int i = 0; i < 32; i++) {
-            int value = hexValue((char) hexBytes[i]);
-            if (value < 0) {
-                throw new IllegalArgumentException(Arrays.toString(hexBytes) + " is not a valid hex string");
+
+        int pos = start;
+        for (int i = 0; i < 16; i++) {
+            if (pos + 1 >= end) {
+                throw new IllegalArgumentException("Invalid UUID bytes: " + Arrays.toString(uuidBytes));
             }
-            if (i < 16) {
-                mostSigBits = (mostSigBits << 4) | value;
+
+            int hi = hexValue((char) uuidBytes[pos]);
+            int lo = hexValue((char) uuidBytes[pos + 1]);
+            if (hi < 0 || lo < 0) {
+                throw new IllegalArgumentException("Invalid UUID bytes: " + Arrays.toString(uuidBytes));
+            }
+            int value = (hi << 4) | lo;
+
+            if (i < 8) {
+                mostSigBits = (mostSigBits << 8) | value;
             } else {
-                leastSigBits = (leastSigBits << 4) | value;
+                leastSigBits = (leastSigBits << 8) | value;
             }
+            pos += 2;
+
+            if (pos < end && uuidBytes[pos] == '-' && (i % 2) == 1 && i < 15) {
+                pos++;
+            }
+        }
+
+        if (pos != end) {
+            throw new IllegalArgumentException("Invalid UUID bytes: " + Arrays.toString(uuidBytes));
         }
         return new UUID(mostSigBits, leastSigBits);
     }
