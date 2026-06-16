@@ -1,5 +1,6 @@
 package io.github.connellite.jdbc;
 
+import io.github.connellite.jdbc.internal.ResultSetWrapper;
 import org.junit.jupiter.api.Test;
 
 import java.sql.Connection;

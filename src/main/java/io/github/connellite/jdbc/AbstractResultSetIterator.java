@@ -1,5 +1,7 @@
 package io.github.connellite.jdbc;
 
+import io.github.connellite.jdbc.internal.ResultSetWrapper;
+
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;

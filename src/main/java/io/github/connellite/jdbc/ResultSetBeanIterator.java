@@ -1,6 +1,7 @@
 package io.github.connellite.jdbc;
 
 import io.github.connellite.exception.ResultSetException;
+import io.github.connellite.jdbc.internal.ResultSetWrapper;
 import lombok.Getter;
 
 import java.sql.Connection;

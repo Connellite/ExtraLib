@@ -6,16 +6,16 @@ import java.util.Map;
 import java.util.Objects;
 
 @SuppressWarnings("JavadocLinkAsPlainText")
-abstract class CachingSqlParser implements SqlParser {
+public abstract class CachingSqlParser implements SqlParser {
     public static final int PARSED_SQL_CACHE_SIZE = 1_000;
 
     private final Map<String, ParsedSql> parsedSqlCache;
 
-    CachingSqlParser() {
+    public CachingSqlParser() {
         this(PARSED_SQL_CACHE_SIZE);
     }
 
-    CachingSqlParser(int cacheSize) {
+    public CachingSqlParser(int cacheSize) {
         this.parsedSqlCache = Collections.synchronizedMap(new LinkedHashMap<>(16, 0.75f, true) {
             @Override
             protected boolean removeEldestEntry(Map.Entry<String, ParsedSql> eldest) {

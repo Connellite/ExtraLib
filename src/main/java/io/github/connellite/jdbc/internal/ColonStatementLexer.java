@@ -5,7 +5,7 @@ public final class ColonStatementLexer {
     private final String sql;
     private int pos;
 
-    ColonStatementLexer(String sql) {
+    public ColonStatementLexer(String sql) {
         this.sql = sql;
     }
 
@@ -17,7 +17,7 @@ public final class ColonStatementLexer {
      * Jdbi reference:
      * https://github.com/jdbi/jdbi/blob/6e959ba70365fb0e15f19f39e8b2bf32d4998b6c/core/src/main/antlr4/org/jdbi/v3/core/internal/lexer/ColonStatementLexer.g4
      */
-    Token nextToken() {
+    public Token nextToken() {
         if (pos >= sql.length()) {
             return new Token(Token.EOF, "");
         }

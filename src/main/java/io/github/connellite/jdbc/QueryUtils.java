@@ -1,5 +1,6 @@
 package io.github.connellite.jdbc;
 
+import io.github.connellite.jdbc.internal.ResultSetWrapper;
 import lombok.experimental.UtilityClass;
 
 import javax.sql.rowset.CachedRowSet;

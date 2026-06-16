@@ -1,4 +1,4 @@
-package io.github.connellite.jdbc;
+package io.github.connellite.jdbc.internal;
 
 import lombok.experimental.Delegate;
 
@@ -6,13 +6,13 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 
-class ResultSetWrapper implements ResultSet {
+public class ResultSetWrapper implements ResultSet {
 
     @Delegate(types = ResultSet.class)
     private final ResultSet delegate;
     private final Statement statement;
 
-    ResultSetWrapper(Statement statement, ResultSet delegate) {
+    public ResultSetWrapper(Statement statement, ResultSet delegate) {
         this.statement = statement;
         this.delegate = delegate;
     }

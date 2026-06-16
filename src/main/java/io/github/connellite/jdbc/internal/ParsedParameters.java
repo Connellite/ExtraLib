@@ -5,14 +5,14 @@ import java.util.List;
 
 @SuppressWarnings("JavadocLinkAsPlainText")
 public record ParsedParameters(boolean positional, List<String> parameterNames) {
-    static final ParsedParameters NONE = new ParsedParameters(true, Collections.emptyList());
+    public static final ParsedParameters NONE = new ParsedParameters(true, Collections.emptyList());
 
     public ParsedParameters(boolean positional, List<String> parameterNames) {
         this.positional = positional;
         this.parameterNames = List.copyOf(parameterNames);
     }
 
-    int getParameterCount() {
+    public int getParameterCount() {
         return parameterNames.size();
     }
 
@@ -27,7 +27,7 @@ public record ParsedParameters(boolean positional, List<String> parameterNames) 
      *                                  Jdbi reference:
      *                                  https://github.com/jdbi/jdbi/blob/6e959ba70365fb0e15f19f39e8b2bf32d4998b6c/core/src/main/java/org/jdbi/v3/core/statement/ParsedParameters.java
      */
-    static ParsedParameters named(List<String> names) {
+    public static ParsedParameters named(List<String> names) {
         if (names.contains(ParsedSql.POSITIONAL_PARAM)) {
             throw new IllegalArgumentException("Named parameters list must not contain positional parameter \""
                     + ParsedSql.POSITIONAL_PARAM + "\"");
@@ -44,7 +44,7 @@ public record ParsedParameters(boolean positional, List<String> parameterNames) 
      * Jdbi reference:
      * https://github.com/jdbi/jdbi/blob/6e959ba70365fb0e15f19f39e8b2bf32d4998b6c/core/src/main/java/org/jdbi/v3/core/statement/ParsedParameters.java
      */
-    static ParsedParameters positional(int count) {
+    public static ParsedParameters positional(int count) {
         return new ParsedParameters(true, Collections.nCopies(count, ParsedSql.POSITIONAL_PARAM));
     }
 }
