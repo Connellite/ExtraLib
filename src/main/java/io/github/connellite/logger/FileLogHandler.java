@@ -234,7 +234,7 @@ public class FileLogHandler extends Handler {
             Files.move(main, moved, StandardCopyOption.REPLACE_EXISTING);
             if (compressRotatedGzip) {
                 Path gz = dir.resolve(name + ".0.gz");
-                CompressFile.compressGzipFile(moved.toFile(), gz.toFile());
+                CompressFile.compressGzipFile(moved, gz);
                 Files.deleteIfExists(moved);
             }
         }

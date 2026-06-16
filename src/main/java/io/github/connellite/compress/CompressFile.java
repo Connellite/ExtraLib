@@ -4,9 +4,9 @@ import lombok.NonNull;
 import lombok.experimental.UtilityClass;
 
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
 
@@ -26,13 +26,23 @@ public class CompressFile {
      * @throws IOException if reading or writing fails
      */
     public static void decompressGzipFile(@NonNull File gzipFile, @NonNull File outputFile) throws IOException {
-        try (FileInputStream fis = new FileInputStream(gzipFile);
-             GZIPInputStream gis = new GZIPInputStream(fis);
-             FileOutputStream fos = new FileOutputStream(outputFile)) {
+        decompressGzipFile(gzipFile.toPath(), outputFile.toPath());
+    }
+
+    /**
+     * Decompresses a {@code .gz} file into a plain file.
+     *
+     * @param gzipFile   gzip-compressed source path; must not be {@code null}
+     * @param outputFile destination path (created or overwritten); must not be {@code null}
+     * @throws IOException if reading or writing fails
+     */
+    public static void decompressGzipFile(@NonNull Path gzipFile, @NonNull Path outputFile) throws IOException {
+        try (GZIPInputStream gis = new GZIPInputStream(Files.newInputStream(gzipFile));
+             var outputStream = Files.newOutputStream(outputFile)) {
             byte[] buffer = new byte[BUFFER_SIZE];
             int len;
             while ((len = gis.read(buffer)) != -1) {
-                fos.write(buffer, 0, len);
+                outputStream.write(buffer, 0, len);
             }
         }
     }
@@ -45,12 +55,22 @@ public class CompressFile {
      * @throws IOException if reading or writing fails
      */
     public static void compressGzipFile(@NonNull File sourceFile, @NonNull File gzipFile) throws IOException {
-        try (FileInputStream fis = new FileInputStream(sourceFile);
-             FileOutputStream fos = new FileOutputStream(gzipFile);
-             GZIPOutputStream gzipOS = new GZIPOutputStream(fos)) {
+        compressGzipFile(sourceFile.toPath(), gzipFile.toPath());
+    }
+
+    /**
+     * Gzip-compresses a file and writes the result to another file.
+     *
+     * @param sourceFile plain source path; must not be {@code null}
+     * @param gzipFile   destination gzip path (created or overwritten); must not be {@code null}
+     * @throws IOException if reading or writing fails
+     */
+    public static void compressGzipFile(@NonNull Path sourceFile, @NonNull Path gzipFile) throws IOException {
+        try (var inputStream = Files.newInputStream(sourceFile);
+             GZIPOutputStream gzipOS = new GZIPOutputStream(Files.newOutputStream(gzipFile))) {
             byte[] buffer = new byte[BUFFER_SIZE];
             int len;
-            while ((len = fis.read(buffer)) != -1) {
+            while ((len = inputStream.read(buffer)) != -1) {
                 gzipOS.write(buffer, 0, len);
             }
         }

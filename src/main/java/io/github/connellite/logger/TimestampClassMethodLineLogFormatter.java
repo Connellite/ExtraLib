@@ -70,27 +70,23 @@ public final class TimestampClassMethodLineLogFormatter extends Formatter {
     }
 
     private static Integer resolveLineNumber(String className, String methodName) {
+        if (className == null) {
+            return null;
+        }
+
         StackTraceElement[] stack = new Throwable().getStackTrace();
 
-        boolean foundLogger = false;
+        boolean foundFormatter = false;
         for (StackTraceElement element : stack) {
             String currentClass = element.getClassName();
 
-            // Skip logging infrastructure frames.
-            if (currentClass.startsWith("java.util.logging.") ||
-                    currentClass.equals(FileLogHandler.class.getName()) ||
-                    currentClass.equals(TimestampClassMethodLineLogFormatter.class.getName())) {
-                foundLogger = true;
+            if (currentClass.equals(TimestampClassMethodLineLogFormatter.class.getName())) {
+                foundFormatter = true;
                 continue;
             }
 
-            // After logging frames, the next matching frame is the call site.
-            if (foundLogger) {
-                // Ensure it matches class/method already resolved in LogRecord.
-                if (!Objects.equals(className, currentClass)) {
-                    continue;
-                }
-                if (!Objects.equals(methodName, element.getMethodName())) {
+            if (foundFormatter) {
+                if (!Objects.equals(className, currentClass) || (methodName != null && !Objects.equals(methodName, element.getMethodName()))) {
                     continue;
                 }
                 int lineNumber = element.getLineNumber();

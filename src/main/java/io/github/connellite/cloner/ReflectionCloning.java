@@ -12,7 +12,6 @@ import java.math.BigInteger;
 import java.net.URI;
 import java.net.URL;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.IdentityHashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -29,27 +28,25 @@ import java.util.regex.Pattern;
 @UtilityClass
 public class ReflectionCloning {
 
-    private static final Set<Class<?>> IGNORED_CLASSES = new HashSet<>();
-
-    static {
-        IGNORED_CLASSES.add(Integer.class);
-        IGNORED_CLASSES.add(Long.class);
-        IGNORED_CLASSES.add(Boolean.class);
-        IGNORED_CLASSES.add(Class.class);
-        IGNORED_CLASSES.add(Float.class);
-        IGNORED_CLASSES.add(Double.class);
-        IGNORED_CLASSES.add(Character.class);
-        IGNORED_CLASSES.add(Byte.class);
-        IGNORED_CLASSES.add(Short.class);
-        IGNORED_CLASSES.add(String.class);
-        IGNORED_CLASSES.add(Void.class);
-        IGNORED_CLASSES.add(BigDecimal.class);
-        IGNORED_CLASSES.add(BigInteger.class);
-        IGNORED_CLASSES.add(URI.class);
-        IGNORED_CLASSES.add(URL.class);
-        IGNORED_CLASSES.add(UUID.class);
-        IGNORED_CLASSES.add(Pattern.class);
-    }
+    private static final Set<Class<?>> IGNORED_CLASSES = Set.of(
+            Integer.class,
+            Long.class,
+            Boolean.class,
+            Class.class,
+            Float.class,
+            Double.class,
+            Character.class,
+            Byte.class,
+            Short.class,
+            String.class,
+            Void.class,
+            BigDecimal.class,
+            BigInteger.class,
+            URI.class,
+            URL.class,
+            UUID.class,
+            Pattern.class
+    );
 
     /**
      * Deep clone: copies the object graph; shared references become shared in the clone unless broken by cycle handling.

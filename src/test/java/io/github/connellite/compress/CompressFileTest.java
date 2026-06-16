@@ -29,6 +29,20 @@ class CompressFileTest {
     }
 
     @Test
+    void compressThenDecompress_pathRoundTrip(@TempDir Path dir) throws IOException {
+        byte[] original = "path overload".getBytes(StandardCharsets.UTF_8);
+        Path plain = dir.resolve("plain-path.bin");
+        Path gz = dir.resolve("plain-path.bin.gz");
+        Path out = dir.resolve("restored-path.bin");
+        Files.write(plain, original);
+
+        CompressFile.compressGzipFile(plain, gz);
+        CompressFile.decompressGzipFile(gz, out);
+
+        assertArrayEquals(original, Files.readAllBytes(out));
+    }
+
+    @Test
     void compressGzipFile_nullSourceThrows() {
         assertThrows(NullPointerException.class,
                 () -> CompressFile.compressGzipFile(null, new File("x.gz")));
@@ -40,6 +54,14 @@ class CompressFileTest {
         Files.writeString(plain, "a");
         assertThrows(NullPointerException.class,
                 () -> CompressFile.compressGzipFile(plain.toFile(), null));
+    }
+
+    @Test
+    void compressGzipFile_nullPathThrows(@TempDir Path dir) {
+        assertThrows(NullPointerException.class,
+                () -> CompressFile.compressGzipFile((Path) null, dir.resolve("x.gz")));
+        assertThrows(NullPointerException.class,
+                () -> CompressFile.compressGzipFile(dir.resolve("x.txt"), (Path) null));
     }
 
     @Test
@@ -55,5 +77,13 @@ class CompressFileTest {
         CompressFile.compressGzipFile(dir.resolve("src.txt").toFile(), gz.toFile());
         assertThrows(NullPointerException.class,
                 () -> CompressFile.decompressGzipFile(gz.toFile(), null));
+    }
+
+    @Test
+    void decompressGzipFile_nullPathThrows(@TempDir Path dir) {
+        assertThrows(NullPointerException.class,
+                () -> CompressFile.decompressGzipFile((Path) null, dir.resolve("out")));
+        assertThrows(NullPointerException.class,
+                () -> CompressFile.decompressGzipFile(dir.resolve("x.gz"), (Path) null));
     }
 }
