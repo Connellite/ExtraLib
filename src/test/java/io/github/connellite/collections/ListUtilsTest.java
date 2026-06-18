@@ -73,4 +73,37 @@ class ListUtilsTest {
         assertEquals(List.of(third), chunks.get(1));
         assertNotSame(docs, chunks.get(0));
     }
+
+    @Test
+    void splitIntoChunksBySize_nullOrEmptyOrNonPositiveChunkSizeReturnsEmptyList() {
+        assertTrue(ListUtils.splitIntoChunksBySize(null, 100).isEmpty());
+        assertTrue(ListUtils.splitIntoChunksBySize(List.of(), 100).isEmpty());
+        assertTrue(ListUtils.splitIntoChunksBySize(List.of(1, 2), 0).isEmpty());
+        assertTrue(ListUtils.splitIntoChunksBySize(List.of(1, 2), -1).isEmpty());
+    }
+
+    @Test
+    void splitIntoChunksBySize_splitsIntoFixedSizeChunks() {
+        List<Integer> source = new ArrayList<>();
+        for (int i = 1; i <= 120; i++) {
+            source.add(i);
+        }
+
+        List<List<Integer>> chunks = ListUtils.splitIntoChunksBySize(source, 100);
+
+        assertEquals(2, chunks.size());
+        assertEquals(100, chunks.get(0).size());
+        assertEquals(20, chunks.get(1).size());
+        assertEquals(1, chunks.get(0).get(0));
+        assertEquals(100, chunks.get(0).get(99));
+        assertEquals(101, chunks.get(1).get(0));
+        assertEquals(120, chunks.get(1).get(19));
+    }
+
+    @Test
+    void splitIntoChunksBySize_exactMultipleReturnsEqualChunks() {
+        List<Integer> source = List.of(1, 2, 3, 4);
+
+        assertEquals(List.of(List.of(1, 2), List.of(3, 4)), ListUtils.splitIntoChunksBySize(source, 2));
+    }
 }

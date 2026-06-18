@@ -4,12 +4,14 @@ import io.github.connellite.exception.CloningException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.Serial;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -31,7 +33,7 @@ class SerializableTest {
         assertTrue(bytes.length > 0);
 
         Object read = Serializable.deserialize(bytes);
-        assertTrue(read instanceof Payload);
+        assertInstanceOf(Payload.class, read);
         Payload copy = (Payload) read;
         assertNotSame(p, copy);
         assertEquals(p.value, copy.value);
@@ -59,7 +61,24 @@ class SerializableTest {
         assertTrue(Files.size(file) > 0);
 
         Object read = Serializable.readObjectFromFile(file);
-        assertTrue(read instanceof Payload);
+        assertInstanceOf(Payload.class, read);
+        Payload copy = (Payload) read;
+        assertNotSame(p, copy);
+        assertEquals(p.value, copy.value);
+        assertEquals(p.label, copy.label);
+    }
+
+    @Test
+    void writeObjectToFile_readObjectFromFile_fileRoundTrip(@TempDir Path dir) throws Exception {
+        File file = dir.resolve("obj-file.bin").toFile();
+        Payload p = new Payload(7, "file-overload");
+
+        Serializable.writeObjectToFile(p, file);
+        assertTrue(file.exists());
+        assertTrue(file.length() > 0);
+
+        Object read = Serializable.readObjectFromFile(file);
+        assertInstanceOf(Payload.class, read);
         Payload copy = (Payload) read;
         assertNotSame(p, copy);
         assertEquals(p.value, copy.value);
@@ -69,6 +88,12 @@ class SerializableTest {
     @Test
     void readObjectFromFile_missingFile_throwsIOException(@TempDir Path dir) {
         Path missing = dir.resolve("missing.bin");
+        assertThrows(IOException.class, () -> Serializable.readObjectFromFile(missing));
+    }
+
+    @Test
+    void readObjectFromFile_missingFileOverloadThrows(@TempDir Path dir) {
+        File missing = dir.resolve("missing-file.bin").toFile();
         assertThrows(IOException.class, () -> Serializable.readObjectFromFile(missing));
     }
 

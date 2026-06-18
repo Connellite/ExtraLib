@@ -28,10 +28,28 @@ public class ListUtils {
         }
 
         int chunkSize = (int) Math.ceil((double) items.size() / parts);
+        return splitIntoChunksBySize(items, chunkSize);
+    }
+
+    /**
+     * Splits {@code items} into consecutive chunks of at most {@code chunkSize} elements.
+     * <p>The last chunk may be smaller. For example, 120 items with {@code chunkSize = 100}
+     * produce two chunks of sizes 100 and 20.</p>
+     *
+     * @param items     source list; {@code null} or empty, or non-positive {@code chunkSize}, yields an empty list
+     * @param chunkSize maximum number of elements per chunk
+     * @param <T>       element type
+     * @return list of chunks in source order
+     */
+    public static <T> List<List<T>> splitIntoChunksBySize(List<T> items, int chunkSize) {
+        if (items == null || items.isEmpty() || chunkSize <= 0) {
+            return Collections.emptyList();
+        }
+
         List<List<T>> chunks = new ArrayList<>();
         for (int index = 0; index < items.size(); index += chunkSize) {
             chunks.add(new ArrayList<>(items.subList(index, Math.min(index + chunkSize, items.size()))));
         }
-        return chunks;
+        return Collections.unmodifiableList(chunks);
     }
 }

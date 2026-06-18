@@ -5,6 +5,7 @@ import lombok.experimental.UtilityClass;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.ObjectInputStream;
@@ -68,6 +69,17 @@ public class Serializable {
     }
 
     /**
+     * Writes {@code obj} to {@code outFile} using object serialization. The file is created or truncated.
+     *
+     * @param obj     object to persist
+     * @param outFile destination file; must not be {@code null}
+     * @throws IOException if the file cannot be opened or serialization fails
+     */
+    public static void writeObjectToFile(Object obj, File outFile) throws IOException {
+        writeObjectToFile(obj, outFile.toPath());
+    }
+
+    /**
      * Reads an object from a file previously written with {@link #writeObjectToFile(Object, Path)}.
      *
      * @param pathInputFile file to read
@@ -80,6 +92,18 @@ public class Serializable {
              ObjectInputStream oin = new ObjectInputStream(fs)) {
             return oin.readObject();
         }
+    }
+
+    /**
+     * Reads an object from a file previously written with {@link #writeObjectToFile(Object, File)}.
+     *
+     * @param inputFile file to read; must not be {@code null}
+     * @return deserialized object, which may be {@code null}
+     * @throws IOException            if the file cannot be read or data is invalid
+     * @throws ClassNotFoundException if a class referenced in the stream is not found
+     */
+    public static Object readObjectFromFile(File inputFile) throws IOException, ClassNotFoundException {
+        return readObjectFromFile(inputFile.toPath());
     }
 
     /**

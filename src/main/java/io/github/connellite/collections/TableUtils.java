@@ -18,7 +18,7 @@ import java.util.Set;
 public class TableUtils {
 
     /**
-     * Transposes {@code Map&lt;columnKey, columnValues&gt;} into a list of row maps.
+     * Transposes {@code Map<K, ? extends Collection<T>>} into {@code List<Map<K, T>>}.
      * <p>Each map entry is treated as a column. Row {@code i} contains the {@code i}-th element from every
      * column (by iteration order within each collection). Columns shorter than the longest column are padded
      * with {@code null}.</p>
@@ -50,11 +50,11 @@ public class TableUtils {
             }
             rows.add(row);
         }
-        return rows;
+        return Collections.unmodifiableList(rows);
     }
 
     /**
-     * Transposes a list of row maps into {@code Map&lt;columnKey, columnValues&gt;}.
+     * Transposes {@code List<Map<K, T>>} into {@code Map<K, Set<T>>}.
      * <p>Each distinct column key collects non-{@code null} cell values in row order.
      * {@code null} rows are skipped.</p>
      *
@@ -80,6 +80,6 @@ public class TableUtils {
                 }
             }
         }
-        return columns;
+        return Collections.unmodifiableMap(columns);
     }
 }
