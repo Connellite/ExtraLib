@@ -65,6 +65,15 @@ public interface MultiValueMap<K, V> extends Map<K, List<V>> {
     Map<K, V> toSingleValueMap();
 
     /**
+     * Return an unmodifiable view of this map with immutable value lists.
+     * The returned map and its list values cannot be modified; changes to this
+     * map are not reflected in the returned instance.
+     *
+     * @return unmodifiable map with copied value lists
+     */
+    Map<K, List<V>> toUnmodifiableMap();
+
+    /**
      * Add the given value, only when the map does not contain the given key.
      *
      * @param key the key

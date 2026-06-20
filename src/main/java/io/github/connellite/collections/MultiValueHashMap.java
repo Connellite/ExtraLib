@@ -3,6 +3,7 @@ package io.github.connellite.collections;
 import java.io.Serial;
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -102,6 +103,14 @@ public class MultiValueHashMap<K, V> extends HashMap<K, List<V>>
             }
         });
         return singleValueMap;
+    }
+
+    @SuppressWarnings("Java9CollectionFactory")
+    @Override
+    public Map<K, List<V>> toUnmodifiableMap() {
+        Map<K, List<V>> immutableMap = new HashMap<>(size());
+        forEach((key, values) -> immutableMap.put(key, Collections.unmodifiableList(new ArrayList<>(values))));
+        return Collections.unmodifiableMap(immutableMap);
     }
 
     /**

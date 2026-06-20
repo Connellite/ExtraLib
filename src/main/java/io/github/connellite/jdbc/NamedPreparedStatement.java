@@ -1,5 +1,7 @@
 package io.github.connellite.jdbc;
 
+import io.github.connellite.collections.LinkedMultiValueHashMap;
+import io.github.connellite.jdbc.internal.ThrowingConsumer;
 import io.github.connellite.jdbc.parser.ColonPrefixSqlParser;
 import io.github.connellite.jdbc.parser.ParsedParameters;
 import io.github.connellite.jdbc.parser.ParsedSql;
@@ -29,7 +31,6 @@ import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Collections;
 import java.util.HashSet;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -150,6 +151,40 @@ public final class NamedPreparedStatement implements AutoCloseable {
         this.parsedSql = sqlParser.parse(sql);
         this.namedIndexes = indexNamedParameters(parsedSql.parameters());
         this.statement = statementCreator.create(connection, parsedSql.sql());
+    }
+
+    private NamedPreparedStatement(PreparedStatement statement, ParsedSql parsedSql, Map<String, List<Integer>> namedIndexes, Set<String> boundValues) {
+        this.statement = statement;
+        this.parsedSql = parsedSql;
+        this.namedIndexes = namedIndexes;
+        this.boundValues.addAll(boundValues);
+    }
+
+    /**
+     * Creates a statement from expanded JDBC SQL and named-parameter index map.
+     * Used by {@link NamedQuery#prepare(Connection)}.
+     */
+    static NamedPreparedStatement fromExpanded(Connection connection, String jdbcSql, Map<String, List<Integer>> namedIndexes) throws SQLException {
+        Objects.requireNonNull(connection, "connection");
+        Objects.requireNonNull(jdbcSql, "jdbcSql");
+        Objects.requireNonNull(namedIndexes, "namedIndexes");
+
+        int parameterCount = namedIndexes.values().stream().mapToInt(List::size).sum();
+        PreparedStatement statement = connection.prepareStatement(jdbcSql);
+        ParsedSql parsedSql = ParsedSql.of(jdbcSql, ParsedParameters.positional(parameterCount));
+        return new NamedPreparedStatement(statement, parsedSql, namedIndexes, Collections.emptySet());
+    }
+
+    NamedPreparedStatement applyByIndex(String name, ThrowingConsumer<Integer> setter) throws SQLException {
+        return setByIndex(name, setter);
+    }
+
+    List<Integer> bindingIndexesFor(String name) {
+        return indexesFor(name);
+    }
+
+    void markBound(String name) {
+        boundValues.add(name);
     }
 
     /**
@@ -709,18 +744,13 @@ public final class NamedPreparedStatement implements AutoCloseable {
             return Collections.emptyMap();
         }
 
-        Map<String, List<Integer>> indexes = new LinkedHashMap<>();
+        LinkedMultiValueHashMap<String, Integer> indexes = new LinkedMultiValueHashMap<>();
         List<String> parameterNames = parameters.parameterNames();
         for (int i = 0; i < parameterNames.size(); i++) {
-            String name = parameterNames.get(i);
-            indexes.computeIfAbsent(name, key -> new ArrayList<>()).add(i + 1);
+            indexes.add(parameterNames.get(i), i + 1);
         }
 
-        Map<String, List<Integer>> immutableIndexes = new LinkedHashMap<>();
-        for (Map.Entry<String, List<Integer>> e : indexes.entrySet()) {
-            immutableIndexes.put(e.getKey(), List.copyOf(e.getValue()));
-        }
-        return Collections.unmodifiableMap(immutableIndexes);
+        return indexes.toUnmodifiableMap();
     }
 
     @Override
@@ -731,10 +761,5 @@ public final class NamedPreparedStatement implements AutoCloseable {
     @FunctionalInterface
     private interface PreparedStatementCreator {
         PreparedStatement create(Connection connection, String sql) throws SQLException;
-    }
-
-    @FunctionalInterface
-    private interface ThrowingConsumer<T> {
-        void accept(T value) throws SQLException;
     }
 }
