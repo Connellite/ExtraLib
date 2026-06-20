@@ -57,7 +57,7 @@ public class SimpleMapBeanMapper<T> {
 
         for (FieldBinding b : bindings) {
             Object raw = row.get(b.key());
-            Object value = coerce(raw, b.field().getType(), b.key(), "field '" + b.field().getName() + "'");
+            Object value = coerce(raw, b.field().getType(), b.key(), "field '" + b.field().getName() + "'", b.converter());
             try {
                 ReflectionUtil.setValueField(instance, b.field(), value);
             } catch (IllegalAccessException e) {
@@ -72,7 +72,7 @@ public class SimpleMapBeanMapper<T> {
         for (int i = 0; i < recordBindings.size(); i++) {
             RecordBinding b = recordBindings.get(i);
             Object raw = b.ignored() ? null : row.get(b.key());
-            args[i] = coerce(raw, b.type(), b.key(), "record component '" + b.name() + "'");
+            args[i] = coerce(raw, b.type(), b.key(), "record component '" + b.name() + "'", b.converter());
         }
         try {
             return recordConstructor.newInstance(args);
@@ -81,12 +81,22 @@ public class SimpleMapBeanMapper<T> {
         }
     }
 
-    private static Object coerce(Object raw, Class<?> targetType, String mapKey, String nullPrimitiveOwner) {
+    @SuppressWarnings("unchecked")
+    private static Object coerce(
+            Object raw,
+            Class<?> targetType,
+            String mapKey,
+            String nullPrimitiveOwner,
+            MapTypeConverter<?> explicitConverter) {
         Object value;
-        try {
-            value = ReflectionTypeCoercionUtil.coerceDefault(raw, targetType, mapKey);
-        } catch (Exception e) {
-            throw new IllegalArgumentException(e);
+        if (explicitConverter != null) {
+            value = ((MapTypeConverter<Object>) explicitConverter).convert(raw);
+        } else {
+            try {
+                value = ReflectionTypeCoercionUtil.coerceDefault(raw, targetType, mapKey);
+            } catch (Exception e) {
+                throw new IllegalArgumentException(e);
+            }
         }
         if (value == null && targetType.isPrimitive()) {
             throw new IllegalArgumentException("Cannot map null to primitive " + nullPrimitiveOwner);
@@ -113,7 +123,7 @@ public class SimpleMapBeanMapper<T> {
                     continue;
                 }
                 String key = resolveKey(field.getName(), mapField);
-                out.add(new FieldBinding(field, key));
+                out.add(new FieldBinding(field, key, resolveAnnotationConverter(mapField)));
             }
         }
         return out;
@@ -125,9 +135,25 @@ public class SimpleMapBeanMapper<T> {
         for (RecordComponent component : components) {
             MapField mapField = component.getAnnotation(MapField.class);
             String key = resolveKey(component.getName(), mapField);
-            out.add(new RecordBinding(component.getName(), component.getType(), key, mapField != null && mapField.ignore()));
+            out.add(new RecordBinding(
+                    component.getName(),
+                    component.getType(),
+                    key,
+                    mapField != null && mapField.ignore(),
+                    resolveAnnotationConverter(mapField)));
         }
         return out;
+    }
+
+    private static MapTypeConverter<?> resolveAnnotationConverter(MapField mapField) {
+        if (mapField == null || mapField.converter() == MapTypeConverter.DefaultConverter.class) {
+            return null;
+        }
+        try {
+            return ReflectionUtil.getInstance(mapField.converter());
+        } catch (ReflectiveOperationException e) {
+            throw new IllegalStateException("Cannot instantiate converter " + mapField.converter().getName(), e);
+        }
     }
 
     private static String resolveKey(String defaultName, MapField mapField) {
@@ -137,9 +163,9 @@ public class SimpleMapBeanMapper<T> {
         return mapField.key();
     }
 
-    private record FieldBinding(Field field, String key) {
+    private record FieldBinding(Field field, String key, MapTypeConverter<?> converter) {
     }
 
-    private record RecordBinding(String name, Class<?> type, String key, boolean ignored) {
+    private record RecordBinding(String name, Class<?> type, String key, boolean ignored, MapTypeConverter<?> converter) {
     }
 }

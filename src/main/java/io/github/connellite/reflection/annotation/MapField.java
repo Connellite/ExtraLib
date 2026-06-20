@@ -1,5 +1,7 @@
 package io.github.connellite.reflection.annotation;
 
+import io.github.connellite.reflection.MapTypeConverter;
+
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -21,4 +23,11 @@ public @interface MapField {
      * Excludes field from mapping when true.
      */
     boolean ignore() default false;
+
+    /**
+     * Optional converter class for this field/component.
+     * Use {@link MapTypeConverter.DefaultConverter} to indicate "no explicit converter".
+     */
+    Class<? extends MapTypeConverter<?>> converter()
+            default MapTypeConverter.DefaultConverter.class;
 }

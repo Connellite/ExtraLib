@@ -132,6 +132,16 @@ class MapBeanReflectionTest {
         }
 
         @Test
+        void appliesMapFieldConverterWhenMappingToMap() {
+            ConverterOutboundPojo pojo = new ConverterOutboundPojo();
+            pojo.flag = true;
+
+            Map<String, Object> map = ObjectFieldMapMapper.map(pojo);
+
+            assertEquals("yes", map.get("flag"));
+        }
+
+        @Test
         void nullSourceThrowsNpe() {
             assertThrows(NullPointerException.class, () -> ObjectFieldMapMapper.map(null));
         }
@@ -270,6 +280,20 @@ class MapBeanReflectionTest {
         }
 
         @Test
+        void appliesMapFieldConverterForPojoField() {
+            SimpleMapBeanMapper<ConverterInboundPojo> mapper = new SimpleMapBeanMapper<>(ConverterInboundPojo.class);
+            ConverterInboundPojo out = mapper.mapRow(Map.of("flag", "yes"));
+            assertTrue(out.flag);
+        }
+
+        @Test
+        void appliesMapFieldConverterForRecordComponent() {
+            SimpleMapBeanMapper<ConverterInboundRecord> mapper = new SimpleMapBeanMapper<>(ConverterInboundRecord.class);
+            ConverterInboundRecord out = mapper.mapRow(Map.of("flag", "1"));
+            assertTrue(out.flag());
+        }
+
+        @Test
         void nonInstantiableWrapperClassThrowsIllegalState() {
             SimpleMapBeanMapper<Integer> mapper = new SimpleMapBeanMapper<>(Integer.class);
             IllegalStateException ex = assertThrows(
@@ -387,6 +411,18 @@ class MapBeanReflectionTest {
 
             assertEquals(original.id, restored.id);
             assertEquals(original.name, restored.name);
+        }
+
+        @Test
+        void class_withMapFieldConverter_roundTripsThroughSharedMapRepresentation() {
+            ConverterOutboundPojo original = new ConverterOutboundPojo();
+            original.flag = true;
+
+            Map<String, Object> row = ObjectFieldMapMapper.map(original);
+            assertEquals("yes", row.get("flag"));
+
+            ConverterInboundPojo restored = new SimpleMapBeanMapper<>(ConverterInboundPojo.class).mapRow(row);
+            assertTrue(restored.flag);
         }
 
         @Test
@@ -577,6 +613,43 @@ class MapBeanReflectionTest {
     static final class WrongKeyPojo {
         int id;
         String label;
+    }
+
+    static final class ConverterOutboundPojo {
+        @MapField(converter = YesNoMapBooleanConverter.class)
+        boolean flag;
+    }
+
+    static final class ConverterInboundPojo {
+        @MapField(converter = TruthyMapBooleanConverter.class)
+        boolean flag;
+    }
+
+    public static final class YesNoMapBooleanConverter implements MapTypeConverter<String> {
+        @Override
+        public String convert(Object raw) {
+            if (raw == null) {
+                return null;
+            }
+            if (raw instanceof Boolean b) {
+                return b ? "yes" : "no";
+            }
+            return raw.toString();
+        }
+    }
+
+    record ConverterInboundRecord(@MapField(converter = TruthyMapBooleanConverter.class) boolean flag) {
+    }
+
+    public static final class TruthyMapBooleanConverter implements MapTypeConverter<Boolean> {
+        @Override
+        public Boolean convert(Object raw) {
+            if (raw == null) {
+                return null;
+            }
+            String value = raw.toString().trim();
+            return "1".equals(value) || "true".equalsIgnoreCase(value) || "yes".equalsIgnoreCase(value);
+        }
     }
 
     record PointRecord(int x, int y) {

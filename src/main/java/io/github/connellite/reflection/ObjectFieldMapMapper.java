@@ -42,6 +42,10 @@ public class ObjectFieldMapMapper {
                 String key = resolveKey(field, mapField);
                 try {
                     Object value = ReflectionUtil.getValueField(source, field);
+                    MapTypeConverter<?> converter = resolveAnnotationConverter(mapField);
+                    if (converter != null) {
+                        value = convertValue(converter, value);
+                    }
                     result.put(key, value);
                 } catch (IllegalAccessException e) {
                     throw new IllegalStateException("Cannot read field " + field.getDeclaringClass().getName() + "#" + field.getName(), e);
@@ -49,6 +53,22 @@ public class ObjectFieldMapMapper {
             }
         }
         return Collections.unmodifiableMap(result);
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Object convertValue(MapTypeConverter<?> converter, Object value) {
+        return ((MapTypeConverter<Object>) converter).convert(value);
+    }
+
+    private static MapTypeConverter<?> resolveAnnotationConverter(MapField mapField) {
+        if (mapField == null || mapField.converter() == MapTypeConverter.DefaultConverter.class) {
+            return null;
+        }
+        try {
+            return ReflectionUtil.getInstance(mapField.converter());
+        } catch (ReflectiveOperationException e) {
+            throw new IllegalStateException("Cannot instantiate converter " + mapField.converter().getName(), e);
+        }
     }
 
     private static String resolveKey(Field field, MapField mapField) {
