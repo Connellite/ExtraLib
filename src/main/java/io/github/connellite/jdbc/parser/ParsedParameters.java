@@ -1,4 +1,4 @@
-package io.github.connellite.jdbc.internal;
+package io.github.connellite.jdbc.parser;
 
 import java.util.Collections;
 import java.util.List;

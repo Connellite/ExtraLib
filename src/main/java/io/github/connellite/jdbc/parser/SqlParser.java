@@ -1,4 +1,4 @@
-package io.github.connellite.jdbc.internal;
+package io.github.connellite.jdbc.parser;
 
 @SuppressWarnings("JavadocLinkAsPlainText")
 public interface SqlParser {

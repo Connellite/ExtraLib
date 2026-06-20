@@ -1,5 +1,6 @@
 package io.github.connellite.jdbc;
 
+import io.github.connellite.jdbc.parser.HashPrefixSqlParser;
 import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.Proxy;
@@ -30,6 +31,32 @@ class NamedPreparedStatementTest {
                          new NamedPreparedStatement(c, "SELECT :x AS v")) {
                 assertEquals("SELECT ? AS v", nps.getParsedSql());
                 assertEquals(List.of("x"), nps.getParameterOrder());
+            }
+        }
+    }
+
+    @Test
+    void customHashPrefixParserReplacesNamedParameterWithQuestionMark() throws Exception {
+        try (Connection c = connectionThatAcceptsAnyPreparedSql()) {
+            try (NamedPreparedStatement nps = new NamedPreparedStatement(
+                    c,
+                    "SELECT #id AS v, '#not_param' AS literal",
+                    new HashPrefixSqlParser())) {
+                assertEquals("SELECT ? AS v, '#not_param' AS literal", nps.getParsedSql());
+                assertEquals(List.of("id"), nps.getParameterOrder());
+            }
+        }
+    }
+
+    @Test
+    void hashPrefixParserIgnoresHashInsideCommentsAndHonorsEscapes() throws Exception {
+        try (Connection c = connectionThatAcceptsAnyPreparedSql()) {
+            try (NamedPreparedStatement nps = new NamedPreparedStatement(
+                    c,
+                    "SELECT \\#escaped AS e -- #ignored\n, #id AS v",
+                    new HashPrefixSqlParser())) {
+                assertEquals("SELECT #escaped AS e -- #ignored\n, ? AS v", nps.getParsedSql());
+                assertEquals(List.of("id"), nps.getParameterOrder());
             }
         }
     }

@@ -1,4 +1,4 @@
-package io.github.connellite.jdbc.internal;
+package io.github.connellite.jdbc.parser;
 
 public record Token(int type, String text) {
     public static final int EOF = -1;
