@@ -745,15 +745,36 @@ class BeanIteratorSimpleResultSetBeanMapperSqliteTest {
 
     private static ResultSet fakeRowResultSet(Object... keyValues) {
         Map<String, Object> row = new HashMap<>();
+        Map<String, Integer> columnIndexes = new HashMap<>();
+        int index = 1;
         for (int i = 0; i < keyValues.length; i += 2) {
-            row.put(String.valueOf(keyValues[i]), keyValues[i + 1]);
+            String column = String.valueOf(keyValues[i]);
+            row.put(column, keyValues[i + 1]);
+            columnIndexes.put(column, index++);
         }
         return (ResultSet) Proxy.newProxyInstance(
                 ResultSet.class.getClassLoader(),
                 new Class[]{ResultSet.class},
                 (proxy, method, args) -> {
                     if ("getObject".equals(method.getName()) && args != null && args.length == 1) {
-                        return row.get(String.valueOf(args[0]));
+                        Object arg = args[0];
+                        if (arg instanceof Integer columnIndex) {
+                            for (Map.Entry<String, Integer> entry : columnIndexes.entrySet()) {
+                                if (entry.getValue().equals(columnIndex)) {
+                                    return row.get(entry.getKey());
+                                }
+                            }
+                            return null;
+                        }
+                        return row.get(String.valueOf(arg));
+                    }
+                    if ("findColumn".equals(method.getName()) && args != null && args.length == 1) {
+                        String column = String.valueOf(args[0]);
+                        Integer columnIndex = columnIndexes.get(column);
+                        if (columnIndex == null) {
+                            throw new java.sql.SQLException("Column not found: " + column);
+                        }
+                        return columnIndex;
                     }
                     if ("close".equals(method.getName())) {
                         return null;

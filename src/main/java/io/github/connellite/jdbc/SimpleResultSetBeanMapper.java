@@ -40,9 +40,12 @@ import java.util.concurrent.ConcurrentHashMap;
  * or nested beans). Field -> column: {@link Column#value()} when non-blank, otherwise the field name.
  * <p>
  * Supported property types: primitives and wrappers, {@link String}, {@link BigDecimal},
- * {@link BigInteger}, {@link UUID}, {@link Enum} (by constant name), {@link java.sql.Date},
+ * {@link BigInteger}, {@link UUID}, {@link Enum} (by constant name or ordinal), {@link java.sql.Date},
  * {@link Time}, {@link Timestamp}, {@link Date}, {@link LocalDate}, {@link LocalTime},
  * {@link LocalDateTime}, {@link Instant}, {@link ZonedDateTime}, {@link OffsetDateTime}.
+ * <p>
+ * Vendor-specific JDBC values (for example {@code oracle.sql.TIMESTAMP}) are normalized before coercion,
+ * following the same approach as Spring's {@code JdbcUtils#getResultSetValue}.
  * <p>
  * The two-argument constructor accepts labels (for example from
  * {@link ResultSetMetaDataUtils#getColumnLabels(ResultSet)}): every mapped column must
@@ -155,7 +158,7 @@ public class SimpleResultSetBeanMapper<T> {
         }
 
         for (FieldBinding b : bindings) {
-            Object raw = rs.getObject(b.columnName());
+            Object raw = readColumnValue(rs, b.columnName());
             Object value = coerce(raw, b.field().getType(), b.columnName(), b.converter());
             if (value == null && b.field().getType().isPrimitive()) {
                 throw new SQLException("Cannot map null to primitive field '" + b.field().getName() + "'");
@@ -171,7 +174,7 @@ public class SimpleResultSetBeanMapper<T> {
 
     @SuppressWarnings("unchecked")
     private T mapScalarRow(ResultSet rs) throws SQLException {
-        Object raw = rs.getObject(1);
+        Object raw = readColumnValue(rs, 1);
         // In scalar mode we always read the first column; "1" is used only as a column identifier in error messages.
         Object value = coerce(raw, beanClass, "1", null);
         if (value == null && beanClass.isPrimitive()) {
@@ -184,7 +187,7 @@ public class SimpleResultSetBeanMapper<T> {
         Object[] args = new Object[recordBindings.size()];
         for (int i = 0; i < recordBindings.size(); i++) {
             RecordBinding b = recordBindings.get(i);
-            Object raw = rs.getObject(b.columnName());
+            Object raw = readColumnValue(rs, b.columnName());
             Object value = coerce(raw, b.type(), b.columnName(), b.converter());
             if (value == null && b.type().isPrimitive()) {
                 throw new SQLException("Cannot map null to primitive record component '" + b.name() + "'");
@@ -261,6 +264,41 @@ public class SimpleResultSetBeanMapper<T> {
         } catch (Exception e) {
             throw new SQLException(e);
         }
+    }
+
+    /**
+     * Reads a column value and normalizes vendor-specific JDBC types to standard SQL types.
+     * Mirrors Spring {@code JdbcUtils#getResultSetValue(ResultSet, int)} for Oracle timestamps/dates.
+     */
+    private static Object readColumnValue(ResultSet rs, String columnName) throws SQLException {
+        return readColumnValue(rs, rs.findColumn(columnName));
+    }
+
+    private static Object readColumnValue(ResultSet rs, int columnIndex) throws SQLException {
+        return normalizeResultSetValue(rs, columnIndex, rs.getObject(columnIndex));
+    }
+
+    private static Object normalizeResultSetValue(ResultSet rs, int columnIndex, Object obj) throws SQLException {
+        if (obj == null) {
+            return null;
+        }
+        String className = obj.getClass().getName();
+        if ("oracle.sql.TIMESTAMP".equals(className) || "oracle.sql.TIMESTAMPTZ".equals(className)) {
+            return rs.getTimestamp(columnIndex);
+        }
+        if (className.startsWith("oracle.sql.DATE")) {
+            String metaDataClassName = rs.getMetaData().getColumnClassName(columnIndex);
+            if ("java.sql.Timestamp".equals(metaDataClassName) || "oracle.sql.TIMESTAMP".equals(metaDataClassName)) {
+                return rs.getTimestamp(columnIndex);
+            }
+            return rs.getDate(columnIndex);
+        }
+        if (obj instanceof java.sql.Date) {
+            if ("java.sql.Timestamp".equals(rs.getMetaData().getColumnClassName(columnIndex))) {
+                return rs.getTimestamp(columnIndex);
+            }
+        }
+        return obj;
     }
 
     private static TypeConverter<?> resolveAnnotationConverter(Column col) throws SQLException {

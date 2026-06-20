@@ -4,6 +4,7 @@ import io.github.connellite.jdbc.LobUtils;
 import io.github.connellite.reflection.ReflectionUtil;
 import io.github.connellite.util.DateTimeUtil;
 import io.github.connellite.util.NumberUtils;
+import io.github.connellite.util.StringUtils;
 import io.github.connellite.util.UuidUtil;
 import lombok.experimental.UtilityClass;
 
@@ -43,6 +44,7 @@ public class ReflectionTypeCoercionUtil {
         if (boxed == String.class) {
             if (raw instanceof String s) return s;
             if (raw instanceof Clob clob) return LobUtils.convertClobToString(clob);
+            if (raw.getClass().isArray()) return StringUtils.toString(raw);
             return Objects.toString(raw, null);
         }
 
@@ -92,17 +94,7 @@ public class ReflectionTypeCoercionUtil {
 
         if (boxed.isEnum()) {
             Class<? extends Enum> enumClass = (Class<? extends Enum>) boxed;
-            if (raw instanceof String s) {
-                String name = s.trim();
-                if (name.isEmpty()) return null;
-                try {
-                    return Enum.valueOf(enumClass, name);
-                } catch (IllegalArgumentException e) {
-                    throw new IllegalArgumentException("Cannot map label '" + label + "' to enum " + enumClass.getName(), e);
-                }
-            }
-            if (enumClass.isInstance(raw)) return raw;
-            throw new IllegalArgumentException("Cannot map label '" + label + "' to enum " + enumClass.getName());
+            return coerceEnum(raw, enumClass, label);
         }
 
         if (boxed == java.sql.Date.class) {
@@ -287,6 +279,29 @@ public class ReflectionTypeCoercionUtil {
             return null;
         }
         throw new IllegalArgumentException("Unsupported field type " + fieldType.getName() + " for label '" + label + "'");
+    }
+
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    private static Enum<?> coerceEnum(Object raw, Class<? extends Enum> enumClass, String label) {
+        if (raw instanceof String s) {
+            String name = s.trim();
+            if (name.isEmpty()) return null;
+            try {
+                return Enum.valueOf(enumClass, name);
+            } catch (IllegalArgumentException e) {
+                throw new IllegalArgumentException("Cannot map label '" + label + "' to enum " + enumClass.getName(), e);
+            }
+        }
+        if (raw instanceof Number n) {
+            int ordinal = n.intValue();
+            Enum<?>[] constants = enumClass.getEnumConstants();
+            if (ordinal >= 0 && ordinal < constants.length) {
+                return constants[ordinal];
+            }
+            throw new IllegalArgumentException("Cannot map label '" + label + "' to enum " + enumClass.getName());
+        }
+        if (enumClass.isInstance(raw)) return (Enum<?>) raw;
+        throw new IllegalArgumentException("Cannot map label '" + label + "' to enum " + enumClass.getName());
     }
 
     private static Number narrowNumber(Number n, Class<?> boxed) {

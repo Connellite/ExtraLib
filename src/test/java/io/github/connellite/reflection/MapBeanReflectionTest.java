@@ -232,10 +232,33 @@ class MapBeanReflectionTest {
         }
 
         @Test
+        void coercesEnumFromNumberOrdinal() {
+            SimpleMapBeanMapper<EnumHolderPojo> mapper = new SimpleMapBeanMapper<>(EnumHolderPojo.class);
+            EnumHolderPojo out = mapper.mapRow(Map.of("shade", 1));
+            assertEquals(Shade.DARK, out.shade);
+        }
+
+        @Test
+        void invalidEnumNumberOrdinalThrowsIllegalArgument() {
+            SimpleMapBeanMapper<EnumHolderPojo> mapper = new SimpleMapBeanMapper<>(EnumHolderPojo.class);
+            IllegalArgumentException ex = assertThrows(
+                    IllegalArgumentException.class,
+                    () -> mapper.mapRow(Map.of("shade", 2)));
+            assertTrue(ex.getCause().getMessage().contains("Cannot map label 'shade' to enum"));
+        }
+
+        @Test
         void coercesBooleanFromString() {
             SimpleMapBeanMapper<BoolPojo> mapper = new SimpleMapBeanMapper<>(BoolPojo.class);
             BoolPojo out = mapper.mapRow(Map.of("flag", "true"));
             assertTrue(out.flag);
+        }
+
+        @Test
+        void coercesStringFromArray() {
+            SimpleMapBeanMapper<StringHolderPojo> mapper = new SimpleMapBeanMapper<>(StringHolderPojo.class);
+            StringHolderPojo out = mapper.mapRow(Map.of("value", new int[] {1, 2, 3}));
+            assertEquals("[1, 2, 3]", out.value);
         }
 
         @Test
@@ -541,6 +564,10 @@ class MapBeanReflectionTest {
 
     static final class BoolPojo {
         boolean flag;
+    }
+
+    static final class StringHolderPojo {
+        String value;
     }
 
     static final class UuidPojo {
