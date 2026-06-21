@@ -1,5 +1,7 @@
 package io.github.connellite.jdbc;
 
+import io.github.connellite.collections.ConcurrentReferenceHashMap;
+import io.github.connellite.exception.MetadataBuildException;
 import io.github.connellite.jdbc.annotation.Column;
 import io.github.connellite.reflection.internal.ReflectionTypeCoercionUtil;
 import io.github.connellite.reflection.ReflectionUtil;
@@ -51,9 +53,18 @@ import java.util.concurrent.ConcurrentHashMap;
  * {@link ResultSetMetaDataUtils#getColumnLabels(ResultSet)}): every mapped column must
  * appear in that collection or construction throws {@link SQLException}. A {@code null}
  * {@code columnLabels} argument skips that check.
+ * <p>
+ * Reflection metadata (field bindings, record constructor, scalar mode) is cached per bean class
+ * in a {@link ConcurrentReferenceHashMap} with weak references so unloaded classes do not pin
+ * their {@link ClassLoader}. Per-mapper {@link TypeConverter} registrations are not cached.
+ *
  * @param <T> bean type (no-arg constructor for class beans; canonical constructor for records)
  */
 public class SimpleResultSetBeanMapper<T> {
+
+    public static final int METADATA_CACHE_INITIAL_CAPACITY = 256;
+
+    private static volatile MetadataCache metadataCache = new MetadataCache(METADATA_CACHE_INITIAL_CAPACITY);
 
     private static final Set<Class<?>> SCALAR_TYPES = Set.of(
             Object.class,
@@ -77,10 +88,7 @@ public class SimpleResultSetBeanMapper<T> {
     );
 
     private final Class<T> beanClass;
-    private final List<FieldBinding> bindings;
-    private final Constructor<T> recordConstructor;
-    private final List<RecordBinding> recordBindings;
-    private final boolean scalarMode;
+    private final MapperMetadata metadata;
     private final Map<Class<?>, TypeConverter<?>> converters = new ConcurrentHashMap<>();
 
     /**
@@ -88,22 +96,7 @@ public class SimpleResultSetBeanMapper<T> {
      */
     public SimpleResultSetBeanMapper(Class<T> beanClass) throws SQLException {
         this.beanClass = Objects.requireNonNull(beanClass, "beanClass");
-        if (beanClass.isRecord()) {
-            this.bindings = List.of();
-            this.recordBindings = collectRecordBindings(beanClass);
-            this.recordConstructor = ReflectionUtil.resolveRecordConstructor(beanClass);
-            this.scalarMode = false;
-        } else if (isScalarType(beanClass)) {
-            this.bindings = List.of();
-            this.recordBindings = List.of();
-            this.recordConstructor = null;
-            this.scalarMode = true;
-        } else {
-            this.bindings = collectBindings(beanClass);
-            this.recordBindings = List.of();
-            this.recordConstructor = null;
-            this.scalarMode = false;
-        }
+        this.metadata = metadataCache.getOrCreate(beanClass);
     }
 
     /**
@@ -120,12 +113,12 @@ public class SimpleResultSetBeanMapper<T> {
                 available.add(label);
             }
         }
-        for (FieldBinding b : bindings) {
+        for (FieldBinding b : metadata.bindings()) {
             if (!available.contains(b.columnName())) {
                 throw new SQLException("Result set has no column label: " + b.columnName());
             }
         }
-        for (RecordBinding b : recordBindings) {
+        for (RecordBinding b : metadata.recordBindings()) {
             if (!available.contains(b.columnName())) {
                 throw new SQLException("Result set has no column label: " + b.columnName());
             }
@@ -144,7 +137,7 @@ public class SimpleResultSetBeanMapper<T> {
      * Maps current row of {@code rs} to target bean/record instance.
      */
     public T mapRow(@NonNull ResultSet rs) throws SQLException {
-        if (scalarMode || isOverriddenByRootConverter()) {
+        if (metadata.scalarMode() || isOverriddenByRootConverter()) {
             return mapScalarRow(rs);
         }
         if (beanClass.isRecord()) {
@@ -157,7 +150,7 @@ public class SimpleResultSetBeanMapper<T> {
             throw new SQLException("Cannot instantiate " + beanClass.getName(), e);
         }
 
-        for (FieldBinding b : bindings) {
+        for (FieldBinding b : metadata.bindings()) {
             Object raw = readColumnValue(rs, b.columnName());
             Object value = coerce(raw, b.field().getType(), b.columnName(), b.converter());
             if (value == null && b.field().getType().isPrimitive()) {
@@ -184,6 +177,7 @@ public class SimpleResultSetBeanMapper<T> {
     }
 
     private T mapRecordRow(ResultSet rs) throws SQLException {
+        List<RecordBinding> recordBindings = metadata.recordBindings();
         Object[] args = new Object[recordBindings.size()];
         for (int i = 0; i < recordBindings.size(); i++) {
             RecordBinding b = recordBindings.get(i);
@@ -195,10 +189,71 @@ public class SimpleResultSetBeanMapper<T> {
             args[i] = value;
         }
         try {
-            return recordConstructor.newInstance(args);
+            return recordConstructor().newInstance(args);
         } catch (ReflectiveOperationException e) {
             throw new SQLException("Cannot instantiate record " + beanClass.getName(), e);
         }
+    }
+
+    private static MapperMetadata buildMetadata(Class<?> beanClass) throws SQLException {
+        if (beanClass.isRecord()) {
+            return new MapperMetadata(
+                    List.of(),
+                    ReflectionUtil.resolveRecordConstructor(beanClass),
+                    collectRecordBindings(beanClass),
+                    false
+            );
+        }
+        if (isScalarType(beanClass)) {
+            return new MapperMetadata(List.of(), null, List.of(), true);
+        }
+        return new MapperMetadata(collectBindings(beanClass), null, List.of(), false);
+    }
+
+    @SuppressWarnings("unchecked")
+    private Constructor<T> recordConstructor() {
+        return (Constructor<T>) metadata.recordConstructor();
+    }
+
+    static void resetMetadataCache() {
+        resetMetadataCache(METADATA_CACHE_INITIAL_CAPACITY);
+    }
+
+    @SuppressWarnings("SameParameterValue")
+    static void resetMetadataCache(int initialCapacity) {
+        metadataCache = new MetadataCache(initialCapacity);
+    }
+
+    boolean sharesMetadataWith(SimpleResultSetBeanMapper<?> other) {
+        return metadata == other.metadata;
+    }
+
+    private record MetadataCache(ConcurrentReferenceHashMap<Class<?>, MapperMetadata> cache) {
+        private MetadataCache(int initialCapacity) {
+            this(new ConcurrentReferenceHashMap<>(initialCapacity, ConcurrentReferenceHashMap.ReferenceType.WEAK));
+        }
+
+        private MapperMetadata getOrCreate(Class<?> beanClass) throws SQLException {
+            try {
+                return cache.computeIfAbsent(beanClass, cls -> {
+                    try {
+                        return buildMetadata(cls);
+                    } catch (SQLException e) {
+                        throw new MetadataBuildException(e);
+                    }
+                });
+            } catch (MetadataBuildException e) {
+                throw e.sqlException();
+            }
+        }
+    }
+
+    private record MapperMetadata(
+            List<FieldBinding> bindings,
+            Constructor<?> recordConstructor,
+            List<RecordBinding> recordBindings,
+            boolean scalarMode
+    ) {
     }
 
     private static List<FieldBinding> collectBindings(Class<?> beanClass) throws SQLException {

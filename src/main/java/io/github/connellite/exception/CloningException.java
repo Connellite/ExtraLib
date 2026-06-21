@@ -1,6 +1,6 @@
 package io.github.connellite.exception;
 
-public class CloningException extends RuntimeException {
+public final class CloningException extends RuntimeException {
     public CloningException(String message) {
         super(message);
     }
