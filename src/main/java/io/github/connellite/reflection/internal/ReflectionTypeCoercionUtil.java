@@ -307,7 +307,7 @@ public class ReflectionTypeCoercionUtil {
     private static Number narrowNumber(Number n, Class<?> boxed) {
         if (boxed == Byte.class) return n.byteValue();
         if (boxed == Short.class) return n.shortValue();
-        if (boxed == Integer.class) return n.intValue();
+        if (boxed == Integer.class) return Math.toIntExact(n.longValue());
         if (boxed == Long.class) return n.longValue();
         if (boxed == Float.class) return n.floatValue();
         if (boxed == Double.class) return n.doubleValue();
