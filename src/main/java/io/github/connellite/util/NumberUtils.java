@@ -218,6 +218,102 @@ public class NumberUtils {
     }
 
     /**
+     * Narrows {@code value} to the requested numeric wrapper type without silent truncation.
+     * <p>
+     * Integral targets ({@link Byte}, {@link Short}, {@link Integer}, {@link Long}, {@link BigInteger})
+     * reject fractional values and out-of-range magnitudes with {@link ArithmeticException}.
+     * {@link Float} and {@link Double} use the usual widening conversions.
+     *
+     * @param value       the source value, must not be {@code null}
+     * @param targetClass the target numeric wrapper type, must not be {@code null}
+     * @return the narrowed value
+     * @throws ArithmeticException if an exact integral conversion is not possible
+     */
+    public static Number narrowNumber(@NonNull Number value, @NonNull Class<?> targetClass) {
+        if (targetClass == Byte.class) return toByteExact(value);
+        if (targetClass == Short.class) return toShortExact(value);
+        if (targetClass == Integer.class) return toIntExact(value);
+        if (targetClass == Long.class) return toLongExact(value);
+        if (targetClass == Float.class) return value.floatValue();
+        if (targetClass == Double.class) return value.doubleValue();
+        if (targetClass == BigDecimal.class) return toBigDecimal(value);
+        if (targetClass == BigInteger.class) return toBigIntegerExact(value);
+        return value;
+    }
+
+    /**
+     * Converts {@code value} to {@code byte}, rejecting fractional parts and out-of-range magnitudes.
+     *
+     * @param value the source value, must not be {@code null}
+     * @return the exact {@code byte} value
+     * @throws ArithmeticException if the value has a fractional part or does not fit in {@code byte}
+     */
+    public static byte toByteExact(@NonNull Number value) {
+        return (byte) narrowToRange(value, Byte.MIN_VALUE, Byte.MAX_VALUE);
+    }
+
+    /**
+     * Converts {@code value} to {@code short}, rejecting fractional parts and out-of-range magnitudes.
+     *
+     * @param value the source value, must not be {@code null}
+     * @return the exact {@code short} value
+     * @throws ArithmeticException if the value has a fractional part or does not fit in {@code short}
+     */
+    public static short toShortExact(@NonNull Number value) {
+        return (short) narrowToRange(value, Short.MIN_VALUE, Short.MAX_VALUE);
+    }
+
+    /**
+     * Converts {@code value} to {@code int}, rejecting fractional parts and out-of-range magnitudes.
+     *
+     * @param value the source value, must not be {@code null}
+     * @return the exact {@code int} value
+     * @throws ArithmeticException if the value has a fractional part or does not fit in {@code int}
+     */
+    public static int toIntExact(@NonNull Number value) {
+        return (int) narrowToRange(value, Integer.MIN_VALUE, Integer.MAX_VALUE);
+    }
+
+    /**
+     * Converts {@code value} to {@code long}, rejecting fractional parts and out-of-range magnitudes.
+     *
+     * @param value the source value, must not be {@code null}
+     * @return the exact {@code long} value
+     * @throws ArithmeticException if the value has a fractional part or does not fit in {@code long}
+     */
+    public static long toLongExact(@NonNull Number value) {
+        return exactLongValue(value);
+    }
+
+    /**
+     * Converts {@code value} to {@link BigInteger}, rejecting fractional parts.
+     *
+     * @param value the source value, must not be {@code null}
+     * @return the exact {@link BigInteger} value
+     * @throws ArithmeticException if the value has a fractional part
+     */
+    public static BigInteger toBigIntegerExact(@NonNull Number value) {
+        if (value instanceof BigInteger bi) return bi;
+        if (value instanceof BigDecimal bd) return bd.toBigIntegerExact();
+        if (value instanceof Float || value instanceof Double) {
+            return new BigDecimal(value.toString()).toBigIntegerExact();
+        }
+        return BigInteger.valueOf(value.longValue());
+    }
+
+    /**
+     * Converts {@code value} to {@link BigDecimal}.
+     *
+     * @param value the source value, must not be {@code null}
+     * @return the {@link BigDecimal} representation
+     */
+    public static BigDecimal toBigDecimal(@NonNull Number value) {
+        if (value instanceof BigDecimal bd) return bd;
+        if (value instanceof BigInteger bi) return new BigDecimal(bi);
+        return new BigDecimal(value.toString());
+    }
+
+    /**
      * Copies a primitive {@code byte[]} into a boxed {@link Byte}{@code []} of the same length.
      * Each element is autoboxed; the returned array is a new instance.
      *
@@ -470,6 +566,23 @@ public class NumberUtils {
             }
             return NumberUtils.equals(first, second, epsilon) ? 0 : Float.compare(first, second);
         }
+    }
+
+    private static long narrowToRange(Number value, long min, long max) {
+        long narrowed = exactLongValue(value);
+        if (narrowed < min || narrowed > max) {
+            throw new ArithmeticException("integer overflow");
+        }
+        return narrowed;
+    }
+
+    private static long exactLongValue(Number value) {
+        if (value instanceof BigDecimal bd) return bd.longValueExact();
+        if (value instanceof BigInteger bi) return bi.longValueExact();
+        if (value instanceof Float || value instanceof Double) {
+            return new BigDecimal(value.toString()).longValueExact();
+        }
+        return value.longValue();
     }
 
     private static void validateEpsilon(double epsilon) {

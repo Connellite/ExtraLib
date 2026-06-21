@@ -327,4 +327,161 @@ class NumberUtilsTest {
         assertTrue(comparator.compare(1.0f, null) > 0);
         assertThrows(IllegalArgumentException.class, () -> new NumberUtils.FloatComparator(Float.NaN));
     }
+
+    @Test
+    void toByteExact_convertsInRangeValues() {
+        assertEquals((byte) 42, NumberUtils.toByteExact(42));
+        assertEquals((byte) 42, NumberUtils.toByteExact(42L));
+        assertEquals((byte) -128, NumberUtils.toByteExact(Byte.MIN_VALUE));
+        assertEquals((byte) 127, NumberUtils.toByteExact(Byte.MAX_VALUE));
+        assertEquals((byte) 10, NumberUtils.toByteExact(new BigDecimal("10")));
+        assertEquals((byte) 10, NumberUtils.toByteExact(BigInteger.TEN));
+        assertEquals((byte) 42, NumberUtils.toByteExact(42.0d));
+        assertEquals((byte) 42, NumberUtils.toByteExact(42.0f));
+    }
+
+    @Test
+    void toByteExact_rejectsOverflowAndFractions() {
+        assertThrows(ArithmeticException.class, () -> NumberUtils.toByteExact(128));
+        assertThrows(ArithmeticException.class, () -> NumberUtils.toByteExact(-129));
+        assertThrows(ArithmeticException.class, () -> NumberUtils.toByteExact(new BigDecimal("1.5")));
+        assertThrows(ArithmeticException.class, () -> NumberUtils.toByteExact(1.5d));
+    }
+
+    @Test
+    void toShortExact_convertsInRangeValues() {
+        assertEquals((short) 1234, NumberUtils.toShortExact(1234));
+        assertEquals((short) 1234, NumberUtils.toShortExact(1234L));
+        assertEquals(Short.MIN_VALUE, NumberUtils.toShortExact(Short.MIN_VALUE));
+        assertEquals(Short.MAX_VALUE, NumberUtils.toShortExact(Short.MAX_VALUE));
+        assertEquals((short) 100, NumberUtils.toShortExact(new BigDecimal("100")));
+        assertEquals((short) 100, NumberUtils.toShortExact(BigInteger.valueOf(100)));
+    }
+
+    @Test
+    void toShortExact_rejectsOverflowAndFractions() {
+        assertThrows(ArithmeticException.class, () -> NumberUtils.toShortExact(Short.MAX_VALUE + 1));
+        assertThrows(ArithmeticException.class, () -> NumberUtils.toShortExact(Short.MIN_VALUE - 1));
+        assertThrows(ArithmeticException.class, () -> NumberUtils.toShortExact(new BigDecimal("1.1")));
+    }
+
+    @Test
+    void toIntExact_convertsInRangeValues() {
+        assertEquals(1234, NumberUtils.toIntExact(1234));
+        assertEquals(1234, NumberUtils.toIntExact(1234L));
+        assertEquals(Integer.MIN_VALUE, NumberUtils.toIntExact(Integer.MIN_VALUE));
+        assertEquals(Integer.MAX_VALUE, NumberUtils.toIntExact(Integer.MAX_VALUE));
+        assertEquals(42, NumberUtils.toIntExact(new BigDecimal("42")));
+        assertEquals(42, NumberUtils.toIntExact(BigInteger.valueOf(42)));
+        assertEquals(7, NumberUtils.toIntExact(7.0f));
+    }
+
+    @Test
+    void toIntExact_rejectsOverflowAndFractions() {
+        assertThrows(ArithmeticException.class, () -> NumberUtils.toIntExact((long) Integer.MAX_VALUE + 1L));
+        assertThrows(ArithmeticException.class, () -> NumberUtils.toIntExact((long) Integer.MIN_VALUE - 1L));
+        assertThrows(ArithmeticException.class, () -> NumberUtils.toIntExact(new BigDecimal("3.14")));
+        assertThrows(ArithmeticException.class, () -> NumberUtils.toIntExact(1.9d));
+    }
+
+    @Test
+    void toLongExact_convertsIntegralValues() {
+        assertEquals(12345L, NumberUtils.toLongExact(12345));
+        assertEquals(12345L, NumberUtils.toLongExact(12345L));
+        assertEquals(Long.MIN_VALUE, NumberUtils.toLongExact(Long.MIN_VALUE));
+        assertEquals(Long.MAX_VALUE, NumberUtils.toLongExact(Long.MAX_VALUE));
+        assertEquals(99L, NumberUtils.toLongExact(new BigDecimal("99")));
+        assertEquals(99L, NumberUtils.toLongExact(BigInteger.valueOf(99)));
+        assertEquals(5L, NumberUtils.toLongExact(5.0d));
+    }
+
+    @Test
+    void toLongExact_rejectsOverflowAndFractions() {
+        BigInteger tooLarge = BigInteger.valueOf(Long.MAX_VALUE).add(BigInteger.ONE);
+        assertThrows(ArithmeticException.class, () -> NumberUtils.toLongExact(tooLarge));
+        assertThrows(ArithmeticException.class, () -> NumberUtils.toLongExact(new BigDecimal("1.25")));
+        assertThrows(ArithmeticException.class, () -> NumberUtils.toLongExact(2.5d));
+    }
+
+    @Test
+    void toBigIntegerExact_convertsIntegralValues() {
+        BigInteger expected = new BigInteger("12345678901234567890");
+        assertEquals(expected, NumberUtils.toBigIntegerExact(expected));
+        assertEquals(BigInteger.TEN, NumberUtils.toBigIntegerExact(10));
+        assertEquals(BigInteger.TEN, NumberUtils.toBigIntegerExact(10L));
+        assertEquals(BigInteger.valueOf(42), NumberUtils.toBigIntegerExact(new BigDecimal("42")));
+        assertEquals(BigInteger.valueOf(7), NumberUtils.toBigIntegerExact(7.0d));
+    }
+
+    @Test
+    void toBigIntegerExact_rejectsFractions() {
+        assertThrows(ArithmeticException.class, () -> NumberUtils.toBigIntegerExact(new BigDecimal("3.14")));
+        assertThrows(ArithmeticException.class, () -> NumberUtils.toBigIntegerExact(3.14d));
+    }
+
+    @Test
+    void toBigDecimal_fromNumber() {
+        BigDecimal decimal = new BigDecimal("123.45");
+        assertEquals(decimal, NumberUtils.toBigDecimal(decimal));
+        assertEquals(new BigDecimal("42"), NumberUtils.toBigDecimal(BigInteger.valueOf(42)));
+        assertEquals(new BigDecimal("12.5"), NumberUtils.toBigDecimal(12.5d));
+        assertEquals(new BigDecimal("7"), NumberUtils.toBigDecimal(7));
+    }
+
+    @Test
+    void narrowNumber_narrowsToSupportedTypes() {
+        assertEquals((byte) 12, NumberUtils.narrowNumber(12, Byte.class));
+        assertEquals((short) 123, NumberUtils.narrowNumber(123, Short.class));
+        assertEquals(1234, NumberUtils.narrowNumber(1234L, Integer.class));
+        assertEquals(12345L, NumberUtils.narrowNumber(12345, Long.class));
+        assertEquals(12.5f, NumberUtils.narrowNumber(12.5d, Float.class));
+        assertEquals(12.5d, NumberUtils.narrowNumber(12.5f, Double.class));
+        assertEquals(new BigDecimal("10.5"), NumberUtils.narrowNumber(new BigDecimal("10.5"), BigDecimal.class));
+        assertEquals(BigInteger.TEN, NumberUtils.narrowNumber(BigInteger.TEN, BigInteger.class));
+    }
+
+    @Test
+    void narrowNumber_rejectsInexactIntegralConversions() {
+        assertThrows(ArithmeticException.class, () -> NumberUtils.narrowNumber(300, Byte.class));
+        assertThrows(ArithmeticException.class, () -> NumberUtils.narrowNumber(new BigDecimal("1.5"), Integer.class));
+        assertThrows(ArithmeticException.class, () -> NumberUtils.narrowNumber(new BigDecimal("1.5"), BigInteger.class));
+    }
+
+    @Test
+    void narrowNumber_returnsUnchangedValueForUnsupportedTarget() {
+        Number custom = new Number() {
+            @Override
+            public int intValue() {
+                return 1;
+            }
+
+            @Override
+            public long longValue() {
+                return 1L;
+            }
+
+            @Override
+            public float floatValue() {
+                return 1f;
+            }
+
+            @Override
+            public double doubleValue() {
+                return 1d;
+            }
+        };
+        assertEquals(custom, NumberUtils.narrowNumber(custom, Number.class));
+    }
+
+    @Test
+    void exactNumberMethods_nullArgumentsThrow() {
+        assertThrows(NullPointerException.class, () -> NumberUtils.narrowNumber(null, Integer.class));
+        assertThrows(NullPointerException.class, () -> NumberUtils.narrowNumber(1, null));
+        assertThrows(NullPointerException.class, () -> NumberUtils.toByteExact(null));
+        assertThrows(NullPointerException.class, () -> NumberUtils.toShortExact(null));
+        assertThrows(NullPointerException.class, () -> NumberUtils.toIntExact(null));
+        assertThrows(NullPointerException.class, () -> NumberUtils.toLongExact(null));
+        assertThrows(NullPointerException.class, () -> NumberUtils.toBigIntegerExact(null));
+        assertThrows(NullPointerException.class, () -> NumberUtils.toBigDecimal((Number) null));
+    }
 }

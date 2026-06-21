@@ -8,8 +8,6 @@ import io.github.connellite.util.StringUtils;
 import io.github.connellite.util.UuidUtil;
 import lombok.experimental.UtilityClass;
 
-import java.math.BigDecimal;
-import java.math.BigInteger;
 import java.sql.Blob;
 import java.sql.Clob;
 import java.sql.Time;
@@ -58,7 +56,7 @@ public class ReflectionTypeCoercionUtil {
             return raw;
         }
         if (boxed.isInstance(raw)) {
-            return narrowNumber((Number) raw, boxed);
+            return NumberUtils.narrowNumber((Number) raw, boxed);
         }
 
         if (boxed == Boolean.class) {
@@ -69,7 +67,7 @@ public class ReflectionTypeCoercionUtil {
         }
 
         if (Number.class.isAssignableFrom(boxed)) {
-            if (raw instanceof Number n) return narrowNumber(n, boxed);
+            if (raw instanceof Number n) return NumberUtils.narrowNumber(n, boxed);
             if (raw instanceof String s) {
                 Class<? extends Number> numClass = (Class<? extends Number>) boxed;
                 return NumberUtils.parseNumber(s, numClass);
@@ -302,20 +300,5 @@ public class ReflectionTypeCoercionUtil {
         }
         if (enumClass.isInstance(raw)) return (Enum<?>) raw;
         throw new IllegalArgumentException("Cannot map label '" + label + "' to enum " + enumClass.getName());
-    }
-
-    private static Number narrowNumber(Number n, Class<?> boxed) {
-        if (boxed == Byte.class) return n.byteValue();
-        if (boxed == Short.class) return n.shortValue();
-        if (boxed == Integer.class) return Math.toIntExact(n.longValue());
-        if (boxed == Long.class) return n.longValue();
-        if (boxed == Float.class) return n.floatValue();
-        if (boxed == Double.class) return n.doubleValue();
-        if (boxed == BigDecimal.class) return new BigDecimal(n.toString());
-        if (boxed == BigInteger.class) {
-            if (n instanceof BigDecimal bd) return bd.toBigInteger();
-            return BigInteger.valueOf(n.longValue());
-        }
-        return n;
     }
 }
