@@ -90,6 +90,11 @@ class ReflectionUtilTest {
     }
 
     @Test
+    void lookupClass_returnsCallerClass() {
+        assertEquals(ReflectionUtilTest.class, ReflectionUtil.lookupClass());
+    }
+
+    @Test
     void invokeStatic_and_invoke_instance() throws Exception {
         assertEquals(99, ReflectionUtil.invokeStatic(Fixture.class, "staticM"));
         Fixture t = new Fixture();

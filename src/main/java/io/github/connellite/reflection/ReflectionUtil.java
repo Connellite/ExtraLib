@@ -2,6 +2,7 @@ package io.github.connellite.reflection;
 
 import lombok.experimental.UtilityClass;
 
+import java.lang.invoke.MethodHandles;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
@@ -28,6 +29,14 @@ import java.util.stream.Stream;
  */
 @UtilityClass
 public class ReflectionUtil {
+
+    /**
+     * Class of the code that called this method — shorthand for
+     * {@link MethodHandles#lookup()}{@code .lookupClass()} at the call site.
+     */
+    public static Class<?> lookupClass() {
+        return StackWalker.getInstance(StackWalker.Option.RETAIN_CLASS_REFERENCE).getCallerClass();
+    }
 
     /**
      * Invokes a static method with no parameters.
