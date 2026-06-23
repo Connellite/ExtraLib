@@ -37,6 +37,20 @@ public class ResultSetMetaDataUtils {
     }
 
     /**
+     * Whether a column name exists in {@link ResultSetMetaData#getColumnName(int)} values.
+     */
+    public static boolean hasColumnName(ResultSet resultSet, String columnName) throws SQLException {
+        return hasColumnName(resultSet.getMetaData(), columnName);
+    }
+
+    /**
+     * Whether a column name exists in {@link ResultSetMetaData#getColumnName(int)} values.
+     */
+    public static boolean hasColumnName(ResultSetMetaData metaData, String columnName) throws SQLException {
+        return getColumnNames(metaData).contains(columnName);
+    }
+
+    /**
      * {@link ResultSetMetaData#getColumnLabel(int)} for each column, in order.
      */
     public static Collection<String> getColumnLabels(ResultSet resultSet) throws SQLException {
@@ -54,6 +68,20 @@ public class ResultSetMetaDataUtils {
             out.add(columnLabel);
         }
         return Collections.unmodifiableCollection(out);
+    }
+
+    /**
+     * Whether a column label exists in {@link ResultSetMetaData#getColumnLabel(int)} values.
+     */
+    public static boolean hasColumnLabel(ResultSet resultSet, String columnLabel) throws SQLException {
+        return hasColumnLabel(resultSet.getMetaData(), columnLabel);
+    }
+
+    /**
+     * Whether a column label exists in {@link ResultSetMetaData#getColumnLabel(int)} values.
+     */
+    public static boolean hasColumnLabel(ResultSetMetaData metaData, String columnLabel) throws SQLException {
+        return getColumnLabels(metaData).contains(columnLabel);
     }
 
     /**
@@ -77,6 +105,20 @@ public class ResultSetMetaDataUtils {
     }
 
     /**
+     * Whether a catalog name exists in {@link ResultSetMetaData#getCatalogName(int)} values.
+     */
+    public static boolean hasCatalogName(ResultSet resultSet, String catalogName) throws SQLException {
+        return hasCatalogName(resultSet.getMetaData(), catalogName);
+    }
+
+    /**
+     * Whether a catalog name exists in {@link ResultSetMetaData#getCatalogName(int)} values.
+     */
+    public static boolean hasCatalogName(ResultSetMetaData metaData, String catalogName) throws SQLException {
+        return getCatalogNames(metaData).contains(catalogName);
+    }
+
+    /**
      * Distinct {@link ResultSetMetaData#getSchemaName(int)} values in column order.
      */
     public static Collection<String> getSchemaNames(ResultSet resultSet) throws SQLException {
@@ -94,6 +136,20 @@ public class ResultSetMetaDataUtils {
             out.add(schemaName);
         }
         return Collections.unmodifiableCollection(out);
+    }
+
+    /**
+     * Whether a schema name exists in {@link ResultSetMetaData#getSchemaName(int)} values.
+     */
+    public static boolean hasSchemaName(ResultSet resultSet, String schemaName) throws SQLException {
+        return hasSchemaName(resultSet.getMetaData(), schemaName);
+    }
+
+    /**
+     * Whether a schema name exists in {@link ResultSetMetaData#getSchemaName(int)} values.
+     */
+    public static boolean hasSchemaName(ResultSetMetaData metaData, String schemaName) throws SQLException {
+        return getSchemaNames(metaData).contains(schemaName);
     }
 
     /**
@@ -117,6 +173,20 @@ public class ResultSetMetaDataUtils {
     }
 
     /**
+     * Whether a table name exists in {@link ResultSetMetaData#getTableName(int)} values.
+     */
+    public static boolean hasTableName(ResultSet resultSet, String tableName) throws SQLException {
+        return hasTableName(resultSet.getMetaData(), tableName);
+    }
+
+    /**
+     * Whether a table name exists in {@link ResultSetMetaData#getTableName(int)} values.
+     */
+    public static boolean hasTableName(ResultSetMetaData metaData, String tableName) throws SQLException {
+        return getTableNames(metaData).contains(tableName);
+    }
+
+    /**
      * {@link ResultSetMetaData#getColumnTypeName(int)} for each column, in order.
      */
     public static Collection<String> getColumnTypeNames(ResultSet resultSet) throws SQLException {
@@ -137,6 +207,20 @@ public class ResultSetMetaDataUtils {
     }
 
     /**
+     * Whether a column type name exists in {@link ResultSetMetaData#getColumnTypeName(int)} values.
+     */
+    public static boolean hasColumnTypeName(ResultSet resultSet, String columnTypeName) throws SQLException {
+        return hasColumnTypeName(resultSet.getMetaData(), columnTypeName);
+    }
+
+    /**
+     * Whether a column type name exists in {@link ResultSetMetaData#getColumnTypeName(int)} values.
+     */
+    public static boolean hasColumnTypeName(ResultSetMetaData metaData, String columnTypeName) throws SQLException {
+        return getColumnTypeNames(metaData).contains(columnTypeName);
+    }
+
+    /**
      * {@link ResultSetMetaData#getColumnClassName(int)} for each column, in order.
      */
     public static Collection<String> getColumnClassNames(ResultSet resultSet) throws SQLException {
@@ -154,6 +238,20 @@ public class ResultSetMetaDataUtils {
             out.add(className);
         }
         return Collections.unmodifiableCollection(out);
+    }
+
+    /**
+     * Whether a column class name exists in {@link ResultSetMetaData#getColumnClassName(int)} values.
+     */
+    public static boolean hasColumnClassName(ResultSet resultSet, String columnClassName) throws SQLException {
+        return hasColumnClassName(resultSet.getMetaData(), columnClassName);
+    }
+
+    /**
+     * Whether a column class name exists in {@link ResultSetMetaData#getColumnClassName(int)} values.
+     */
+    public static boolean hasColumnClassName(ResultSetMetaData metaData, String columnClassName) throws SQLException {
+        return getColumnClassNames(metaData).contains(columnClassName);
     }
 
     /**
@@ -178,6 +276,20 @@ public class ResultSetMetaDataUtils {
             out.add(qualified);
         }
         return Collections.unmodifiableCollection(out);
+    }
+
+    /**
+     * Whether a qualified column label exists in computed {@code catalog.schema.table.label} values.
+     */
+    public static boolean hasQualifiedColumnLabel(ResultSet resultSet, String qualifiedColumnLabel) throws SQLException {
+        return hasQualifiedColumnLabel(resultSet.getMetaData(), qualifiedColumnLabel);
+    }
+
+    /**
+     * Whether a qualified column label exists in computed {@code catalog.schema.table.label} values.
+     */
+    public static boolean hasQualifiedColumnLabel(ResultSetMetaData metaData, String qualifiedColumnLabel) throws SQLException {
+        return getQualifiedColumnLabels(metaData).contains(qualifiedColumnLabel);
     }
 
     private static String qualify(String first, String second) {
