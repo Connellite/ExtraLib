@@ -41,10 +41,25 @@ class ListUtilsTest {
     }
 
     @Test
-    void splitIntoChunks_morePartsThanItemsCreatesSingleElementChunks() {
+    void splitIntoChunks_morePartsThanItemsPadsWithEmptyChunks() {
         List<Integer> source = List.of(1, 2, 3);
 
-        assertEquals(List.of(List.of(1), List.of(2), List.of(3)), ListUtils.splitIntoChunks(source, 5));
+        assertEquals(List.of(List.of(1), List.of(2), List.of(3), List.of(), List.of()),
+                ListUtils.splitIntoChunks(source, 5));
+    }
+
+    @Test
+    void splitIntoChunks_fewerItemsThanPartsReturnsExactPartCount() {
+        List<Integer> source = List.of(1, 2, 3, 4, 5);
+
+        List<List<Integer>> chunks = ListUtils.splitIntoChunks(source, 10);
+
+        assertEquals(10, chunks.size());
+        assertEquals(List.of(1), chunks.get(0));
+        assertEquals(List.of(5), chunks.get(4));
+        for (int i = 5; i < 10; i++) {
+            assertTrue(chunks.get(i).isEmpty(), "chunk " + i + " should be empty");
+        }
     }
 
     @Test

@@ -3,7 +3,8 @@ package io.github.connellite.jdbc;
 import io.github.connellite.collections.ConcurrentReferenceHashMap;
 import io.github.connellite.exception.MetadataBuildException;
 import io.github.connellite.jdbc.annotation.Column;
-import io.github.connellite.reflection.internal.ReflectionTypeCoercionUtil;
+import io.github.connellite.exception.TypeCoercionException;
+import io.github.connellite.util.TypeCoercionUtil;
 import io.github.connellite.reflection.ReflectionUtil;
 import lombok.NonNull;
 
@@ -315,9 +316,9 @@ public class SimpleResultSetBeanMapper<T> {
             return ((TypeConverter<Object>) converter).convert(raw);
         }
         try {
-            return ReflectionTypeCoercionUtil.coerceDefault(raw, fieldType, columnName);
-        } catch (Exception e) {
-            throw new SQLException(e);
+            return TypeCoercionUtil.coerce(raw, fieldType);
+        } catch (TypeCoercionException e) {
+            throw new SQLException(e.getMessage(), e);
         }
     }
 

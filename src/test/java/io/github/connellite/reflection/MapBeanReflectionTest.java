@@ -254,7 +254,7 @@ class MapBeanReflectionTest {
             IllegalArgumentException ex = assertThrows(
                     IllegalArgumentException.class,
                     () -> mapper.mapRow(Map.of("shade", 2)));
-            assertTrue(ex.getCause().getMessage().contains("Cannot map label 'shade' to enum"));
+            assertTrue(ex.getCause().getMessage().contains("Cannot coerce value to"));
         }
 
         @Test

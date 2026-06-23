@@ -198,6 +198,49 @@ class NamedQueryTest {
     }
 
     @Test
+    void clearBindingsRemovesAllBindings() {
+        NamedQuery query = NamedQuery.of("SELECT :a + :b AS s")
+                .setInt("a", 1)
+                .setInt("b", 2)
+                .clearBindings();
+
+        assertThrows(IllegalStateException.class, query::resolve);
+    }
+
+    @Test
+    void clearBindingRemovesSingleBinding() {
+        NamedQuery query = NamedQuery.of("SELECT :a + :b AS s")
+                .setInt("a", 1)
+                .setInt("b", 2)
+                .clearBinding("a");
+
+        assertThrows(IllegalStateException.class, query::resolve);
+    }
+
+    @Test
+    void clearBindingAllowsRebind() {
+        NamedQuery.ResolvedQuery resolved = NamedQuery.of("SELECT :x AS v")
+                .setInt("x", 1)
+                .clearBinding("x")
+                .setInt("x", 2)
+                .resolve();
+
+        assertEquals("SELECT ? AS v", resolved.sql());
+        assertEquals(List.of(2), resolved.values());
+    }
+
+    @Test
+    void clearBindingOnUnboundParameterIsNoOp() {
+        NamedQuery.ResolvedQuery resolved = NamedQuery.of("SELECT :x AS v")
+                .setInt("x", 1)
+                .clearBinding("missing")
+                .resolve();
+
+        assertEquals("SELECT ? AS v", resolved.sql());
+        assertEquals(List.of(1), resolved.values());
+    }
+
+    @Test
     void canPrepareAndResolveMultipleTimes() throws Exception {
         try (Connection connection = SqliteMemory.open()) {
             SqliteMemory.bootstrapDemoSchema(connection);

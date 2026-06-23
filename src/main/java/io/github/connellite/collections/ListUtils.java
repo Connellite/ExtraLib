@@ -13,9 +13,10 @@ import java.util.List;
 public class ListUtils {
 
     /**
-     * Splits {@code items} into at most {@code parts} consecutive chunks of nearly equal size.
-     * <p>Chunk size is {@code ceil(items.size() / parts)}. The returned lists are independent
-     * copies and do not reflect later changes to {@code items}.</p>
+     * Splits {@code items} into exactly {@code parts} consecutive chunks of nearly equal size.
+     * <p>Chunk size is {@code ceil(items.size() / parts)}. When there are fewer elements than
+     * {@code parts}, trailing chunks are empty lists. The returned lists are independent copies
+     * and do not reflect later changes to {@code items}.</p>
      *
      * @param items source list; {@code null} or empty, or non-positive {@code parts}, yields an empty list
      * @param parts desired number of chunks
@@ -28,7 +29,11 @@ public class ListUtils {
         }
 
         int chunkSize = (int) Math.ceil((double) items.size() / parts);
-        return splitIntoChunksBySize(items, chunkSize);
+        List<List<T>> chunks = new ArrayList<>(splitIntoChunksBySize(items, chunkSize));
+        while (chunks.size() < parts) {
+            chunks.add(new ArrayList<>());
+        }
+        return Collections.unmodifiableList(chunks);
     }
 
     /**

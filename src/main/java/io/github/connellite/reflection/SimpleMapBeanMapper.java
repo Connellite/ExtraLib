@@ -1,7 +1,8 @@
 package io.github.connellite.reflection;
 
+import io.github.connellite.exception.TypeCoercionException;
 import io.github.connellite.reflection.annotation.MapField;
-import io.github.connellite.reflection.internal.ReflectionTypeCoercionUtil;
+import io.github.connellite.util.TypeCoercionUtil;
 import lombok.NonNull;
 
 import java.lang.reflect.Constructor;
@@ -93,9 +94,9 @@ public class SimpleMapBeanMapper<T> {
             value = ((MapTypeConverter<Object>) explicitConverter).convert(raw);
         } else {
             try {
-                value = ReflectionTypeCoercionUtil.coerceDefault(raw, targetType, mapKey);
-            } catch (Exception e) {
-                throw new IllegalArgumentException(e);
+                value = TypeCoercionUtil.coerce(raw, targetType);
+            } catch (TypeCoercionException e) {
+                throw new IllegalArgumentException(e.getMessage(), e);
             }
         }
         if (value == null && targetType.isPrimitive()) {

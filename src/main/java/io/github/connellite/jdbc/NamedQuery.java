@@ -309,7 +309,7 @@ public final class NamedQuery {
         if (values.isEmpty()) {
             throw new IllegalArgumentException("Collection parameter cannot be empty: " + name);
         }
-        List<Object> copiedValues = List.copyOf(values);
+        List<Object> copiedValues = new ArrayList<>(values);
         bind(name, new CollectionBinding(copiedValues));
         return this;
     }
@@ -324,6 +324,22 @@ public final class NamedQuery {
         for (Map.Entry<String, ?> entry : params.entrySet()) {
             setObject(entry.getKey(), entry.getValue());
         }
+        return this;
+    }
+
+    /**
+     * Removes the binding for {@code name}, if present.
+     */
+    public NamedQuery clearBinding(String name) {
+        bindings.remove(Objects.requireNonNull(name, "name"));
+        return this;
+    }
+
+    /**
+     * Removes all parameter bindings.
+     */
+    public NamedQuery clearBindings() {
+        bindings.clear();
         return this;
     }
 
