@@ -1,13 +1,8 @@
 package io.github.connellite.logger;
 
-import java.io.PrintWriter;
-import java.io.StringWriter;
 import java.time.ZoneId;
-import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Locale;
-import java.util.Objects;
-import java.util.logging.Formatter;
 import java.util.logging.LogRecord;
 
 /**
@@ -16,14 +11,12 @@ import java.util.logging.LogRecord;
  * {@link java.util.logging.SimpleFormatter} (caller class, or class plus method, or logger name).
  * {@link #formatMessage(LogRecord)} and {@link LogRecord#getThrown()} match {@link java.util.logging.SimpleFormatter}.
  */
-public final class TimestampClassMethodLogFormatter extends Formatter {
+public final class TimestampClassMethodLogFormatter extends AbstractLogFormatter {
 
     private static final DateTimeFormatter TIMESTAMP = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss,SSS", Locale.ROOT);
 
-    private final ZoneId zoneId;
-
     public TimestampClassMethodLogFormatter(ZoneId zoneId) {
-        this.zoneId = Objects.requireNonNull(zoneId, "zoneId");
+        super(zoneId);
     }
 
     /**
@@ -39,7 +32,7 @@ public final class TimestampClassMethodLogFormatter extends Formatter {
 
     @Override
     public String format(LogRecord record) {
-        String ts = ZonedDateTime.ofInstant(record.getInstant(), zoneId).format(TIMESTAMP);
+        String ts = formatTimestamp(record, TIMESTAMP);
         String source;
         if (record.getSourceClassName() != null) {
             source = record.getSourceClassName();
@@ -53,21 +46,5 @@ public final class TimestampClassMethodLogFormatter extends Formatter {
             }
         }
         return ts + " " + source + " - " + formatMessage(record) + formatThrown(record);
-    }
-
-    /**
-     * Same trailing exception text as {@link java.util.logging.SimpleFormatter}.
-     */
-    private static String formatThrown(LogRecord record) {
-        Throwable thrown = record.getThrown();
-        if (thrown == null) {
-            return "";
-        }
-        StringWriter sw = new StringWriter();
-        PrintWriter pw = new PrintWriter(sw);
-        pw.println();
-        thrown.printStackTrace(pw);
-        pw.close();
-        return sw.toString();
     }
 }

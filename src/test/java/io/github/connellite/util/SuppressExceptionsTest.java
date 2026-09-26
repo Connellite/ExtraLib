@@ -1,5 +1,7 @@
 package io.github.connellite.util;
 
+import io.github.connellite.collections.function.UncheckedFunction;
+import io.github.connellite.collections.function.UncheckedPredicate;
 import io.github.connellite.jdbc.SqliteMemory;
 import org.junit.jupiter.api.Test;
 
@@ -102,6 +104,33 @@ class SuppressExceptionsTest {
     void testBi_acceptsMethodReferenceThatThrowsChecked() {
         assertEquals(Boolean.TRUE, SuppressExceptions.test(Checked::startsWith, "hello", "he"));
         assertNull(SuppressExceptions.test(Checked::failTest2, "a", "b"));
+    }
+
+    @Test
+    void returningMethods_useFallbackWhenCallbackIsNullOrThrows() {
+        assertEquals("fb", SuppressExceptions.call(Checked::failGet, "fb"));
+        assertEquals("fb", SuppressExceptions.call(null, "fb"));
+        assertEquals("ok", SuppressExceptions.call(Checked::ok, "fb"));
+
+        assertEquals("fb", SuppressExceptions.get(Checked::failGet, "fb"));
+        assertEquals("fb", SuppressExceptions.get(null, "fb"));
+        assertEquals("ok", SuppressExceptions.get(Checked::ok, "fb"));
+
+        assertEquals("fb", SuppressExceptions.apply(Checked::failApply, "x", "fb"));
+        assertEquals("fb", SuppressExceptions.apply((UncheckedFunction<? super String, ? extends String>) null, "x", "fb"));
+        assertEquals("x", SuppressExceptions.apply(Checked::identity, "x", "fb"));
+
+        assertEquals("fb", SuppressExceptions.apply(Checked::failApply2, "a", "b", "fb"));
+        assertEquals("fb", SuppressExceptions.apply(null, "a", "b", "fb"));
+        assertEquals("ab", SuppressExceptions.apply(Checked::concat, "a", "b", "fb"));
+
+        assertEquals(Boolean.FALSE, SuppressExceptions.test(Checked::failTest, "a", Boolean.FALSE));
+        assertEquals(Boolean.FALSE, SuppressExceptions.test((UncheckedPredicate<? super String>) null, "a", Boolean.FALSE));
+        assertEquals(Boolean.TRUE, SuppressExceptions.test(Checked::isNonEmpty, "a", Boolean.FALSE));
+
+        assertEquals(Boolean.FALSE, SuppressExceptions.test(Checked::failTest2, "a", "b", Boolean.FALSE));
+        assertEquals(Boolean.FALSE, SuppressExceptions.test(null, "a", "b", Boolean.FALSE));
+        assertEquals(Boolean.TRUE, SuppressExceptions.test(Checked::startsWith, "hello", "he", Boolean.FALSE));
     }
 
     @Test

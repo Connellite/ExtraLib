@@ -7,37 +7,38 @@ import java.util.Objects;
 import java.util.logging.LogRecord;
 
 /**
- * One-line format similar to classic application logs:
- * {@code yyyy-MM-dd HH:mm:ss,SSS class method:line - message}.
+ * One-line format similar to {@link TimestampClassMethodLineLogFormatter}, with the current thread:
+ * {@code yyyy-MM-dd HH:mm:ss,SSS [thread] class method:line - message}.
  * <p>
  * Not recommended for production use because stack inspection can be relatively expensive.
  * <p>
  * Line number is inferred from the current stack and may be unavailable in some environments.
  */
-public final class TimestampClassMethodLineLogFormatter extends AbstractLogFormatter {
+public final class TimestampThreadClassMethodLineLogFormatter extends AbstractLogFormatter {
 
     private static final DateTimeFormatter TIMESTAMP = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss,SSS", Locale.ROOT);
 
-    public TimestampClassMethodLineLogFormatter(ZoneId zoneId) {
+    public TimestampThreadClassMethodLineLogFormatter(ZoneId zoneId) {
         super(zoneId);
     }
 
     /**
      * Singleton with {@link ZoneId#systemDefault()}.
      */
-    public static TimestampClassMethodLineLogFormatter getInstance() {
+    public static TimestampThreadClassMethodLineLogFormatter getInstance() {
         return Holder.INSTANCE;
     }
 
     private static final class Holder {
-        private static final TimestampClassMethodLineLogFormatter INSTANCE =
-                new TimestampClassMethodLineLogFormatter(ZoneId.systemDefault());
+        private static final TimestampThreadClassMethodLineLogFormatter INSTANCE =
+                new TimestampThreadClassMethodLineLogFormatter(ZoneId.systemDefault());
     }
 
     @Override
     public String format(LogRecord record) {
         String ts = formatTimestamp(record, TIMESTAMP);
-        return ts + " " + resolveSource(record) + " - " + formatMessage(record) + formatThrown(record);
+        return ts + " [" + threadName() + "] " + resolveSource(record)
+                + " - " + formatMessage(record) + formatThrown(record);
     }
 
     private static String resolveSource(LogRecord record) {
@@ -73,7 +74,7 @@ public final class TimestampClassMethodLineLogFormatter extends AbstractLogForma
         for (StackTraceElement element : stack) {
             String currentClass = element.getClassName();
 
-            if (currentClass.equals(TimestampClassMethodLineLogFormatter.class.getName())) {
+            if (currentClass.equals(TimestampThreadClassMethodLineLogFormatter.class.getName())) {
                 foundFormatter = true;
                 continue;
             }
