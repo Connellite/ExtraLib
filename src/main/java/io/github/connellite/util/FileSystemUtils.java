@@ -2,10 +2,7 @@ package io.github.connellite.util;
 
 import lombok.experimental.UtilityClass;
 
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.IOException;
-import java.io.InputStreamReader;
+import java.io.*;
 import java.nio.charset.Charset;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
@@ -266,5 +263,22 @@ public class FileSystemUtils {
         } catch (IOException e) {
             throw new RuntimeException("Error while trying to read file!", e);
         }
+    }
+
+    /**
+     * Reads {@code in} to EOF and returns the collected bytes. Does not close the stream.
+     *
+     * @param in stream to read; must not be {@code null}
+     * @return all remaining bytes (empty if the stream is already at EOF)
+     * @throws IOException if reading fails
+     */
+    public static byte[] readAllBytes(InputStream in) throws IOException {
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        byte[] buffer = new byte[8192];
+        int read;
+        while ((read = in.read(buffer)) != -1) {
+            out.write(buffer, 0, read);
+        }
+        return out.toByteArray();
     }
 }
