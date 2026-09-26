@@ -1,15 +1,16 @@
 package io.github.connellite.util;
 
+import io.github.connellite.collections.function.UncheckedBiConsumer;
+import io.github.connellite.collections.function.UncheckedBiFunction;
+import io.github.connellite.collections.function.UncheckedBiPredicate;
+import io.github.connellite.collections.function.UncheckedConsumer;
+import io.github.connellite.collections.function.UncheckedFunction;
+import io.github.connellite.collections.function.UncheckedPredicate;
+import io.github.connellite.collections.function.UncheckedRunnable;
+import io.github.connellite.collections.function.UncheckedSupplier;
 import lombok.experimental.UtilityClass;
 
 import java.util.concurrent.Callable;
-import java.util.function.BiConsumer;
-import java.util.function.BiFunction;
-import java.util.function.BiPredicate;
-import java.util.function.Consumer;
-import java.util.function.Function;
-import java.util.function.Predicate;
-import java.util.function.Supplier;
 
 /**
  * Runs functional callbacks while swallowing checked and unchecked {@link Exception}s.
@@ -20,7 +21,7 @@ import java.util.function.Supplier;
 public class SuppressExceptions {
 
     /** @param action ignored if {@code null} */
-    public static void run(Runnable action) {
+    public static void run(UncheckedRunnable action) {
         if (action == null) {
             return;
         }
@@ -47,7 +48,7 @@ public class SuppressExceptions {
     /**
      * @return supplied value, or {@code null} if {@code supplier} is {@code null} or throws
      */
-    public static <T> T get(Supplier<? extends T> supplier) {
+    public static <T> T get(UncheckedSupplier<? extends T> supplier) {
         if (supplier == null) {
             return null;
         }
@@ -61,7 +62,7 @@ public class SuppressExceptions {
     /**
      * @return function result, or {@code null} if {@code function} is {@code null} or throws
      */
-    public static <T, R> R apply(Function<? super T, ? extends R> function, T arg) {
+    public static <T, R> R apply(UncheckedFunction<? super T, ? extends R> function, T arg) {
         if (function == null) {
             return null;
         }
@@ -75,7 +76,7 @@ public class SuppressExceptions {
     /**
      * @return function result, or {@code null} if {@code function} is {@code null} or throws
      */
-    public static <T, U, R> R apply(BiFunction<? super T, ? super U, ? extends R> function, T t, U u) {
+    public static <T, U, R> R apply(UncheckedBiFunction<? super T, ? super U, ? extends R> function, T t, U u) {
         if (function == null) {
             return null;
         }
@@ -87,7 +88,7 @@ public class SuppressExceptions {
     }
 
     /** @param consumer ignored if {@code null} */
-    public static <T> void accept(Consumer<? super T> consumer, T arg) {
+    public static <T> void accept(UncheckedConsumer<? super T> consumer, T arg) {
         if (consumer == null) {
             return;
         }
@@ -98,7 +99,7 @@ public class SuppressExceptions {
     }
 
     /** @param consumer ignored if {@code null} */
-    public static <T, U> void accept(BiConsumer<? super T, ? super U> consumer, T t, U u) {
+    public static <T, U> void accept(UncheckedBiConsumer<? super T, ? super U> consumer, T t, U u) {
         if (consumer == null) {
             return;
         }
@@ -111,7 +112,7 @@ public class SuppressExceptions {
     /**
      * @return predicate outcome, or {@code null} if {@code predicate} is {@code null} or throws
      */
-    public static <T> Boolean test(Predicate<? super T> predicate, T arg) {
+    public static <T> Boolean test(UncheckedPredicate<? super T> predicate, T arg) {
         if (predicate == null) {
             return null;
         }
@@ -125,7 +126,7 @@ public class SuppressExceptions {
     /**
      * @return predicate outcome, or {@code null} if {@code predicate} is {@code null} or throws
      */
-    public static <T, U> Boolean test(BiPredicate<? super T, ? super U> predicate, T t, U u) {
+    public static <T, U> Boolean test(UncheckedBiPredicate<? super T, ? super U> predicate, T t, U u) {
         if (predicate == null) {
             return null;
         }

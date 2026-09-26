@@ -8,6 +8,7 @@ module io.github.connellite.ExtraLib {
     requires java.desktop;
 
     exports io.github.connellite.collections;
+    exports io.github.connellite.collections.function;
     exports io.github.connellite.concurrent;
     exports io.github.connellite.exception;
     exports io.github.connellite.format;

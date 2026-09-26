@@ -1,5 +1,6 @@
 package io.github.connellite.reflection;
 
+import lombok.NonNull;
 import lombok.experimental.UtilityClass;
 
 import java.lang.invoke.MethodHandles;
@@ -225,6 +226,33 @@ public class ReflectionUtil {
     }
 
     /**
+     * Whether {@code annotation} is present on {@code clazz} itself or on its {@link Package}
+     * (typically from {@code package-info}). Superclasses and implemented interfaces are not searched.
+     *
+     * @param clazz      class to inspect
+     * @param annotation annotation type; must have {@link java.lang.annotation.RetentionPolicy#RUNTIME}
+     * @return {@code true} if the annotation is found on the class or its package; {@code false} if
+     *         the class has no package (for example the unnamed package) and the class itself is unmarked
+     */
+    public static boolean hasClassOrPackageAnnotation(Class<?> clazz, Class<? extends Annotation> annotation) {
+        Package packageInfo = clazz.getPackage();
+        return clazz.getAnnotation(annotation) != null || packageInfo != null && packageInfo.getAnnotation(annotation) != null;
+    }
+
+    /**
+     * Whether {@code annotation} is present on {@code clazz} itself or on its {@link Module}
+     * (typically from {@code module-info}). Superclasses and implemented interfaces are not searched.
+     *
+     * @param clazz      class to inspect
+     * @param annotation annotation type; must have {@link java.lang.annotation.RetentionPolicy#RUNTIME}
+     * @return {@code true} if the annotation is found on the class or its module
+     */
+    public static boolean hasClassOrModuleAnnotation(Class<?> clazz, Class<? extends Annotation> annotation) {
+        Module moduleInfo = clazz.getModule();
+        return clazz.getAnnotation(annotation) != null || moduleInfo != null && moduleInfo.getAnnotation(annotation) != null;
+    }
+
+    /**
      * No-argument declared constructor, made accessible.
      */
     public static <T> Constructor<T> getConstructor(Class<T> t) throws NoSuchMethodException {
@@ -389,6 +417,15 @@ public class ReflectionUtil {
         }
         Class<?> castType = type.isPrimitive() ? primitiveToWrapper(type) : type;
         return (T) castType.cast(value);
+    }
+
+    /**
+     * Rethrows {@code t} as-is, including checked exceptions, without wrapping.
+     * {@code null} becomes {@link NullPointerException}.
+     */
+    @SuppressWarnings("unchecked")
+    public static <X extends Throwable> void propagate(Throwable t) throws X {
+        throw (X) t;
     }
 
     /**

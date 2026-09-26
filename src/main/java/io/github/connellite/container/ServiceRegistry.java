@@ -1,12 +1,12 @@
 package io.github.connellite.container;
 
+import io.github.connellite.collections.ConcurrentReferenceHashMap;
 import io.github.connellite.container.internal.LazyServiceProxy;
 import io.github.connellite.exception.ServiceNotRegisteredException;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 
 import java.util.Objects;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
 /**
@@ -29,8 +29,12 @@ public final class ServiceRegistry {
         private static final ServiceRegistry INSTANCE = new ServiceRegistry();
     }
 
-    private final ConcurrentMap<Class<?>, Object> beans = new ConcurrentHashMap<>();
-    private final ConcurrentMap<Class<?>, Object> lazyProxies = new ConcurrentHashMap<>();
+    private static final int INITIAL_CAPACITY = 64;
+
+    private final ConcurrentMap<Class<?>, Object> beans =
+            new ConcurrentReferenceHashMap<>(INITIAL_CAPACITY, ConcurrentReferenceHashMap.ReferenceType.WEAK);
+    private final ConcurrentMap<Class<?>, Object> lazyProxies =
+            new ConcurrentReferenceHashMap<>(INITIAL_CAPACITY, ConcurrentReferenceHashMap.ReferenceType.WEAK);
 
     public static ServiceRegistry getInstance() {
         return Holder.INSTANCE;

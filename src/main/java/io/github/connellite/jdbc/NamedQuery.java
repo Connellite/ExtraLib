@@ -322,7 +322,11 @@ public final class NamedQuery {
             return this;
         }
         for (Map.Entry<String, ?> entry : params.entrySet()) {
-            setObject(entry.getKey(), entry.getValue());
+            if (entry.getValue() != null) {
+                setObject(entry.getKey(), entry.getValue());
+            } else {
+                setNull(entry.getKey(), Types.NULL);
+            }
         }
         return this;
     }

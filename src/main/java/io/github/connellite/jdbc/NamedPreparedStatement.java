@@ -639,7 +639,11 @@ public final class NamedPreparedStatement implements AutoCloseable {
             return this;
         }
         for (Map.Entry<String, ?> e : params.entrySet()) {
-            setObject(e.getKey(), e.getValue());
+            if (e.getValue() != null) {
+                setObject(e.getKey(), e.getValue());
+            } else {
+                setNull(e.getKey(), Types.NULL);
+            }
         }
         return this;
     }
@@ -755,7 +759,9 @@ public final class NamedPreparedStatement implements AutoCloseable {
 
     @Override
     public void close() throws SQLException {
-        statement.close();
+        if (statement != null) {
+            statement.close();
+        }
     }
 
     @FunctionalInterface

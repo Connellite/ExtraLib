@@ -55,16 +55,16 @@ class DatabaseMetaDataUtilsSqliteTest {
     void getPrimaryKeysImportedExported() throws Exception {
         try (Connection c = SqliteMemory.open()) {
             SqliteMemory.bootstrapDemoSchema(c);
-            Collection<String> pk = DatabaseMetaDataUtils.getPrimaryKeys(c, null, null, "demo");
+            Collection<String> pk = DatabaseMetaDataUtils.getPrimaryKeys(c, "demo");
             assertTrue(pk.contains("id"));
 
-            Collection<String> imp = DatabaseMetaDataUtils.getImportedKeys(c, null, null, "child");
+            Collection<String> imp = DatabaseMetaDataUtils.getImportedKeys(c, "child");
             assertNotNull(imp);
             if (!imp.isEmpty()) {
                 assertTrue(imp.contains("demo_id"));
             }
 
-            Collection<String> exp = DatabaseMetaDataUtils.getExportedKeys(c, null, null, "demo");
+            Collection<String> exp = DatabaseMetaDataUtils.getExportedKeys(c, "demo");
             assertNotNull(exp);
             if (!exp.isEmpty()) {
                 assertTrue(exp.contains("id"));
@@ -83,8 +83,28 @@ class DatabaseMetaDataUtilsSqliteTest {
             }
 
             try {
-                Collection<String> schemas = DatabaseMetaDataUtils.getSchemas(c, null, null);
+                Collection<String> schemas = DatabaseMetaDataUtils.getSchemas(c);
                 assertNotNull(schemas);
+            } catch (SQLFeatureNotSupportedException ignore) {
+            }
+
+            try {
+                assertNotNull(DatabaseMetaDataUtils.getFunctions(c));
+            } catch (SQLFeatureNotSupportedException ignore) {
+            }
+
+            try {
+                assertNotNull(DatabaseMetaDataUtils.getFunctionColumns(c, "%"));
+            } catch (SQLFeatureNotSupportedException ignore) {
+            }
+
+            try {
+                assertNotNull(DatabaseMetaDataUtils.getProcedures(c));
+            } catch (SQLFeatureNotSupportedException ignore) {
+            }
+
+            try {
+                assertNotNull(DatabaseMetaDataUtils.getProcedureColumns(c, "%"));
             } catch (SQLFeatureNotSupportedException ignore) {
             }
         }

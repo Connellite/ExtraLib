@@ -36,7 +36,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Maps the current row of a {@link ResultSet} into a simple POJO (no collections, arrays,
@@ -57,7 +56,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * <p>
  * Reflection metadata (field bindings, record constructor, scalar mode) is cached per bean class
  * in a {@link ConcurrentReferenceHashMap} with weak references so unloaded classes do not pin
- * their {@link ClassLoader}. Per-mapper {@link TypeConverter} registrations are not cached.
+ * their {@link ClassLoader}. Per-mapper {@link TypeConverter} registrations use the same map type.
  *
  * @param <T> bean type (no-arg constructor for class beans; canonical constructor for records)
  */
@@ -90,7 +89,8 @@ public class SimpleResultSetBeanMapper<T> {
 
     private final Class<T> beanClass;
     private final MapperMetadata metadata;
-    private final Map<Class<?>, TypeConverter<?>> converters = new ConcurrentHashMap<>();
+    private final Map<Class<?>, TypeConverter<?>> converters =
+            new ConcurrentReferenceHashMap<>(16, ConcurrentReferenceHashMap.ReferenceType.WEAK);
 
     /**
      * Builds mapper without metadata validation.
