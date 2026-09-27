@@ -38,6 +38,23 @@ class NumberUtilsTest {
     }
 
     @Test
+    void toStringConverters_useFallbackWhenInvalid() {
+        assertEquals((byte) 7, NumberUtils.toByte("nope", (byte) 7));
+        assertEquals((byte) 3, NumberUtils.toByte("3", (byte) 7));
+        assertEquals((short) 7, NumberUtils.toShort(null, (short) 7));
+        assertEquals(7, NumberUtils.toInteger(" ", 7));
+        assertEquals(42, NumberUtils.toInteger("42", 7));
+        assertEquals(Boolean.TRUE, NumberUtils.toBoolean("maybe", Boolean.TRUE));
+        assertEquals(Boolean.FALSE, NumberUtils.toBoolean("0", Boolean.TRUE));
+        assertEquals(9L, NumberUtils.toLong("x", 9L));
+        assertEquals(1.5f, NumberUtils.toFloat("bad", 1.5f));
+        assertEquals(2.5d, NumberUtils.toDouble("", 2.5d));
+        assertEquals(BigInteger.TEN, NumberUtils.toBigInteger("zz", BigInteger.TEN));
+        assertEquals(BigDecimal.ONE, NumberUtils.toBigDecimal("n/a", BigDecimal.ONE));
+        assertEquals(new BigDecimal("1.25"), NumberUtils.toBigDecimal("1.25", BigDecimal.ONE));
+    }
+
+    @Test
     void toBoolean_fromInt() {
         assertFalse(NumberUtils.toBoolean(0));
         assertTrue(NumberUtils.toBoolean(1));
@@ -137,6 +154,13 @@ class NumberUtilsTest {
         assertNull(NumberUtils.parseNumber("1.2", Integer.class));
         assertThrows(NullPointerException.class, () ->  NumberUtils.parseNumber("10", null));
         assertNull(NumberUtils.parseNumber("10", (Class) Object.class));
+    }
+
+    @Test
+    void parseNumber_usesFallbackWhenInvalid() {
+        assertEquals(7, NumberUtils.parseNumber("nope", Integer.class, 7));
+        assertEquals(123, NumberUtils.parseNumber("123", Integer.class, 7));
+        assertEquals(9L, NumberUtils.parseNumber(" ", Long.class, 9L));
     }
 
     @Test

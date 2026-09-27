@@ -23,7 +23,18 @@ public class NumberUtils {
      * @return the parsed value, or {@code null} if the input is {@code null}, blank, or invalid
      */
     public static Byte toByte(String value) {
-        return parse(value, Byte::valueOf);
+        return parse(value, Byte::valueOf, null);
+    }
+
+    /**
+     * Converts the given string to a {@link Byte}, or returns {@code fallback} when parsing fails.
+     *
+     * @param value    the string to convert
+     * @param fallback value used when the input is {@code null}, blank, or invalid
+     * @return the parsed value, or {@code fallback}
+     */
+    public static Byte toByte(String value, Byte fallback) {
+        return parse(value, Byte::valueOf, fallback);
     }
 
     /**
@@ -33,7 +44,18 @@ public class NumberUtils {
      * @return the parsed value, or {@code null} if the input is {@code null}, blank, or invalid
      */
     public static Short toShort(String value) {
-        return parse(value, Short::valueOf);
+        return parse(value, Short::valueOf, null);
+    }
+
+    /**
+     * Converts the given string to a {@link Short}, or returns {@code fallback} when parsing fails.
+     *
+     * @param value    the string to convert
+     * @param fallback value used when the input is {@code null}, blank, or invalid
+     * @return the parsed value, or {@code fallback}
+     */
+    public static Short toShort(String value, Short fallback) {
+        return parse(value, Short::valueOf, fallback);
     }
 
     /**
@@ -43,7 +65,18 @@ public class NumberUtils {
      * @return the parsed value, or {@code null} if the input is {@code null}, blank, or invalid
      */
     public static Integer toInteger(String value) {
-        return parse(value, Integer::valueOf);
+        return parse(value, Integer::valueOf, null);
+    }
+
+    /**
+     * Converts the given string to an {@link Integer}, or returns {@code fallback} when parsing fails.
+     *
+     * @param value    the string to convert
+     * @param fallback value used when the input is {@code null}, blank, or invalid
+     * @return the parsed value, or {@code fallback}
+     */
+    public static Integer toInteger(String value, Integer fallback) {
+        return parse(value, Integer::valueOf, fallback);
     }
 
     /**
@@ -73,6 +106,18 @@ public class NumberUtils {
             case "false", "0" -> false;
             default -> null;
         };
+    }
+
+    /**
+     * Parses a string into a {@link Boolean}, or returns {@code fallback} when parsing fails.
+     *
+     * @param value    the string to convert
+     * @param fallback value used when the input is {@code null}, blank, or not a supported literal
+     * @return the parsed value, or {@code fallback}
+     */
+    public static Boolean toBoolean(String value, Boolean fallback) {
+        Boolean parsed = toBoolean(value);
+        return parsed != null ? parsed : fallback;
     }
 
     /**
@@ -124,7 +169,18 @@ public class NumberUtils {
      * @return the parsed value, or {@code null} if the input is {@code null}, blank, or invalid
      */
     public static Long toLong(String value) {
-        return parse(value, Long::valueOf);
+        return parse(value, Long::valueOf, null);
+    }
+
+    /**
+     * Converts the given string to a {@link Long}, or returns {@code fallback} when parsing fails.
+     *
+     * @param value    the string to convert
+     * @param fallback value used when the input is {@code null}, blank, or invalid
+     * @return the parsed value, or {@code fallback}
+     */
+    public static Long toLong(String value, Long fallback) {
+        return parse(value, Long::valueOf, fallback);
     }
 
     /**
@@ -134,7 +190,18 @@ public class NumberUtils {
      * @return the parsed value, or {@code null} if the input is {@code null}, blank, or invalid
      */
     public static Float toFloat(String value) {
-        return parse(value, Float::valueOf);
+        return parse(value, Float::valueOf, null);
+    }
+
+    /**
+     * Converts the given string to a {@link Float}, or returns {@code fallback} when parsing fails.
+     *
+     * @param value    the string to convert
+     * @param fallback value used when the input is {@code null}, blank, or invalid
+     * @return the parsed value, or {@code fallback}
+     */
+    public static Float toFloat(String value, Float fallback) {
+        return parse(value, Float::valueOf, fallback);
     }
 
     /**
@@ -144,7 +211,18 @@ public class NumberUtils {
      * @return the parsed value, or {@code null} if the input is {@code null}, blank, or invalid
      */
     public static Double toDouble(String value) {
-        return parse(value, Double::valueOf);
+        return parse(value, Double::valueOf, null);
+    }
+
+    /**
+     * Converts the given string to a {@link Double}, or returns {@code fallback} when parsing fails.
+     *
+     * @param value    the string to convert
+     * @param fallback value used when the input is {@code null}, blank, or invalid
+     * @return the parsed value, or {@code fallback}
+     */
+    public static Double toDouble(String value, Double fallback) {
+        return parse(value, Double::valueOf, fallback);
     }
 
     /**
@@ -154,7 +232,18 @@ public class NumberUtils {
      * @return the parsed value, or {@code null} if the input is {@code null}, blank, or invalid
      */
     public static BigInteger toBigInteger(String value) {
-        return parse(value, BigInteger::new);
+        return parse(value, BigInteger::new, null);
+    }
+
+    /**
+     * Converts the given string to a {@link BigInteger}, or returns {@code fallback} when parsing fails.
+     *
+     * @param value    the string to convert
+     * @param fallback value used when the input is {@code null}, blank, or invalid
+     * @return the parsed value, or {@code fallback}
+     */
+    public static BigInteger toBigInteger(String value, BigInteger fallback) {
+        return parse(value, BigInteger::new, fallback);
     }
 
     /**
@@ -164,15 +253,18 @@ public class NumberUtils {
      * @return the parsed value, or {@code null} if the input is {@code null}, blank, or invalid
      */
     public static BigDecimal toBigDecimal(String value) {
-        if (value == null || value.isBlank()) {
-            return null;
-        }
-        String trimmed = value.trim();
-        try {
-            return isHexNumber(trimmed) ? new BigDecimal(decodeBigInteger(trimmed)) : new BigDecimal(trimmed);
-        } catch (NumberFormatException ex) {
-            return null;
-        }
+        return parse(value, NumberUtils::parseBigDecimal, null);
+    }
+
+    /**
+     * Converts the given string to a {@link BigDecimal}, or returns {@code fallback} when parsing fails.
+     *
+     * @param value    the string to convert
+     * @param fallback value used when the input is {@code null}, blank, or invalid
+     * @return the parsed value, or {@code fallback}
+     */
+    public static BigDecimal toBigDecimal(String value, BigDecimal fallback) {
+        return parse(value, NumberUtils::parseBigDecimal, fallback);
     }
 
     /**
@@ -215,6 +307,21 @@ public class NumberUtils {
             return (T) toBigDecimal(text);
         }
         return null;
+    }
+
+    /**
+     * Parses the given text into the requested numeric wrapper type, or returns {@code fallback}
+     * when parsing fails or the target type is not supported.
+     *
+     * @param text        the string to parse
+     * @param targetClass the target numeric type
+     * @param fallback    value used when the input is {@code null}, blank, invalid, or unsupported
+     * @param <T>         the numeric type
+     * @return the parsed value, or {@code fallback}
+     */
+    public static <T extends Number> T parseNumber(String text, @NonNull Class<T> targetClass, T fallback) {
+        T parsed = parseNumber(text, targetClass);
+        return parsed != null ? parsed : fallback;
     }
 
     /**
@@ -597,12 +704,16 @@ public class NumberUtils {
         }
     }
 
-    private static <T> T parse(String value, Function<String, T> parser) {
+    private static <T> T parse(String value, Function<String, T> parser, T fallback) {
         try {
-            return value == null || value.isBlank() ? null : parser.apply(value.trim());
+            return value == null || value.isBlank() ? fallback : parser.apply(value.trim());
         } catch (NumberFormatException e) {
-            return null;
+            return fallback;
         }
+    }
+
+    private static BigDecimal parseBigDecimal(String trimmed) {
+        return isHexNumber(trimmed) ? new BigDecimal(decodeBigInteger(trimmed)) : new BigDecimal(trimmed);
     }
 
     /**
