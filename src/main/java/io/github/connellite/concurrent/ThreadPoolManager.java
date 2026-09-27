@@ -1,15 +1,14 @@
 package io.github.connellite.concurrent;
 
-import lombok.extern.java.Log;
+import io.github.connellite.logger.Logger;
+import io.github.connellite.logger.LoggerFactory;
 
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
-import java.util.logging.Level;
 
-@Log
 public class ThreadPoolManager {
     private static final int POOL_TIMEOUT = 1;
     private static final int MAX_TIMEOUTS = 10;
@@ -78,24 +77,24 @@ public class ThreadPoolManager {
             executor.shutdown();
         }
 
-        log.fine("### " + name + ": All threads shutdown requested ###");
+        LogHolder.logger.debug("### " + name + ": All threads shutdown requested ###");
 
         try {
             for (int i = 0; !executor.awaitTermination(POOL_TIMEOUT, TimeUnit.MINUTES); i++) {
                 if (i > MAX_TIMEOUTS) {
-                    log.fine("### " + name + ": Killing never ending tasks... (" + i + ") ###");
+                    LogHolder.logger.debug("### " + name + ": Killing never ending tasks... (" + i + ") ###");
                     executor.shutdownNow();
                 } else {
-                    log.fine("### " + name + ": Awaiting for pool tasks termination... (" + i + ") ###");
+                    LogHolder.logger.debug("### " + name + ": Awaiting for pool tasks termination... (" + i + ") ###");
                 }
             }
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            log.log(Level.WARNING, "### " + name + ": Exception awaiting for pool tasks termination: " + e.getMessage() + " ###", e);
+            LogHolder.logger.error("### " + name + ": Exception awaiting for pool tasks termination: " + e.getMessage() + " ###", e);
         }
 
         createdManagers.remove(this);
-        log.fine("### " + name + ": All threads have finished ###");
+        LogHolder.logger.debug("### " + name + ": All threads have finished ###");
     }
 
     /**
@@ -113,7 +112,11 @@ public class ThreadPoolManager {
     public static void shutdownAll(boolean now) {
         for (ThreadPoolManager tpm : createdManagers) {
             tpm.shutdown(now);
-            log.fine(tpm.name + ": Shutdown from list");
+            LogHolder.logger.debug(tpm.name + ": Shutdown from list");
         }
+    }
+
+    private static class LogHolder {
+        private static final Logger logger = LoggerFactory.getLogger(ThreadPoolManager.class);
     }
 }

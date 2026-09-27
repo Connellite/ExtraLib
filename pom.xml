@@ -44,6 +44,7 @@
         <lombok.version>1.18.42</lombok.version>
         <junit.version>5.10.2</junit.version>
         <sqlite-jdbc.version>3.46.1.0</sqlite-jdbc.version>
+        <slf4j.version>1.7.36</slf4j.version>
         <maven-surefire-plugin.version>3.2.5</maven-surefire-plugin.version>
         <jmh.version>1.37</jmh.version>
         <exec-maven-plugin.version>3.5.0</exec-maven-plugin.version>
@@ -60,6 +61,12 @@
             <artifactId>lombok</artifactId>
             <version>${lombok.version}</version>
             <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+            <version>${slf4j.version}</version>
+            <optional>true</optional>
         </dependency>
         <dependency>
             <groupId>org.junit.jupiter</groupId>

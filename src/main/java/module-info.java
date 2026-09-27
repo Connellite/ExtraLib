@@ -5,6 +5,7 @@ module io.github.connellite.ExtraLib {
     requires java.sql.rowset;
     requires jdk.management;
     requires static lombok;
+    requires static org.slf4j;
     requires java.desktop;
 
     exports io.github.connellite.collections;

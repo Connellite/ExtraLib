@@ -121,6 +121,10 @@ class DatabaseMetaDataUtilsSqliteTest {
                 assertNotNull(DatabaseMetaDataUtils.getProcedureColumns(c, "%"));
             } catch (SQLFeatureNotSupportedException ignore) {
             }
+
+            String product = DatabaseMetaDataUtils.getDatabaseProductName(c);
+            assertNotNull(product);
+            assertTrue(product.toLowerCase(java.util.Locale.ROOT).contains("sqlite"));
         }
     }
 }

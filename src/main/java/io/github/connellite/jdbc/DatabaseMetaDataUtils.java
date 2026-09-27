@@ -179,6 +179,13 @@ public class DatabaseMetaDataUtils {
     }
 
     /**
+     * {@link DatabaseMetaData#getDatabaseProductName()}.
+     */
+    public static String getDatabaseProductName(Connection connection) throws SQLException {
+        return connection.getMetaData().getDatabaseProductName();
+    }
+
+    /**
      * {@link DatabaseMetaData#getSchemas()} — {@code TABLE_CATALOG.TABLE_SCHEM} when catalog is present, else {@code TABLE_SCHEM}.
      */
     public static Collection<String> getSchemas(Connection connection) throws SQLException {

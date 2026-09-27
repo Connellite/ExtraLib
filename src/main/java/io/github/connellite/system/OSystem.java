@@ -1,8 +1,9 @@
 package io.github.connellite.system;
 
+import io.github.connellite.logger.Logger;
+import io.github.connellite.logger.LoggerFactory;
 import io.github.connellite.util.ProcessRunner;
 import lombok.experimental.UtilityClass;
-import lombok.extern.java.Log;
 
 import java.io.File;
 import java.lang.management.ManagementFactory;
@@ -27,7 +28,6 @@ import java.util.regex.Pattern;
  * {@link com.sun.management.OperatingSystemMXBean#getCpuLoad()} may be {@code -1.0} at runtime
  * when the JVM cannot measure them yet.
  */
-@Log
 @UtilityClass
 public class OSystem {
 
@@ -241,11 +241,11 @@ public class OSystem {
             } else if (isMac()) {
                 return getMacProcessorName();
             } else {
-                log.warning("Couldn't determine OS to get processor name! The OS name is " + osName);
+                LogHolder.logger.warn("Couldn't determine OS to get processor name! The OS name is " + osName);
                 return "unknown";
             }
         } catch (Exception e) {
-            log.warning("Couldn't get processor name! " + e.getMessage());
+            LogHolder.logger.warn("Couldn't get processor name! " + e.getMessage());
             return "unknown";
         }
     }
@@ -263,7 +263,7 @@ public class OSystem {
                 return splitLine[1];
             }
         }
-        log.warning("Couldn't parse processor name!");
+        LogHolder.logger.warn("Couldn't parse processor name!");
         return "unknown";
     }
 
@@ -277,7 +277,7 @@ public class OSystem {
         int p = result.indexOf(regstrToken);
 
         if (p == -1) {
-            log.warning("Couldn't parse processor name!");
+            LogHolder.logger.warn("Couldn't parse processor name!");
             return "unknown";
         }
 
@@ -292,7 +292,7 @@ public class OSystem {
         if (!result.isEmpty()) {
             return result;
         } else {
-            log.warning("Couldn't parse processor name!");
+            LogHolder.logger.warn("Couldn't parse processor name!");
             return "unknown";
         }
     }
@@ -305,5 +305,9 @@ public class OSystem {
      * One filesystem root as returned by {@link #listDisks()}.
      */
     public record Disk(String path, String name, long totalSpace, long freeSpace, long usableSpace) {
+    }
+
+    private static class LogHolder {
+        private static final Logger logger = LoggerFactory.getLogger(OSystem.class);
     }
 }
