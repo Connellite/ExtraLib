@@ -6,6 +6,7 @@ import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.reflect.Field;
+import java.lang.reflect.Proxy;
 import java.util.List;
 import java.util.Map;
 
@@ -87,6 +88,30 @@ class ReflectionUtilTest {
     }
 
     record RecFixture(int id, String name) {
+    }
+
+    interface Converter<A, B> {
+    }
+
+    static class StringIntConverter implements Converter<String, Integer> {
+    }
+
+    static class User {
+    }
+
+    interface Repo<T, I> {
+    }
+
+    static class Mid<T, I> implements Repo<T, I> {
+    }
+
+    static class Child extends Mid<User, Long> {
+    }
+
+    interface Greeter {
+        default String hello() {
+            return "hi";
+        }
     }
 
     @Test
@@ -240,6 +265,54 @@ class ReflectionUtilTest {
         Field field = GenericFixture.class.getDeclaredField("indexToName");
         List<Class<?>> classes = ReflectionUtil.getAllGenericParameterClasses(field);
         assertEquals(List.of(Integer.class, String.class), classes);
+    }
+
+    @Test
+    void getAllDeclaredFields_superFirst() {
+        List<String> names = ReflectionUtil.getAllDeclaredFields(Fixture.class).stream()
+                .map(Field::getName)
+                .toList();
+        assertTrue(names.contains("inherited"));
+        assertTrue(names.contains("inst"));
+        assertTrue(names.indexOf("inherited") < names.indexOf("inst"));
+    }
+
+    @Test
+    void findDeclaredField_walksHierarchy() {
+        Field inherited = ReflectionUtil.findDeclaredField(Fixture.class, "inherited");
+        assertNotNull(inherited);
+        assertEquals(Base.class, inherited.getDeclaringClass());
+        assertNull(ReflectionUtil.findDeclaredField(Fixture.class, "noSuchField"));
+    }
+
+    @Test
+    void getGenericInterfaceParameterClasses() {
+        assertEquals(
+                List.of(String.class, Integer.class),
+                ReflectionUtil.getGenericInterfaceParameterClasses(StringIntConverter.class, Converter.class));
+        assertTrue(ReflectionUtil.getGenericInterfaceParameterClasses(Fixture.class, Converter.class).isEmpty());
+    }
+
+    @Test
+    void resolveTypeArgument_substitutesAlongHierarchy() {
+        assertEquals(User.class, ReflectionUtil.resolveTypeArgument(Child.class, Repo.class, 0));
+        assertEquals(Long.class, ReflectionUtil.resolveTypeArgument(Child.class, Repo.class, 1));
+        assertNull(ReflectionUtil.resolveTypeArgument(Fixture.class, Repo.class, 0));
+        assertNull(ReflectionUtil.resolveTypeArgument(Child.class, Repo.class, 5));
+    }
+
+    @Test
+    void invokeDefault_onInterfaceProxy() throws Throwable {
+        Greeter greeter = (Greeter) Proxy.newProxyInstance(
+                Greeter.class.getClassLoader(),
+                new Class<?>[]{Greeter.class},
+                (proxy, method, args) -> {
+                    if (method.isDefault()) {
+                        return ReflectionUtil.invokeDefault(proxy, method, args);
+                    }
+                    throw new UnsupportedOperationException(method.getName());
+                });
+        assertEquals("hi", greeter.hello());
     }
 
     @Test

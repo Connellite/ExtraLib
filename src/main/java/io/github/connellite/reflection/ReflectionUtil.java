@@ -1,6 +1,5 @@
 package io.github.connellite.reflection;
 
-import lombok.NonNull;
 import lombok.experimental.UtilityClass;
 
 import java.lang.invoke.MethodHandles;
@@ -13,9 +12,11 @@ import java.lang.reflect.Modifier;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.RecordComponent;
 import java.lang.reflect.Type;
+import java.lang.reflect.TypeVariable;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -65,6 +66,16 @@ public class ReflectionUtil {
             m.trySetAccessible();
         }
         return m.invoke(o);
+    }
+
+    /**
+     * Invokes an interface {@code default} method on {@code proxy}.
+     */
+    public static Object invokeDefault(Object proxy, Method method, Object... args) throws Throwable {
+        return MethodHandles.privateLookupIn(method.getDeclaringClass(), MethodHandles.lookup())
+                .unreflectSpecial(method, method.getDeclaringClass())
+                .bindTo(proxy)
+                .invokeWithArguments(args == null ? new Object[0] : args);
     }
 
     /**
@@ -181,6 +192,36 @@ public class ReflectionUtil {
             field.trySetAccessible();
         }
         field.set(obj, value);
+    }
+
+    /**
+     * Declared fields from {@code type} and its superclasses, superclass first, excluding {@link Object}.
+     * Does not change accessibility or filter static/synthetic fields.
+     */
+    public static List<Field> getAllDeclaredFields(Class<?> type) {
+        List<Class<?>> hierarchy = new ArrayList<>();
+        for (Class<?> current = type; current != null && current != Object.class; current = current.getSuperclass()) {
+            hierarchy.add(current);
+        }
+        Collections.reverse(hierarchy);
+        List<Field> fields = new ArrayList<>();
+        for (Class<?> current : hierarchy) {
+            Collections.addAll(fields, current.getDeclaredFields());
+        }
+        return Collections.unmodifiableList(fields);
+    }
+
+    /**
+     * Field named {@code name} on {@code type} or a superclass, made accessible, or {@code null}.
+     */
+    public static Field findDeclaredField(Class<?> type, String name) {
+        for (Field field : getAllDeclaredFields(type)) {
+            if (field.getName().equals(name)) {
+                field.trySetAccessible();
+                return field;
+            }
+        }
+        return null;
     }
 
     /**
@@ -493,6 +534,91 @@ public class ReflectionUtil {
      */
     public static List<Class<?>> getAllGenericParameterClasses(Field field) {
         return getAllGenericParameterClasses(field.getGenericType());
+    }
+
+    /**
+     * Generic arguments of the first {@code rawInterface} parameterization found on {@code type}
+     * or its superclasses. Empty if none.
+     */
+    public static List<Class<?>> getGenericInterfaceParameterClasses(Class<?> type, Class<?> rawInterface) {
+        return genericInterfaceParameterClasses(type, rawInterface);
+    }
+
+    /**
+     * Resolves type argument {@code index} of {@code target} as implemented by {@code type},
+     * substituting interface type variables along the way. {@code null} if not found.
+     */
+    public static Type resolveTypeArgument(Class<?> type, Class<?> target, int index) {
+        return resolveTypeArgument(type, target, index, Map.of());
+    }
+
+    private static List<Class<?>> genericInterfaceParameterClasses(Type type, Class<?> rawInterface) {
+        if (type instanceof ParameterizedType parameterized && parameterized.getRawType() == rawInterface) {
+            return getAllGenericParameterClasses(parameterized);
+        }
+        if (type instanceof Class<?> clazz) {
+            for (Type genericInterface : clazz.getGenericInterfaces()) {
+                List<Class<?>> classes = genericInterfaceParameterClasses(genericInterface, rawInterface);
+                if (!classes.isEmpty()) {
+                    return classes;
+                }
+            }
+            Class<?> superClass = clazz.getSuperclass();
+            return superClass == null || superClass == Object.class
+                    ? List.of()
+                    : genericInterfaceParameterClasses(superClass, rawInterface);
+        }
+        if (type instanceof ParameterizedType parameterized && parameterized.getRawType() instanceof Class<?> rawClass) {
+            return genericInterfaceParameterClasses(rawClass, rawInterface);
+        }
+        return List.of();
+    }
+
+    private static Type resolveTypeArgument(Type type, Class<?> target, int index, Map<TypeVariable<?>, Type> variables) {
+        if (type instanceof Class<?> clazz) {
+            for (Type genericInterface : clazz.getGenericInterfaces()) {
+                Type resolved = resolveTypeArgument(genericInterface, target, index, variables);
+                if (resolved != null) {
+                    return resolved;
+                }
+            }
+            Type genericSuperclass = clazz.getGenericSuperclass();
+            if (genericSuperclass != null && genericSuperclass != Object.class) {
+                return resolveTypeArgument(genericSuperclass, target, index, variables);
+            }
+            return null;
+        }
+        if (!(type instanceof ParameterizedType parameterizedType)) {
+            return null;
+        }
+        if (!(parameterizedType.getRawType() instanceof Class<?> rawType)) {
+            return null;
+        }
+        Map<TypeVariable<?>, Type> nextVariables = new HashMap<>(variables);
+        TypeVariable<?>[] parameters = rawType.getTypeParameters();
+        Type[] arguments = parameterizedType.getActualTypeArguments();
+        for (int i = 0; i < parameters.length && i < arguments.length; i++) {
+            nextVariables.put(parameters[i], resolveCapturedType(arguments[i], variables));
+        }
+        if (rawType == target) {
+            if (index < 0 || index >= arguments.length) {
+                return null;
+            }
+            Type argument = resolveCapturedType(arguments[index], nextVariables);
+            if (argument instanceof Class<?>) {
+                return argument;
+            }
+            List<Class<?>> classes = getAllGenericParameterClasses(argument);
+            return classes.isEmpty() ? argument : classes.get(0);
+        }
+        return resolveTypeArgument(rawType, target, index, nextVariables);
+    }
+
+    private static Type resolveCapturedType(Type type, Map<TypeVariable<?>, Type> variables) {
+        while (type instanceof TypeVariable<?> variable && variables.containsKey(variable)) {
+            type = variables.get(variable);
+        }
+        return type;
     }
 
     private static void collectGenericParameterClasses(Type type, List<Class<?>> target) {

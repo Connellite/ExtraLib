@@ -28,7 +28,6 @@ import java.time.OffsetDateTime;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
@@ -258,24 +257,17 @@ public class SimpleResultSetBeanMapper<T> {
     }
 
     private static List<FieldBinding> collectBindings(Class<?> beanClass) throws SQLException {
-        List<Class<?>> hierarchy = new ArrayList<>();
-        for (Class<?> c = beanClass; c != null && c != Object.class; c = c.getSuperclass()) {
-            hierarchy.add(c);
-        }
-        Collections.reverse(hierarchy);
         List<FieldBinding> out = new ArrayList<>();
-        for (Class<?> type : hierarchy) {
-            for (Field field : type.getDeclaredFields()) {
-                int mod = field.getModifiers();
-                if (Modifier.isStatic(mod) || Modifier.isFinal(mod) || field.isSynthetic()) {
-                    continue;
-                }
-                Column col = field.getAnnotation(Column.class);
-                String columnName = col != null && !col.value().isBlank() ? col.value() : field.getName();
-                TypeConverter<?> converter = resolveAnnotationConverter(col);
-                field.trySetAccessible();
-                out.add(new FieldBinding(field, columnName, converter));
+        for (Field field : ReflectionUtil.getAllDeclaredFields(beanClass)) {
+            int mod = field.getModifiers();
+            if (Modifier.isStatic(mod) || Modifier.isFinal(mod) || field.isSynthetic()) {
+                continue;
             }
+            Column col = field.getAnnotation(Column.class);
+            String columnName = col != null && !col.value().isBlank() ? col.value() : field.getName();
+            TypeConverter<?> converter = resolveAnnotationConverter(col);
+            field.trySetAccessible();
+            out.add(new FieldBinding(field, columnName, converter));
         }
         return out;
     }

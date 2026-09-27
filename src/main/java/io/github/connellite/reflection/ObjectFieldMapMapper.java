@@ -6,10 +6,8 @@ import lombok.experimental.UtilityClass;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
 
 /**
@@ -27,29 +25,26 @@ public class ObjectFieldMapMapper {
      */
     public static Map<String, Object> map(@NonNull Object source) {
         LinkedHashMap<String, Object> result = new LinkedHashMap<>();
-        List<Class<?>> hierarchy = getHierarchy(source.getClass());
-        for (Class<?> type : hierarchy) {
-            for (Field field : type.getDeclaredFields()) {
-                if (field.isSynthetic() || Modifier.isStatic(field.getModifiers())) {
-                    continue;
-                }
+        for (Field field : ReflectionUtil.getAllDeclaredFields(source.getClass())) {
+            if (field.isSynthetic() || Modifier.isStatic(field.getModifiers())) {
+                continue;
+            }
 
-                MapField mapField = field.getAnnotation(MapField.class);
-                if (mapField != null && mapField.ignore()) {
-                    continue;
-                }
+            MapField mapField = field.getAnnotation(MapField.class);
+            if (mapField != null && mapField.ignore()) {
+                continue;
+            }
 
-                String key = resolveKey(field, mapField);
-                try {
-                    Object value = ReflectionUtil.getValueField(source, field);
-                    MapTypeConverter<?> converter = resolveAnnotationConverter(mapField);
-                    if (converter != null) {
-                        value = convertValue(converter, value);
-                    }
-                    result.put(key, value);
-                } catch (IllegalAccessException e) {
-                    throw new IllegalStateException("Cannot read field " + field.getDeclaringClass().getName() + "#" + field.getName(), e);
+            String key = resolveKey(field, mapField);
+            try {
+                Object value = ReflectionUtil.getValueField(source, field);
+                MapTypeConverter<?> converter = resolveAnnotationConverter(mapField);
+                if (converter != null) {
+                    value = convertValue(converter, value);
                 }
+                result.put(key, value);
+            } catch (IllegalAccessException e) {
+                throw new IllegalStateException("Cannot read field " + field.getDeclaringClass().getName() + "#" + field.getName(), e);
             }
         }
         return Collections.unmodifiableMap(result);
@@ -76,14 +71,5 @@ public class ObjectFieldMapMapper {
             return field.getName();
         }
         return mapField.key();
-    }
-
-    private static List<Class<?>> getHierarchy(Class<?> sourceType) {
-        List<Class<?>> hierarchy = new ArrayList<>();
-        for (Class<?> c = sourceType; c != null && c != Object.class; c = c.getSuperclass()) {
-            hierarchy.add(c);
-        }
-        Collections.reverse(hierarchy);
-        return hierarchy;
     }
 }

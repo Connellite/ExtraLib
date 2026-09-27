@@ -11,7 +11,6 @@ import java.lang.reflect.Modifier;
 import java.lang.reflect.RecordComponent;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -106,26 +105,18 @@ public class SimpleMapBeanMapper<T> {
     }
 
     private static List<FieldBinding> collectBindings(Class<?> beanClass) {
-        List<Class<?>> hierarchy = new ArrayList<>();
-        for (Class<?> c = beanClass; c != null && c != Object.class; c = c.getSuperclass()) {
-            hierarchy.add(c);
-        }
-        Collections.reverse(hierarchy);
-
         List<FieldBinding> out = new ArrayList<>();
-        for (Class<?> type : hierarchy) {
-            for (Field field : type.getDeclaredFields()) {
-                int mod = field.getModifiers();
-                if (Modifier.isStatic(mod) || Modifier.isFinal(mod) || field.isSynthetic()) {
-                    continue;
-                }
-                MapField mapField = field.getAnnotation(MapField.class);
-                if (mapField != null && mapField.ignore()) {
-                    continue;
-                }
-                String key = resolveKey(field.getName(), mapField);
-                out.add(new FieldBinding(field, key, resolveAnnotationConverter(mapField)));
+        for (Field field : ReflectionUtil.getAllDeclaredFields(beanClass)) {
+            int mod = field.getModifiers();
+            if (Modifier.isStatic(mod) || Modifier.isFinal(mod) || field.isSynthetic()) {
+                continue;
             }
+            MapField mapField = field.getAnnotation(MapField.class);
+            if (mapField != null && mapField.ignore()) {
+                continue;
+            }
+            String key = resolveKey(field.getName(), mapField);
+            out.add(new FieldBinding(field, key, resolveAnnotationConverter(mapField)));
         }
         return out;
     }
