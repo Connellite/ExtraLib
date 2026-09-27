@@ -6,6 +6,7 @@ import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.util.List;
 import java.util.Map;
@@ -111,6 +112,26 @@ class ReflectionUtilTest {
     interface Greeter {
         default String hello() {
             return "hi";
+        }
+    }
+
+    static class GreeterImpl implements Greeter {
+    }
+
+    interface Checked {
+        void boom() throws Exception;
+    }
+
+    static class ParentMethod {
+        int value() {
+            return 1;
+        }
+    }
+
+    static class ChildMethod extends ParentMethod {
+        @Override
+        int value() {
+            return 2;
         }
     }
 
@@ -283,6 +304,59 @@ class ReflectionUtilTest {
         assertNotNull(inherited);
         assertEquals(Base.class, inherited.getDeclaringClass());
         assertNull(ReflectionUtil.findDeclaredField(Fixture.class, "noSuchField"));
+    }
+
+    @Test
+    void findDeclaredField_matchesExactType() {
+        assertNotNull(ReflectionUtil.findDeclaredField(Fixture.class, "inst", int.class));
+        assertNull(ReflectionUtil.findDeclaredField(Fixture.class, "inst", Integer.class));
+        assertNotNull(ReflectionUtil.findDeclaredField(Fixture.class, "inherited", int.class));
+    }
+
+    @Test
+    void getAllDeclaredMethods_superFirst() {
+        List<Method> methods = ReflectionUtil.getAllDeclaredMethods(ChildMethod.class);
+        Method parent = methods.stream().filter(m -> m.getDeclaringClass() == ParentMethod.class).findFirst().orElseThrow();
+        Method child = methods.stream().filter(m -> m.getDeclaringClass() == ChildMethod.class).findFirst().orElseThrow();
+        assertTrue(methods.indexOf(parent) < methods.indexOf(child));
+    }
+
+    @Test
+    void findMethod_walksHierarchyAndInterfaces() throws Exception {
+        Method local = ReflectionUtil.findMethod(Fixture.class, "instM");
+        assertNotNull(local);
+        assertEquals(3, ReflectionUtil.invoke(local, new Fixture()));
+
+        Method override = ReflectionUtil.findMethod(ChildMethod.class, "value");
+        assertEquals(ChildMethod.class, override.getDeclaringClass());
+        assertEquals(2, ReflectionUtil.invoke(override, new ChildMethod()));
+
+        Method iface = ReflectionUtil.findMethod(GreeterImpl.class, "hello");
+        assertNotNull(iface);
+        assertEquals(Greeter.class, iface.getDeclaringClass());
+        assertNull(ReflectionUtil.findMethod(Fixture.class, "noSuchMethod"));
+        assertNull(ReflectionUtil.findMethod(Fixture.class, "instM", String.class));
+    }
+
+    @Test
+    void objectMethodPredicates_and_declaresException() throws Exception {
+        Method equals = Object.class.getMethod("equals", Object.class);
+        Method hashCode = Object.class.getMethod("hashCode");
+        Method toString = Object.class.getMethod("toString");
+        Method instM = ReflectionUtil.findMethod(Fixture.class, "instM");
+        Method boom = ReflectionUtil.findMethod(Checked.class, "boom");
+
+        assertTrue(ReflectionUtil.isEqualsMethod(equals));
+        assertTrue(ReflectionUtil.isHashCodeMethod(hashCode));
+        assertTrue(ReflectionUtil.isToStringMethod(toString));
+        assertTrue(ReflectionUtil.isObjectMethod(equals));
+        assertFalse(ReflectionUtil.isObjectMethod(instM));
+        assertTrue(ReflectionUtil.isObjectMethod(Object.class.getMethod("getClass")));
+
+        assertTrue(ReflectionUtil.declaresException(boom, Exception.class));
+        assertTrue(ReflectionUtil.declaresException(boom, IllegalArgumentException.class));
+        assertFalse(ReflectionUtil.declaresException(boom, Error.class));
+        assertFalse(ReflectionUtil.declaresException(instM, Exception.class));
     }
 
     @Test

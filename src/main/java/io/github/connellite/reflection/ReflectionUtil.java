@@ -69,6 +69,17 @@ public class ReflectionUtil {
     }
 
     /**
+     * Invokes {@code method} on {@code target} after {@link Method#trySetAccessible()}.
+     */
+    public static Object invoke(Method method, Object target, Object... args)
+            throws InvocationTargetException, IllegalAccessException {
+        if (!method.canAccess(target)) {
+            method.trySetAccessible();
+        }
+        return method.invoke(target, args == null ? new Object[0] : args);
+    }
+
+    /**
      * Invokes an interface {@code default} method on {@code proxy}.
      */
     public static Object invokeDefault(Object proxy, Method method, Object... args) throws Throwable {
@@ -222,6 +233,107 @@ public class ReflectionUtil {
             }
         }
         return null;
+    }
+
+    /**
+     * Field named {@code name} with exact {@code fieldType} on {@code type} or a superclass, made accessible,
+     * or {@code null}.
+     */
+    public static Field findDeclaredField(Class<?> type, String name, Class<?> fieldType) {
+        for (Field field : getAllDeclaredFields(type)) {
+            if (field.getName().equals(name) && field.getType() == fieldType) {
+                field.trySetAccessible();
+                return field;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Declared methods from {@code type} and its superclasses, superclass first, excluding {@link Object}.
+     * Does not change accessibility or filter bridges/synthetics.
+     */
+    public static List<Method> getAllDeclaredMethods(Class<?> type) {
+        List<Class<?>> hierarchy = new ArrayList<>();
+        for (Class<?> current = type; current != null && current != Object.class; current = current.getSuperclass()) {
+            hierarchy.add(current);
+        }
+        Collections.reverse(hierarchy);
+        List<Method> methods = new ArrayList<>();
+        for (Class<?> current : hierarchy) {
+            Collections.addAll(methods, current.getDeclaredMethods());
+        }
+        return Collections.unmodifiableList(methods);
+    }
+
+    /**
+     * Method named {@code name} with the given parameter types on {@code type}, a superclass, or an
+     * implemented interface (most specific class first). Made accessible, or {@code null}.
+     */
+    public static Method findMethod(Class<?> type, String name, Class<?>... paramTypes) {
+        Class<?>[] params = paramTypes == null ? new Class<?>[0] : paramTypes;
+        for (Class<?> current = type; current != null && current != Object.class; current = current.getSuperclass()) {
+            Method method = matchDeclaredMethod(current, name, params);
+            if (method != null) {
+                method.trySetAccessible();
+                return method;
+            }
+        }
+        for (Class<?> iface : getAllInterfaces(type)) {
+            Method method = matchDeclaredMethod(iface, name, params);
+            if (method != null) {
+                method.trySetAccessible();
+                return method;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * {@code true} if {@code method} is {@code equals(Object)}.
+     */
+    public static boolean isEqualsMethod(Method method) {
+        return method != null
+                && method.getParameterCount() == 1
+                && "equals".equals(method.getName())
+                && method.getParameterTypes()[0] == Object.class;
+    }
+
+    /**
+     * {@code true} if {@code method} is {@code hashCode()} with no parameters.
+     */
+    public static boolean isHashCodeMethod(Method method) {
+        return method != null && method.getParameterCount() == 0 && "hashCode".equals(method.getName());
+    }
+
+    /**
+     * {@code true} if {@code method} is {@code toString()} with no parameters.
+     */
+    public static boolean isToStringMethod(Method method) {
+        return method != null && method.getParameterCount() == 0 && "toString".equals(method.getName());
+    }
+
+    /**
+     * {@code true} if {@code method} is declared on {@link Object} or is {@code equals}/{@code hashCode}/{@code toString}.
+     */
+    public static boolean isObjectMethod(Method method) {
+        return method != null
+                && (method.getDeclaringClass() == Object.class
+                || isEqualsMethod(method)
+                || isHashCodeMethod(method)
+                || isToStringMethod(method));
+    }
+
+    /**
+     * {@code true} if {@code method} declares {@code exceptionType} or a supertype of it.
+     */
+    public static boolean declaresException(Method method, Class<?> exceptionType) {
+        for (Class<?> declared : method.getExceptionTypes()) {
+            if (declared.isAssignableFrom(exceptionType)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
@@ -619,6 +731,15 @@ public class ReflectionUtil {
             type = variables.get(variable);
         }
         return type;
+    }
+
+    private static Method matchDeclaredMethod(Class<?> type, String name, Class<?>[] paramTypes) {
+        for (Method method : type.getDeclaredMethods()) {
+            if (name.equals(method.getName()) && Arrays.equals(paramTypes, method.getParameterTypes())) {
+                return method;
+            }
+        }
+        return null;
     }
 
     private static void collectGenericParameterClasses(Type type, List<Class<?>> target) {
