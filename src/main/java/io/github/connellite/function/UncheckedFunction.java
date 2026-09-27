@@ -1,15 +1,15 @@
-package io.github.connellite.collections.function;
+package io.github.connellite.function;
 
 import io.github.connellite.reflection.ReflectionUtil;
 
-import java.util.function.UnaryOperator;
+import java.util.function.Function;
 
-/** {@link UnaryOperator} that may throw; checked exceptions are rethrown via {@link ReflectionUtil#propagate(Throwable)}. */
+/** {@link Function} that may throw; checked exceptions are rethrown via {@link ReflectionUtil#propagate(Throwable)}. */
 @FunctionalInterface
-public interface UncheckedUnaryOperator<T> extends UnaryOperator<T> {
+public interface UncheckedFunction<T, R> extends Function<T, R> {
     /** Delegates to {@link #uncheckedApply}; checked exceptions are propagated. */
     @Override
-    default T apply(T t) {
+    default R apply(T t) {
         try {
             return uncheckedApply(t);
         } catch (Throwable th) {
@@ -19,5 +19,5 @@ public interface UncheckedUnaryOperator<T> extends UnaryOperator<T> {
     }
 
     /** Same as {@link #apply}, but may throw. */
-    T uncheckedApply(T t) throws Throwable;
+    R uncheckedApply(T input) throws Throwable;
 }

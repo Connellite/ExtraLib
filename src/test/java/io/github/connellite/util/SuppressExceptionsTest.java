@@ -1,7 +1,7 @@
 package io.github.connellite.util;
 
-import io.github.connellite.collections.function.UncheckedFunction;
-import io.github.connellite.collections.function.UncheckedPredicate;
+import io.github.connellite.function.UncheckedFunction;
+import io.github.connellite.function.UncheckedPredicate;
 import io.github.connellite.jdbc.SqliteMemory;
 import org.junit.jupiter.api.Test;
 

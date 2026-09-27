@@ -1,5 +1,6 @@
 package io.github.connellite.collections.function;
 
+import io.github.connellite.function.*;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;

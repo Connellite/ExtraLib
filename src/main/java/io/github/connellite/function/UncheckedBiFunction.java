@@ -1,4 +1,4 @@
-package io.github.connellite.collections.function;
+package io.github.connellite.function;
 
 import io.github.connellite.reflection.ReflectionUtil;
 

@@ -1,13 +1,13 @@
 package io.github.connellite.util;
 
-import io.github.connellite.collections.function.UncheckedBiConsumer;
-import io.github.connellite.collections.function.UncheckedBiFunction;
-import io.github.connellite.collections.function.UncheckedBiPredicate;
-import io.github.connellite.collections.function.UncheckedConsumer;
-import io.github.connellite.collections.function.UncheckedFunction;
-import io.github.connellite.collections.function.UncheckedPredicate;
-import io.github.connellite.collections.function.UncheckedRunnable;
-import io.github.connellite.collections.function.UncheckedSupplier;
+import io.github.connellite.function.UncheckedBiConsumer;
+import io.github.connellite.function.UncheckedBiFunction;
+import io.github.connellite.function.UncheckedBiPredicate;
+import io.github.connellite.function.UncheckedConsumer;
+import io.github.connellite.function.UncheckedFunction;
+import io.github.connellite.function.UncheckedPredicate;
+import io.github.connellite.function.UncheckedRunnable;
+import io.github.connellite.function.UncheckedSupplier;
 import lombok.experimental.UtilityClass;
 
 import java.util.concurrent.Callable;

@@ -15,6 +15,7 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Locale;
 import java.util.regex.Pattern;
 
 /**
@@ -33,6 +34,15 @@ public class OSystem {
     private static final Runtime RUNTIME = Runtime.getRuntime();
     private static final MemoryMXBean MEMORY = ManagementFactory.getMemoryMXBean();
     private static final com.sun.management.OperatingSystemMXBean SUN_OS;
+
+    /**
+     * {@code os.name} prefixes treated as Unix-like, excluding macOS (see {@link #isMac()}).
+     * Same families as Apache Commons Lang {@code SystemUtils.IS_OS_UNIX}, minus Mac OS X.
+     */
+    private static final String[] UNIX_NAME_PREFIXES = {
+            "linux", "unix", "aix", "hp-ux", "irix", "solaris", "sunos", "freebsd", "openbsd", "netbsd"
+    };
+
 
     static {
         OperatingSystemMXBean os = ManagementFactory.getOperatingSystemMXBean();
@@ -54,13 +64,13 @@ public class OSystem {
     }
 
     private static String classifyOsType(String osNameLower) {
-        if (osNameLower.contains("win")) {
+        if (isWindowsName(osNameLower)) {
             return "win";
         }
-        if (osNameLower.contains("mac")) {
+        if (isMacName(osNameLower)) {
             return "mac";
         }
-        if (osNameLower.contains("nix")) {
+        if (isUnixName(osNameLower)) {
             return "nix";
         }
         return null;
@@ -69,29 +79,29 @@ public class OSystem {
     /**
      * Checks whether the running OS appears to be Windows.
      *
-     * @return {@code true} when {@code os.name} contains {@code "win"}
+     * @return {@code true} when {@code os.name} starts with {@code "Windows"}
      */
     public static boolean isWindows() {
-        return System.getProperty("os.name", "").toLowerCase().contains("win");
+        return isWindowsName(getOsName());
     }
 
     /**
-     * Checks whether the running OS appears to be macOS.
+     * Checks whether the running OS appears to be macOS / Darwin.
      *
-     * @return {@code true} when {@code os.name} contains {@code "mac"}
+     * @return {@code true} when {@code os.name} starts with {@code "Mac"} or {@code "Darwin"}
      */
     public static boolean isMac() {
-        return System.getProperty("os.name", "").toLowerCase().contains("mac");
+        return isMacName(getOsName());
     }
 
     /**
-     * Checks whether the running OS appears to be Unix/Linux.
-     *
-     * @return {@code true} when {@code os.name} contains {@code "nix"} or {@code "nux"}
+     * Checks whether the running OS appears to be Unix-like (Linux, AIX, *BSD, Solaris, …), not Windows or macOS.
+     * <p>
+     * Uses prefix matching on {@code os.name}, in the same style as Commons Lang {@code SystemUtils}
+     * (not a substring search for {@code "nix"}/{@code "nux"}).
      */
     public static boolean isUnix() {
-        String os = System.getProperty("os.name", "").toLowerCase();
-        return os.contains("nix") || os.contains("nux");
+        return isUnixName(getOsName());
     }
 
     /**
@@ -114,7 +124,24 @@ public class OSystem {
      * @return {@code os.name} in lower case
      */
     public static String getOsName() {
-        return System.getProperty("os.name", "").toLowerCase();
+        return System.getProperty("os.name", "").toLowerCase(Locale.ROOT);
+    }
+
+    static boolean isWindowsName(String osNameLower) {
+        return osNameLower.startsWith("windows");
+    }
+
+    static boolean isMacName(String osNameLower) {
+        return osNameLower.startsWith("mac") || osNameLower.startsWith("darwin");
+    }
+
+    static boolean isUnixName(String osNameLower) {
+        for (String prefix : UNIX_NAME_PREFIXES) {
+            if (osNameLower.startsWith(prefix)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
