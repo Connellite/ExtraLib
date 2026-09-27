@@ -15,6 +15,7 @@ import java.time.LocalTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
+import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
 import java.util.UUID;
@@ -161,6 +162,31 @@ class TypeCoercionUtilTest {
 
         assertEquals(LocalTime.of(14, 30, 45), TypeCoercionUtil.coerce(ts, Time.class).toLocalTime());
         assertEquals(ts, TypeCoercionUtil.coerce(ldt.toString(), Timestamp.class));
+    }
+
+    @Test
+    void coerce_sqlTemporalsFromJavaTimeCalendarAndEpoch() {
+        LocalDate localDate = LocalDate.of(2024, 3, 15);
+        LocalTime localTime = LocalTime.of(14, 30, 45);
+        LocalDateTime ldt = LocalDateTime.of(localDate, localTime);
+        long dateMillis = java.sql.Date.valueOf(localDate).getTime();
+        long timeMillis = Time.valueOf(localTime).getTime();
+        long tsMillis = Timestamp.valueOf(ldt).getTime();
+
+        assertEquals(new java.sql.Date(dateMillis), TypeCoercionUtil.coerce(localDate, java.sql.Date.class));
+        assertEquals(new Time(timeMillis), TypeCoercionUtil.coerce(localTime, Time.class));
+        assertEquals(new Timestamp(tsMillis), TypeCoercionUtil.coerce(ldt, Timestamp.class));
+
+        Calendar calendar = Calendar.getInstance();
+        calendar.setTimeInMillis(tsMillis);
+        assertEquals(new Timestamp(tsMillis), TypeCoercionUtil.coerce(calendar, Timestamp.class));
+        assertEquals(new java.sql.Date(tsMillis), TypeCoercionUtil.coerce(tsMillis, java.sql.Date.class));
+
+        Instant instant = Instant.ofEpochMilli(tsMillis);
+        assertEquals(new Timestamp(tsMillis), TypeCoercionUtil.coerce(instant, Timestamp.class));
+        assertEquals(new Timestamp(tsMillis), TypeCoercionUtil.coerce(instant.atOffset(ZoneOffset.UTC), Timestamp.class));
+        assertEquals(new Timestamp(tsMillis), TypeCoercionUtil.coerce(instant.atZone(ZoneOffset.UTC), Timestamp.class));
+        assertEquals(new Timestamp(tsMillis), TypeCoercionUtil.coerce(Long.toString(tsMillis), Timestamp.class));
     }
 
     @Test

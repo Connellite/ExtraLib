@@ -17,6 +17,7 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.OffsetDateTime;
 import java.time.ZonedDateTime;
+import java.util.Calendar;
 import java.util.Date;
 import java.util.Objects;
 import java.util.UUID;
@@ -46,8 +47,9 @@ import java.util.UUID;
  *       {@link OffsetDateTime}</li>
  * </ul>
  * <p>
- * String parsing delegates to {@link DateTimeUtil} ({@code LocalDate},
- * {@code LocalTime}, {@code LocalDateTime} formats).
+ * JDBC date/time targets also accept {@code java.time} values, {@link Calendar},
+ * epoch {@link Number}, and all-digit epoch-millis strings. Other strings delegate to
+ * {@link DateTimeUtil} ({@code LocalDate}, {@code LocalTime}, {@code LocalDateTime} formats).
  * </p>
  */
 @UtilityClass
@@ -128,7 +130,10 @@ public class TypeCoercionUtil {
 
         if (boxed == java.sql.Date.class) {
             if (raw instanceof java.sql.Date d) return (T) d;
-            if (raw instanceof Date d) return (T) new java.sql.Date(d.getTime());
+            Long millis = epochMillis(raw);
+            if (millis != null) {
+                return (T) new java.sql.Date(millis);
+            }
             if (raw instanceof String s) {
                 try {
                     return (T) java.sql.Date.valueOf(DateTimeUtil.parseLocalDate(s));
@@ -153,8 +158,10 @@ public class TypeCoercionUtil {
 
         if (boxed == Time.class) {
             if (raw instanceof Time t) return (T) t;
-            if (raw instanceof Timestamp ts) return (T) new Time(ts.getTime());
-            if (raw instanceof Date d) return (T) new Time(d.getTime());
+            Long millis = epochMillis(raw);
+            if (millis != null) {
+                return (T) new Time(millis);
+            }
             if (raw instanceof String s) {
                 try {
                     return (T) Time.valueOf(DateTimeUtil.parseLocalTime(s));
@@ -167,7 +174,10 @@ public class TypeCoercionUtil {
 
         if (boxed == Timestamp.class) {
             if (raw instanceof Timestamp ts) return (T) ts;
-            if (raw instanceof Date d) return (T) new Timestamp(d.getTime());
+            Long millis = epochMillis(raw);
+            if (millis != null) {
+                return (T) new Timestamp(millis);
+            }
             if (raw instanceof String s) {
                 try {
                     return (T) Timestamp.valueOf(DateTimeUtil.parseLocalDateTime(s));
@@ -308,6 +318,33 @@ public class TypeCoercionUtil {
             return null;
         }
         throw unsupportedTarget(targetType);
+    }
+
+    private static Long epochMillis(Object value) {
+        if (value instanceof Date date) return date.getTime();
+        if (value instanceof Calendar calendar) return calendar.getTimeInMillis();
+        if (value instanceof Number number) return number.longValue();
+        if (value instanceof LocalDateTime localDateTime) return Timestamp.valueOf(localDateTime).getTime();
+        if (value instanceof LocalDate localDate) return java.sql.Date.valueOf(localDate).getTime();
+        if (value instanceof LocalTime localTime) return Time.valueOf(localTime).getTime();
+        if (value instanceof OffsetDateTime offsetDateTime) return offsetDateTime.toInstant().toEpochMilli();
+        if (value instanceof ZonedDateTime zonedDateTime) return zonedDateTime.toInstant().toEpochMilli();
+        if (value instanceof Instant instant) return instant.toEpochMilli();
+        if (value instanceof String text && !text.isBlank() && isDigits(text)) return Long.parseLong(text);
+        return null;
+    }
+
+    private static boolean isDigits(String text) {
+        for (int i = 0; i < text.length(); i++) {
+            char c = text.charAt(i);
+            if (i == 0 && c == '-') {
+                continue;
+            }
+            if (c < '0' || c > '9') {
+                return false;
+            }
+        }
+        return !text.equals("-");
     }
 
     @SuppressWarnings("unchecked")
