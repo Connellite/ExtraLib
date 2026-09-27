@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Test;
 
 import java.sql.Connection;
 import java.sql.SQLFeatureNotSupportedException;
+import java.sql.Statement;
 import java.util.Collection;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -69,6 +70,19 @@ class DatabaseMetaDataUtilsSqliteTest {
             if (!exp.isEmpty()) {
                 assertTrue(exp.contains("id"));
             }
+        }
+    }
+
+    @Test
+    void getIndexInfo() throws Exception {
+        try (Connection c = SqliteMemory.open()) {
+            SqliteMemory.bootstrapDemoSchema(c);
+            try (Statement s = c.createStatement()) {
+                s.execute("CREATE INDEX idx_demo_name ON demo(name)");
+            }
+            Collection<String> indexes = DatabaseMetaDataUtils.getIndexInfo(c, "demo");
+            assertTrue(indexes.contains("idx_demo_name"));
+            assertNotNull(DatabaseMetaDataUtils.getIndexInfo(c, null, null, "demo", true, false));
         }
     }
 

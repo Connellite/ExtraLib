@@ -454,6 +454,52 @@ public class DatabaseMetaDataUtils {
         return Collections.unmodifiableCollection(out);
     }
 
+    /**
+     * {@link DatabaseMetaData#getIndexInfo(String, String, String, boolean, boolean)} — {@code INDEX_NAME}
+     * ({@code unique=false}, {@code approximate=false}).
+     */
+    public static Collection<String> getIndexInfo(Connection connection, String table) throws SQLException {
+        return getIndexInfo(connection, null, table);
+    }
+
+    /**
+     * {@link DatabaseMetaData#getIndexInfo(String, String, String, boolean, boolean)} — {@code INDEX_NAME}
+     * ({@code unique=false}, {@code approximate=false}).
+     */
+    public static Collection<String> getIndexInfo(Connection connection, String catalog, String table) throws SQLException {
+        return getIndexInfo(connection, catalog, null, table);
+    }
+
+    /**
+     * {@link DatabaseMetaData#getIndexInfo(String, String, String, boolean, boolean)} — {@code INDEX_NAME}
+     * ({@code unique=false}, {@code approximate=false}).
+     */
+    public static Collection<String> getIndexInfo(Connection connection, String catalog, String schema, String table)
+            throws SQLException {
+        return getIndexInfo(connection, catalog, schema, table, false, false);
+    }
+
+    /**
+     * {@link DatabaseMetaData#getIndexInfo(String, String, String, boolean, boolean)} — {@code INDEX_NAME}.
+     */
+    public static Collection<String> getIndexInfo(
+            Connection connection,
+            String catalog,
+            String schema,
+            String table,
+            boolean unique,
+            boolean approximate) throws SQLException {
+        Set<String> out = new NullSkippingLinkedHashSet<>();
+        DatabaseMetaData meta = connection.getMetaData();
+        try (ResultSet rs = meta.getIndexInfo(catalog, schema, table, unique, approximate)) {
+            while (rs.next()) {
+                String indexName = rs.getString("INDEX_NAME");
+                out.add(indexName);
+            }
+        }
+        return Collections.unmodifiableCollection(out);
+    }
+
     private static Collection<String> collectSchemas(ResultSet rs) throws SQLException {
         Set<String> out = new NullSkippingLinkedHashSet<>();
         while (rs.next()) {
