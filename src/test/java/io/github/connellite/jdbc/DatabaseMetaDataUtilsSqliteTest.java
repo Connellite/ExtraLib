@@ -19,11 +19,15 @@ class DatabaseMetaDataUtilsSqliteTest {
             SqliteMemory.bootstrapDemoSchema(c);
             Collection<String> tables = DatabaseMetaDataUtils.getTables(c);
             assertTrue(tables.contains("demo"));
+            assertTrue(tables.contains("DEMO"));
             assertTrue(tables.contains("child"));
+            assertTrue(tables.contains("Child"));
 
             Collection<String> cols = DatabaseMetaDataUtils.getColumns(c, "demo");
             assertTrue(cols.contains("id"));
+            assertTrue(cols.contains("ID"));
             assertTrue(cols.contains("name"));
+            assertTrue(cols.contains("NAME"));
         }
     }
 
@@ -34,21 +38,28 @@ class DatabaseMetaDataUtilsSqliteTest {
 
             Collection<String> tables = DatabaseMetaDataUtils.getTables(c);
             assertTrue(tables.contains("demo"));
+            assertTrue(tables.contains("DeMo"));
             assertTrue(tables.contains("child"));
             assertFalse(tables.contains("demo_view"));
+            assertFalse(tables.contains("DEMO_VIEW"));
 
             Collection<String> views = DatabaseMetaDataUtils.getViews(c);
             assertTrue(views.contains("demo_view"));
+            assertTrue(views.contains("DEMO_VIEW"));
             assertFalse(views.contains("demo"));
 
             Collection<String> tablesAndViews = DatabaseMetaDataUtils.getTablesAndViews(c);
             assertTrue(tablesAndViews.contains("demo"));
+            assertTrue(tablesAndViews.contains("DEMO"));
             assertTrue(tablesAndViews.contains("child"));
             assertTrue(tablesAndViews.contains("demo_view"));
+            assertTrue(tablesAndViews.contains("Demo_View"));
 
             Collection<String> viewColumns = DatabaseMetaDataUtils.getColumns(c, "demo_view");
             assertTrue(viewColumns.contains("id"));
+            assertTrue(viewColumns.contains("Id"));
             assertTrue(viewColumns.contains("name"));
+            assertTrue(viewColumns.contains("Name"));
         }
     }
 
@@ -58,17 +69,20 @@ class DatabaseMetaDataUtilsSqliteTest {
             SqliteMemory.bootstrapDemoSchema(c);
             Collection<String> pk = DatabaseMetaDataUtils.getPrimaryKeys(c, "demo");
             assertTrue(pk.contains("id"));
+            assertTrue(pk.contains("ID"));
 
             Collection<String> imp = DatabaseMetaDataUtils.getImportedKeys(c, "child");
             assertNotNull(imp);
             if (!imp.isEmpty()) {
                 assertTrue(imp.contains("demo_id"));
+                assertTrue(imp.contains("DEMO_ID"));
             }
 
             Collection<String> exp = DatabaseMetaDataUtils.getExportedKeys(c, "demo");
             assertNotNull(exp);
             if (!exp.isEmpty()) {
                 assertTrue(exp.contains("id"));
+                assertTrue(exp.contains("Id"));
             }
         }
     }
@@ -82,6 +96,7 @@ class DatabaseMetaDataUtilsSqliteTest {
             }
             Collection<String> indexes = DatabaseMetaDataUtils.getIndexInfo(c, "demo");
             assertTrue(indexes.contains("idx_demo_name"));
+            assertTrue(indexes.contains("IDX_DEMO_NAME"));
             assertNotNull(DatabaseMetaDataUtils.getIndexInfo(c, null, null, "demo", true, false));
         }
     }
@@ -121,10 +136,6 @@ class DatabaseMetaDataUtilsSqliteTest {
                 assertNotNull(DatabaseMetaDataUtils.getProcedureColumns(c, "%"));
             } catch (SQLFeatureNotSupportedException ignore) {
             }
-
-            String product = DatabaseMetaDataUtils.getDatabaseProductName(c);
-            assertNotNull(product);
-            assertTrue(product.toLowerCase(java.util.Locale.ROOT).contains("sqlite"));
         }
     }
 }

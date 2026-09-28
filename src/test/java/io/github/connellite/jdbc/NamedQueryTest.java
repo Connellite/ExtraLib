@@ -92,6 +92,16 @@ class NamedQueryTest {
     }
 
     @Test
+    void setAllBindsCollectionParameters() {
+        NamedQuery.ResolvedQuery resolved = NamedQuery.of("SELECT name FROM demo WHERE id IN (:ids) AND name = :name")
+                .setAll(Map.of("ids", List.of(1, 2), "name", "one"))
+                .resolve();
+
+        assertEquals("SELECT name FROM demo WHERE id IN (?,?) AND name = ?", resolved.sql());
+        assertEquals(List.of(1, 2, "one"), resolved.values());
+    }
+
+    @Test
     void resolveCollectionStringAndTwoCollections() {
         NamedQuery.ResolvedQuery resolved = NamedQuery.of(
                         "SELECT d.name FROM demo d "

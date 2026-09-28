@@ -330,21 +330,8 @@ public class TypeCoercionUtil {
         if (value instanceof OffsetDateTime offsetDateTime) return offsetDateTime.toInstant().toEpochMilli();
         if (value instanceof ZonedDateTime zonedDateTime) return zonedDateTime.toInstant().toEpochMilli();
         if (value instanceof Instant instant) return instant.toEpochMilli();
-        if (value instanceof String text && !text.isBlank() && isDigits(text)) return Long.parseLong(text);
+        if (value instanceof String text && StringUtils.isDigits(text)) return Long.parseLong(text);
         return null;
-    }
-
-    private static boolean isDigits(String text) {
-        for (int i = 0; i < text.length(); i++) {
-            char c = text.charAt(i);
-            if (i == 0 && c == '-') {
-                continue;
-            }
-            if (c < '0' || c > '9') {
-                return false;
-            }
-        }
-        return !text.equals("-");
     }
 
     @SuppressWarnings("unchecked")

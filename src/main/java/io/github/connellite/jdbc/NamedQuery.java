@@ -315,15 +315,19 @@ public final class NamedQuery {
     }
 
     /**
-     * Binds all map entries using {@link #setObject(String, Object)}.
+     * Binds all map entries. A {@link Collection} value is bound with {@link #setCollection(String, Collection)};
+     * other non-null values use {@link #setObject(String, Object)}.
      */
     public NamedQuery setAll(Map<String, ?> params) {
         if (params == null || params.isEmpty()) {
             return this;
         }
         for (Map.Entry<String, ?> entry : params.entrySet()) {
-            if (entry.getValue() != null) {
-                setObject(entry.getKey(), entry.getValue());
+            Object value = entry.getValue();
+            if (value instanceof Collection<?> collection) {
+                setCollection(entry.getKey(), collection);
+            } else if (value != null) {
+                setObject(entry.getKey(), value);
             } else {
                 setNull(entry.getKey(), Types.NULL);
             }

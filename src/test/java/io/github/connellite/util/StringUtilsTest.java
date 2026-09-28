@@ -9,8 +9,10 @@ import java.util.Map;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertIterableEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class StringUtilsTest {
 
@@ -165,6 +167,17 @@ class StringUtilsTest {
     @Test
     void removeLineBreaks_nullTextThrows() {
         assertThrows(NullPointerException.class, () -> StringUtils.removeLineBreaks(null, false));
+    }
+
+    @Test
+    void isDigits_asciiIntegersOnly() {
+        assertTrue(StringUtils.isDigits("42"));
+        assertTrue(StringUtils.isDigits("-17"));
+        assertFalse(StringUtils.isDigits(null));
+        assertFalse(StringUtils.isDigits(""));
+        assertFalse(StringUtils.isDigits("-"));
+        assertFalse(StringUtils.isDigits("12.3"));
+        assertFalse(StringUtils.isDigits("١٢"));
     }
 
     @Test

@@ -10,6 +10,8 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.Map;
+import java.util.Objects;
 
 /**
  * Executes parameterized SQL queries via {@link PreparedStatement}.
@@ -84,6 +86,82 @@ public class QueryUtils {
                 }
                 statement.addBatch();
             }
+            return statement.executeBatch();
+        }
+    }
+
+    /**
+     * Executes a named SELECT ({@code :name} parameters) and returns a result set wrapper that closes both
+     * {@link java.sql.Statement} and {@link ResultSet}.
+     */
+    public static ResultSet selectNamedQuery(Connection connection, String namedQuery, Map<String, Object> params) throws SQLException {
+        return selectNamedQuery(connection, NamedQuery.of(namedQuery), params);
+    }
+
+    /**
+     * Binds {@code params} onto {@code namedQuery} and executes it as a SELECT.
+     * The returned wrapper closes both {@link java.sql.Statement} and {@link ResultSet}.
+     */
+    public static ResultSet selectNamedQuery(Connection connection, NamedQuery namedQuery, Map<String, Object> params) throws SQLException {
+        NamedPreparedStatement statement = Objects.requireNonNull(namedQuery, "namedQuery").setAll(params).prepare(connection);
+        try {
+            ResultSet rs = statement.executeQuery();
+            return new ResultSetWrapper(statement.unwrap(), rs);
+        } catch (SQLException e) {
+            statement.close();
+            throw e;
+        }
+    }
+
+    /**
+     * Executes a named SELECT and returns detached rows as a {@link CachedRowSet}.
+     * The JDBC {@link ResultSet} and {@link PreparedStatement} are closed before this method returns.
+     */
+    public static ResultSet selectNamedQueryCached(Connection connection, String namedQuery, Map<String, Object> params) throws SQLException {
+        return selectNamedQueryCached(connection, NamedQuery.of(namedQuery), params);
+    }
+
+    /**
+     * Binds {@code params} onto {@code namedQuery}, executes the SELECT, and returns a {@link CachedRowSet}.
+     */
+    public static ResultSet selectNamedQueryCached(Connection connection, NamedQuery namedQuery, Map<String, Object> params) throws SQLException {
+        try (NamedPreparedStatement statement = Objects.requireNonNull(namedQuery, "namedQuery").setAll(params).prepare(connection);
+             ResultSet rs = statement.executeQuery()) {
+            CachedRowSet cachedRowSet = RowSetProvider.newFactory().createCachedRowSet();
+            cachedRowSet.populate(rs);
+            return cachedRowSet;
+        }
+    }
+
+    /**
+     * Executes a named non-SELECT query. Return value matches {@link PreparedStatement#execute()}.
+     */
+    public static boolean executeNamedQuery(Connection connection, String namedQuery, Map<String, Object> params) throws SQLException {
+        return executeNamedQuery(connection, NamedQuery.of(namedQuery), params);
+    }
+
+    /**
+     * Binds {@code params} onto {@code namedQuery} and executes it. Return value matches {@link PreparedStatement#execute()}.
+     */
+    public static boolean executeNamedQuery(Connection connection, NamedQuery namedQuery, Map<String, Object> params) throws SQLException {
+        try (NamedPreparedStatement statement = Objects.requireNonNull(namedQuery, "namedQuery").setAll(params).prepare(connection)) {
+            return statement.execute();
+        }
+    }
+
+    /**
+     * Runs {@code namedQuery} once as a JDBC batch with {@code params}. Returns the single update count from {@link PreparedStatement#executeBatch()}.
+     */
+    public static int[] executeNamedBatch(Connection connection, String namedQuery, Map<String, Object> params) throws SQLException {
+        return executeNamedBatch(connection, NamedQuery.of(namedQuery), params);
+    }
+
+    /**
+     * Binds {@code params} onto {@code namedQuery}, adds that parameter set as one batch entry, and executes the batch.
+     */
+    public static int[] executeNamedBatch(Connection connection, NamedQuery namedQuery, Map<String, Object> params) throws SQLException {
+        try (NamedPreparedStatement statement = Objects.requireNonNull(namedQuery, "namedQuery").setAll(params).prepare(connection)) {
+            statement.addBatch();
             return statement.executeBatch();
         }
     }

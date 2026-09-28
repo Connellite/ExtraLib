@@ -265,6 +265,30 @@ public class StringUtils {
     }
 
     /**
+     * Returns whether {@code input} is an optional leading {@code '-'} followed only by ASCII digits
+     * {@code '0'}–{@code '9'}.
+     * <p>{@code null}, the empty sequence, and a lone {@code "-"} return {@code false}.</p>
+     *
+     * @param input text to inspect; may be {@code null}
+     * @return {@code true} if non-empty and every character passes the rules above
+     */
+    public static boolean isDigits(final CharSequence input) {
+        if (input == null || input.isEmpty()) {
+            return false;
+        }
+        for (int i = 0; i < input.length(); i++) {
+            char c = input.charAt(i);
+            if (i == 0 && c == '-') {
+                continue;
+            }
+            if (c < '0' || c > '9') {
+                return false;
+            }
+        }
+        return !"-".contentEquals(input);
+    }
+
+    /**
      * Builds a {@link Pattern} from a simple match string with shell-style wildcards, then compiles it
      * with {@link Pattern#CASE_INSENSITIVE} and {@link Pattern#DOTALL}.
      * <p>Transformations apply only to characters that are not escaped by a preceding backslash

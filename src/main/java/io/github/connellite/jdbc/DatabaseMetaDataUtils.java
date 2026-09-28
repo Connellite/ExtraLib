@@ -1,6 +1,7 @@
 package io.github.connellite.jdbc;
 
-import io.github.connellite.collections.NullSkippingLinkedHashSet;
+import io.github.connellite.collections.DelegatingNullSkippingCollection;
+import io.github.connellite.collections.LinkedCaseInsensitiveSet;
 import lombok.experimental.UtilityClass;
 
 import java.sql.Connection;
@@ -9,7 +10,6 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Set;
 
 /**
  * Thin helpers over {@link DatabaseMetaData} that read common identifier columns into ordered, de-duplicated string collections.
@@ -42,7 +42,7 @@ public class DatabaseMetaDataUtils {
      * {@link DatabaseMetaData#getTables(String, String, String, String[])} — {@code TABLE_NAME} for {@code TABLE} rows.
      */
     public static Collection<String> getTables(Connection connection, String catalog, String schemaPattern, String tableNamePattern) throws SQLException {
-        Set<String> tablesList = new NullSkippingLinkedHashSet<>();
+        Collection<String> tablesList = new DelegatingNullSkippingCollection<>(new LinkedCaseInsensitiveSet());
         DatabaseMetaData meta = connection.getMetaData();
         try (ResultSet tables = meta.getTables(catalog, schemaPattern, tableNamePattern, new String[]{"TABLE"})) {
             while (tables.next()) {
@@ -79,7 +79,7 @@ public class DatabaseMetaDataUtils {
      */
     public static Collection<String> getViews(Connection connection, String catalog, String schemaPattern, String tableNamePattern)
             throws SQLException {
-        Set<String> viewsList = new NullSkippingLinkedHashSet<>();
+        Collection<String> viewsList = new DelegatingNullSkippingCollection<>(new LinkedCaseInsensitiveSet());
         DatabaseMetaData meta = connection.getMetaData();
         try (ResultSet views = meta.getTables(catalog, schemaPattern, tableNamePattern, new String[]{"VIEW"})) {
             while (views.next()) {
@@ -116,7 +116,7 @@ public class DatabaseMetaDataUtils {
      */
     public static Collection<String> getTablesAndViews(Connection connection, String catalog, String schemaPattern, String tableNamePattern)
             throws SQLException {
-        Set<String> names = new NullSkippingLinkedHashSet<>();
+        Collection<String> names = new DelegatingNullSkippingCollection<>(new LinkedCaseInsensitiveSet());
         DatabaseMetaData meta = connection.getMetaData();
         try (ResultSet rs = meta.getTables(catalog, schemaPattern, tableNamePattern, new String[]{"TABLE", "VIEW"})) {
             while (rs.next()) {
@@ -152,7 +152,7 @@ public class DatabaseMetaDataUtils {
      * {@link DatabaseMetaData#getColumns(String, String, String, String)} — {@code COLUMN_NAME} values.
      */
     public static Collection<String> getColumns(Connection connection, String catalog, String schemaPattern, String tableName, String columnNamePattern) throws SQLException {
-        Set<String> columnsList = new NullSkippingLinkedHashSet<>();
+        Collection<String> columnsList = new DelegatingNullSkippingCollection<>(new LinkedCaseInsensitiveSet());
         DatabaseMetaData meta = connection.getMetaData();
         try (ResultSet columns = meta.getColumns(catalog, schemaPattern, tableName, columnNamePattern)) {
             while (columns.next()) {
@@ -167,7 +167,7 @@ public class DatabaseMetaDataUtils {
      * {@link DatabaseMetaData#getCatalogs()} — {@code TABLE_CAT} values.
      */
     public static Collection<String> getCatalogs(Connection connection) throws SQLException {
-        Set<String> out = new NullSkippingLinkedHashSet<>();
+        Collection<String> out = new DelegatingNullSkippingCollection<>(new LinkedCaseInsensitiveSet());
         DatabaseMetaData meta = connection.getMetaData();
         try (ResultSet rs = meta.getCatalogs()) {
             while (rs.next()) {
@@ -176,13 +176,6 @@ public class DatabaseMetaDataUtils {
             }
         }
         return Collections.unmodifiableCollection(out);
-    }
-
-    /**
-     * {@link DatabaseMetaData#getDatabaseProductName()}.
-     */
-    public static String getDatabaseProductName(Connection connection) throws SQLException {
-        return connection.getMetaData().getDatabaseProductName();
     }
 
     /**
@@ -237,7 +230,7 @@ public class DatabaseMetaDataUtils {
      * {@link DatabaseMetaData#getFunctions(String, String, String)} — qualified {@code FUNCTION_SCHEM.FUNCTION_NAME} or {@code FUNCTION_NAME}.
      */
     public static Collection<String> getFunctions(Connection connection, String catalog, String schemaPattern, String functionNamePattern) throws SQLException {
-        Set<String> out = new NullSkippingLinkedHashSet<>();
+        Collection<String> out = new DelegatingNullSkippingCollection<>(new LinkedCaseInsensitiveSet());
         DatabaseMetaData meta = connection.getMetaData();
         try (ResultSet rs = meta.getFunctions(catalog, schemaPattern, functionNamePattern)) {
             while (rs.next()) {
@@ -282,7 +275,7 @@ public class DatabaseMetaDataUtils {
             String schemaPattern,
             String functionNamePattern,
             String columnNamePattern) throws SQLException {
-        Set<String> out = new NullSkippingLinkedHashSet<>();
+        Collection<String> out = new DelegatingNullSkippingCollection<>(new LinkedCaseInsensitiveSet());
         DatabaseMetaData meta = connection.getMetaData();
         try (ResultSet rs = meta.getFunctionColumns(catalog, schemaPattern, functionNamePattern, columnNamePattern)) {
             while (rs.next()) {
@@ -318,7 +311,7 @@ public class DatabaseMetaDataUtils {
      * {@link DatabaseMetaData#getProcedures(String, String, String)} — qualified {@code PROCEDURE_SCHEM.PROCEDURE_NAME} or {@code PROCEDURE_NAME}.
      */
     public static Collection<String> getProcedures(Connection connection, String catalog, String schemaPattern, String procedureNamePattern) throws SQLException {
-        Set<String> out = new NullSkippingLinkedHashSet<>();
+        Collection<String> out = new DelegatingNullSkippingCollection<>(new LinkedCaseInsensitiveSet());
         DatabaseMetaData meta = connection.getMetaData();
         try (ResultSet rs = meta.getProcedures(catalog, schemaPattern, procedureNamePattern)) {
             while (rs.next()) {
@@ -363,7 +356,7 @@ public class DatabaseMetaDataUtils {
             String schemaPattern,
             String procedureNamePattern,
             String columnNamePattern) throws SQLException {
-        Set<String> out = new NullSkippingLinkedHashSet<>();
+        Collection<String> out = new DelegatingNullSkippingCollection<>(new LinkedCaseInsensitiveSet());
         DatabaseMetaData meta = connection.getMetaData();
         try (ResultSet rs = meta.getProcedureColumns(catalog, schemaPattern, procedureNamePattern, columnNamePattern)) {
             while (rs.next()) {
@@ -392,7 +385,7 @@ public class DatabaseMetaDataUtils {
      * {@link DatabaseMetaData#getPrimaryKeys(String, String, String)} — {@code COLUMN_NAME} in JDBC key-sequence order.
      */
     public static Collection<String> getPrimaryKeys(Connection connection, String catalog, String schema, String table) throws SQLException {
-        Set<String> out = new NullSkippingLinkedHashSet<>();
+        Collection<String> out = new DelegatingNullSkippingCollection<>(new LinkedCaseInsensitiveSet());
         DatabaseMetaData meta = connection.getMetaData();
         try (ResultSet rs = meta.getPrimaryKeys(catalog, schema, table)) {
             while (rs.next()) {
@@ -421,7 +414,7 @@ public class DatabaseMetaDataUtils {
      * {@link DatabaseMetaData#getImportedKeys(String, String, String)} — local {@code FKCOLUMN_NAME} values.
      */
     public static Collection<String> getImportedKeys(Connection connection, String catalog, String schema, String table) throws SQLException {
-        Set<String> out = new NullSkippingLinkedHashSet<>();
+        Collection<String> out = new DelegatingNullSkippingCollection<>(new LinkedCaseInsensitiveSet());
         DatabaseMetaData meta = connection.getMetaData();
         try (ResultSet rs = meta.getImportedKeys(catalog, schema, table)) {
             while (rs.next()) {
@@ -450,7 +443,7 @@ public class DatabaseMetaDataUtils {
      * {@link DatabaseMetaData#getExportedKeys(String, String, String)} — {@code PKCOLUMN_NAME} on this table as referenced primary key.
      */
     public static Collection<String> getExportedKeys(Connection connection, String catalog, String schema, String table) throws SQLException {
-        Set<String> out = new NullSkippingLinkedHashSet<>();
+        Collection<String> out = new DelegatingNullSkippingCollection<>(new LinkedCaseInsensitiveSet());
         DatabaseMetaData meta = connection.getMetaData();
         try (ResultSet rs = meta.getExportedKeys(catalog, schema, table)) {
             while (rs.next()) {
@@ -496,7 +489,7 @@ public class DatabaseMetaDataUtils {
             String table,
             boolean unique,
             boolean approximate) throws SQLException {
-        Set<String> out = new NullSkippingLinkedHashSet<>();
+        Collection<String> out = new DelegatingNullSkippingCollection<>(new LinkedCaseInsensitiveSet());
         DatabaseMetaData meta = connection.getMetaData();
         try (ResultSet rs = meta.getIndexInfo(catalog, schema, table, unique, approximate)) {
             while (rs.next()) {
@@ -508,7 +501,7 @@ public class DatabaseMetaDataUtils {
     }
 
     private static Collection<String> collectSchemas(ResultSet rs) throws SQLException {
-        Set<String> out = new NullSkippingLinkedHashSet<>();
+        Collection<String> out = new DelegatingNullSkippingCollection<>(new LinkedCaseInsensitiveSet());
         while (rs.next()) {
             String cat = rs.getString("TABLE_CATALOG");
             if (cat == null) {

@@ -1,6 +1,7 @@
 package io.github.connellite.jdbc;
 
-import io.github.connellite.collections.NullSkippingLinkedHashSet;
+import io.github.connellite.collections.DelegatingNullSkippingCollection;
+import io.github.connellite.collections.LinkedCaseInsensitiveSet;
 import lombok.experimental.UtilityClass;
 
 import java.sql.ResultSet;
@@ -8,7 +9,6 @@ import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Set;
 
 /**
  * Thin helpers over {@link ResultSetMetaData} that read common column metadata into ordered, de-duplicated string collections.
@@ -27,7 +27,7 @@ public class ResultSetMetaDataUtils {
      * {@link ResultSetMetaData#getColumnName(int)} for each column, in order.
      */
     public static Collection<String> getColumnNames(ResultSetMetaData metaData) throws SQLException {
-        Set<String> out = new NullSkippingLinkedHashSet<>();
+        Collection<String> out = new DelegatingNullSkippingCollection<>(new LinkedCaseInsensitiveSet());
         int columnCount = metaData.getColumnCount();
         for (int i = 1; i <= columnCount; i++) {
             String columnName = metaData.getColumnName(i);
@@ -61,7 +61,7 @@ public class ResultSetMetaDataUtils {
      * {@link ResultSetMetaData#getColumnLabel(int)} for each column, in order.
      */
     public static Collection<String> getColumnLabels(ResultSetMetaData metaData) throws SQLException {
-        Set<String> out = new NullSkippingLinkedHashSet<>();
+        Collection<String> out = new DelegatingNullSkippingCollection<>(new LinkedCaseInsensitiveSet());
         int columnCount = metaData.getColumnCount();
         for (int i = 1; i <= columnCount; i++) {
             String columnLabel = metaData.getColumnLabel(i);
@@ -95,7 +95,7 @@ public class ResultSetMetaDataUtils {
      * Distinct {@link ResultSetMetaData#getCatalogName(int)} values in column order.
      */
     public static Collection<String> getCatalogNames(ResultSetMetaData metaData) throws SQLException {
-        Set<String> out = new NullSkippingLinkedHashSet<>();
+        Collection<String> out = new DelegatingNullSkippingCollection<>(new LinkedCaseInsensitiveSet());
         int columnCount = metaData.getColumnCount();
         for (int i = 1; i <= columnCount; i++) {
             String catalogName = metaData.getCatalogName(i);
@@ -129,7 +129,7 @@ public class ResultSetMetaDataUtils {
      * Distinct {@link ResultSetMetaData#getSchemaName(int)} values in column order.
      */
     public static Collection<String> getSchemaNames(ResultSetMetaData metaData) throws SQLException {
-        Set<String> out = new NullSkippingLinkedHashSet<>();
+        Collection<String> out = new DelegatingNullSkippingCollection<>(new LinkedCaseInsensitiveSet());
         int columnCount = metaData.getColumnCount();
         for (int i = 1; i <= columnCount; i++) {
             String schemaName = metaData.getSchemaName(i);
@@ -163,7 +163,7 @@ public class ResultSetMetaDataUtils {
      * Distinct {@link ResultSetMetaData#getTableName(int)} values in column order.
      */
     public static Collection<String> getTableNames(ResultSetMetaData metaData) throws SQLException {
-        Set<String> out = new NullSkippingLinkedHashSet<>();
+        Collection<String> out = new DelegatingNullSkippingCollection<>(new LinkedCaseInsensitiveSet());
         int columnCount = metaData.getColumnCount();
         for (int i = 1; i <= columnCount; i++) {
             String tableName = metaData.getTableName(i);
@@ -197,7 +197,7 @@ public class ResultSetMetaDataUtils {
      * {@link ResultSetMetaData#getColumnTypeName(int)} for each column, in order.
      */
     public static Collection<String> getColumnTypeNames(ResultSetMetaData metaData) throws SQLException {
-        Set<String> out = new NullSkippingLinkedHashSet<>();
+        Collection<String> out = new DelegatingNullSkippingCollection<>(new LinkedCaseInsensitiveSet());
         int columnCount = metaData.getColumnCount();
         for (int i = 1; i <= columnCount; i++) {
             String typeName = metaData.getColumnTypeName(i);
@@ -231,7 +231,7 @@ public class ResultSetMetaDataUtils {
      * {@link ResultSetMetaData#getColumnClassName(int)} for each column, in order.
      */
     public static Collection<String> getColumnClassNames(ResultSetMetaData metaData) throws SQLException {
-        Set<String> out = new NullSkippingLinkedHashSet<>();
+        Collection<String> out = new DelegatingNullSkippingCollection<>(new LinkedCaseInsensitiveSet());
         int columnCount = metaData.getColumnCount();
         for (int i = 1; i <= columnCount; i++) {
             String className = metaData.getColumnClassName(i);
@@ -265,7 +265,7 @@ public class ResultSetMetaDataUtils {
      * Qualified label per column: {@code catalog.schema.table.label} with empty/ absent segments omitted.
      */
     public static Collection<String> getQualifiedColumnLabels(ResultSetMetaData metaData) throws SQLException {
-        Set<String> out = new NullSkippingLinkedHashSet<>();
+        Collection<String> out = new DelegatingNullSkippingCollection<>(new LinkedCaseInsensitiveSet());
         int columnCount = metaData.getColumnCount();
         for (int i = 1; i <= columnCount; i++) {
             String catalogName = metaData.getCatalogName(i);

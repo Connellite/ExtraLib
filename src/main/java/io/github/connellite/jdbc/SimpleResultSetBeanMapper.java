@@ -1,7 +1,6 @@
 package io.github.connellite.jdbc;
 
 import io.github.connellite.collections.ConcurrentReferenceHashMap;
-import io.github.connellite.exception.MetadataBuildException;
 import io.github.connellite.jdbc.annotation.Column;
 import io.github.connellite.exception.TypeCoercionException;
 import io.github.connellite.util.TypeCoercionUtil;
@@ -32,9 +31,11 @@ import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Collections;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
+import java.util.WeakHashMap;
 
 /**
  * Maps the current row of a {@link ResultSet} into a simple POJO (no collections, arrays,
@@ -53,9 +54,10 @@ import java.util.UUID;
  * appear in that collection or construction throws {@link SQLException}. A {@code null}
  * {@code columnLabels} argument skips that check.
  * <p>
- * Reflection metadata (field bindings, record constructor, scalar mode) is cached per bean class
- * in a {@link ConcurrentReferenceHashMap} with weak references so unloaded classes do not pin
- * their {@link ClassLoader}. Per-mapper {@link TypeConverter} registrations use the same map type.
+ * Reflection metadata (field bindings, record constructor, scalar mode) is cached per bean class.
+ * Keys are weak, so an unloaded class does not pin its {@link ClassLoader}; the metadata stays
+ * for as long as that class is reachable. Per-mapper {@link TypeConverter} registrations use a
+ * {@link ConcurrentReferenceHashMap}.
  *
  * @param <T> bean type (no-arg constructor for class beans; canonical constructor for records)
  */
@@ -228,22 +230,24 @@ public class SimpleResultSetBeanMapper<T> {
         return metadata == other.metadata;
     }
 
-    private record MetadataCache(ConcurrentReferenceHashMap<Class<?>, MapperMetadata> cache) {
+    private record MetadataCache(Map<Class<?>, MapperMetadata> cache) {
         private MetadataCache(int initialCapacity) {
-            this(new ConcurrentReferenceHashMap<>(initialCapacity, ConcurrentReferenceHashMap.ReferenceType.WEAK));
+            this(Collections.synchronizedMap(new WeakHashMap<>(initialCapacity)));
         }
 
         private MapperMetadata getOrCreate(Class<?> beanClass) throws SQLException {
-            try {
-                return cache.computeIfAbsent(beanClass, cls -> {
-                    try {
-                        return buildMetadata(cls);
-                    } catch (SQLException e) {
-                        throw new MetadataBuildException(e);
-                    }
-                });
-            } catch (MetadataBuildException e) {
-                throw e.sqlException();
+            MapperMetadata existing = cache.get(beanClass);
+            if (existing != null) {
+                return existing;
+            }
+            synchronized (cache) {
+                existing = cache.get(beanClass);
+                if (existing != null) {
+                    return existing;
+                }
+                MapperMetadata created = buildMetadata(beanClass);
+                cache.put(beanClass, created);
+                return created;
             }
         }
     }

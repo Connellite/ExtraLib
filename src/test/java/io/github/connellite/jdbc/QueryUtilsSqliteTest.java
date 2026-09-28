@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Test;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -75,6 +76,52 @@ class QueryUtilsSqliteTest {
             try (ResultSet rs = QueryUtils.selectQuery(c, "SELECT COUNT(*) AS n FROM demo WHERE id IN (10, 11)")) {
                 assertTrue(rs.next());
                 assertEquals(2, rs.getInt("n"));
+            }
+        }
+    }
+
+    @Test
+    void selectNamedQueryReturnsRow() throws Exception {
+        try (Connection c = SqliteMemory.open()) {
+            SqliteMemory.bootstrapDemoSchema(c);
+            try (ResultSet rs = QueryUtils.selectNamedQuery(c, "SELECT name FROM demo WHERE id = :id", Map.of("id", 1))) {
+                assertTrue(rs.next());
+                assertEquals("one", rs.getString("name"));
+                assertFalse(rs.next());
+            }
+        }
+    }
+
+    @Test
+    void selectNamedQueryCachedAndExecuteNamedQuery() throws Exception {
+        ResultSet rs;
+        try (Connection c = SqliteMemory.open()) {
+            SqliteMemory.bootstrapDemoSchema(c);
+            assertFalse(QueryUtils.executeNamedQuery(
+                    c,
+                    NamedQuery.of("UPDATE demo SET name = :name WHERE id = :id"),
+                    Map.of("name", "uno", "id", 1)));
+            rs = QueryUtils.selectNamedQueryCached(c, "SELECT name FROM demo WHERE id = :id", Map.of("id", 1));
+        }
+        try (rs) {
+            assertTrue(rs.next());
+            assertEquals("uno", rs.getString("name"));
+            assertFalse(rs.next());
+        }
+    }
+
+    @Test
+    void executeNamedBatchInsertsOneRow() throws Exception {
+        try (Connection c = SqliteMemory.open()) {
+            SqliteMemory.bootstrapDemoSchema(c);
+            int[] counts = QueryUtils.executeNamedBatch(
+                    c,
+                    "INSERT INTO demo (id, name) VALUES (:id, :name)",
+                    Map.of("id", 10, "name", "ten"));
+            assertEquals(1, counts.length);
+            try (ResultSet rs = QueryUtils.selectNamedQuery(c, "SELECT name FROM demo WHERE id = :id", Map.of("id", 10))) {
+                assertTrue(rs.next());
+                assertEquals("ten", rs.getString("name"));
             }
         }
     }
