@@ -9,9 +9,11 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class UuidUtilTest {
 
@@ -19,6 +21,7 @@ class UuidUtilTest {
     void compactAndExpandRoundTrip() {
         String s = "550e8400-e29b-41d4-a716-446655440000";
         assertEquals("550e8400e29b41d4a716446655440000", UuidUtil.compactUuid(s));
+        assertEquals("550e8400e29b41d4a716446655440000", UuidUtil.compactUuid(UUID.fromString(s)));
         assertEquals(s, UuidUtil.expandUuid("550e8400e29b41d4a716446655440000"));
     }
 
@@ -143,6 +146,44 @@ class UuidUtilTest {
     void convertFromStringWithInvalidCharactersThrows() {
         assertThrows(IllegalArgumentException.class, () -> UuidUtil.convert2Uuid("g50e8400-e29b-41d4-a716-446655440000"));
         assertThrows(IllegalArgumentException.class, () -> UuidUtil.convert2Uuid("@50e8400-e29b-41d4-a716-446655440000"));
+    }
+
+    @Test
+    void isUuidMatchesConvert2Uuid() {
+        String canonical = "550e8400-e29b-41d4-a716-446655440000";
+        assertTrue(UuidUtil.isUuid(canonical));
+        assertTrue(UuidUtil.isUuid("550e8400e29b41d4a716446655440000"));
+        assertTrue(UuidUtil.isUuid("    {550e8400-e29b-41d4-a716-446655440000]   "));
+        assertTrue(UuidUtil.isUuid("a0ee-bc99-9c0b-4ef8-bb6d-6bb9-bd38-0a11"));
+        assertEquals(UuidUtil.convert2Uuid(canonical) != null, UuidUtil.isUuid(canonical));
+
+        assertFalse(UuidUtil.isUuid((String) null));
+        assertFalse(UuidUtil.isUuid(""));
+        assertFalse(UuidUtil.isUuid(" "));
+        assertFalse(UuidUtil.isUuid("g50e8400-e29b-41d4-a716-446655440000"));
+        assertFalse(UuidUtil.isUuid("550e8400e29b41d4a71644665544000"));
+        assertFalse(UuidUtil.isUuid("{not-a-uuid}"));
+    }
+
+    @Test
+    void isUuidBytesMatchesHexParse() {
+        UUID expected = UUID.fromString("550e8400-e29b-41d4-a716-446655440000");
+        byte[] compact = "550e8400e29b41d4a716446655440000".getBytes(StandardCharsets.US_ASCII);
+        byte[] oneHyphen = "550e-8400e29b41d4a716446655440000".getBytes(StandardCharsets.US_ASCII);
+        byte[] canonical = "550e8400-e29b-41d4-a716-446655440000".getBytes(StandardCharsets.US_ASCII);
+
+        assertEquals(33, oneHyphen.length);
+        assertEquals(expected, UuidUtil.hex2Uuid(oneHyphen));
+        assertEquals(expected, UuidUtil.convert2Uuid(oneHyphen));
+        assertTrue(UuidUtil.isUuid(compact));
+        assertTrue(UuidUtil.isUuid(oneHyphen));
+        assertTrue(UuidUtil.isUuid(canonical));
+        assertFalse(UuidUtil.isUuid((byte[]) null));
+        assertFalse(UuidUtil.isUuid(new byte[16]));
+        assertFalse(UuidUtil.isUuid(new byte[31]));
+        assertFalse(UuidUtil.isUuid(new byte[37]));
+        assertThrows(IllegalArgumentException.class, () -> UuidUtil.hex2Uuid(new byte[31]));
+        assertThrows(IllegalArgumentException.class, () -> UuidUtil.convert2Uuid(new byte[37]));
     }
 
     @Test

@@ -1,5 +1,6 @@
 package io.github.connellite.util;
 
+import io.github.connellite.util.internal.HexDigits;
 import lombok.experimental.UtilityClass;
 
 import java.util.regex.Matcher;
@@ -36,9 +37,12 @@ public class ConvertToAscii {
             return text;
         }
         StringBuilder unicodeText = new StringBuilder();
+        byte[] unit = new byte[2];
         for (char character : text.toCharArray()) {
             if ((int) character > Byte.MAX_VALUE || ignoreLatinCharacters) {
-                unicodeText.append(String.format("\\u%04x", (int) character));
+                unit[0] = (byte) (character >>> 8);
+                unit[1] = (byte) character;
+                unicodeText.append("\\u").append(HexDigits.toHex(unit));
             } else {
                 unicodeText.append(character);
             }
@@ -59,8 +63,13 @@ public class ConvertToAscii {
         Matcher matcher = UNICODE_ESCAPE_PATTERN.matcher(text);
         StringBuilder sb = new StringBuilder();
         while (matcher.find()) {
-            int codePoint = Integer.parseInt(matcher.group(1), 16);
-            matcher.appendReplacement(sb, Character.toString((char) codePoint));
+            byte[] encoded = HexDigits.fromHex(matcher.group(1));
+            if (encoded == null) {
+                matcher.appendReplacement(sb, Matcher.quoteReplacement(matcher.group()));
+                continue;
+            }
+            char decoded = (char) (((encoded[0] & 0xff) << 8) | (encoded[1] & 0xff));
+            matcher.appendReplacement(sb, Character.toString(decoded));
         }
         matcher.appendTail(sb);
         return sb.toString();

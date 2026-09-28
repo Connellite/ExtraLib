@@ -1,5 +1,6 @@
 package io.github.connellite.util;
 
+import io.github.connellite.util.internal.HexDigits;
 import lombok.NonNull;
 import lombok.experimental.UtilityClass;
 
@@ -63,7 +64,7 @@ public class DigestUtils {
      * @throws NoSuchAlgorithmException if the algorithm is not available
      */
     public static String digestHex(@NonNull InputStream in, @NonNull String algorithm) throws IOException, NoSuchAlgorithmException {
-        return toHex(digest(in, algorithm));
+        return HexDigits.toHex(digest(in, algorithm));
     }
 
     /**
@@ -75,7 +76,7 @@ public class DigestUtils {
      * @throws NoSuchAlgorithmException if the algorithm is not available
      */
     public static String digestHex(@NonNull byte[] data, @NonNull String algorithm) throws NoSuchAlgorithmException {
-        return toHex(digest(data, algorithm));
+        return HexDigits.toHex(digest(data, algorithm));
     }
 
     /**
@@ -180,8 +181,6 @@ public class DigestUtils {
         return Base64.getEncoder().encodeToString(data);
     }
 
-    // endregion
-
     /**
      * Decodes a lowercase/uppercase hex string into bytes.
      *
@@ -195,14 +194,9 @@ public class DigestUtils {
         if ((len & 1) != 0) {
             throw new IllegalArgumentException("Hex string must have even length");
         }
-        byte[] out = new byte[len / 2];
-        for (int i = 0; i < len; i += 2) {
-            int hi = Character.digit(s.charAt(i), 16);
-            int lo = Character.digit(s.charAt(i + 1), 16);
-            if (hi == -1 || lo == -1) {
-                throw new IllegalArgumentException("Invalid hex character in: " + hex);
-            }
-            out[i / 2] = (byte) ((hi << 4) + lo);
+        byte[] out = HexDigits.fromHex(s);
+        if (out == null) {
+            throw new IllegalArgumentException("Invalid hex character in: " + hex);
         }
         return out;
     }
@@ -237,15 +231,6 @@ public class DigestUtils {
             out.write(buffer, 0, n);
         }
         return out.toByteArray();
-    }
-
-    private static String toHex(byte[] bytes) {
-        StringBuilder sb = new StringBuilder(bytes.length * 2);
-        for (byte b : bytes) {
-            sb.append(Character.forDigit((b >>> 4) & 0xF, 16));
-            sb.append(Character.forDigit(b & 0xF, 16));
-        }
-        return sb.toString();
     }
 }
 

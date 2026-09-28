@@ -1,5 +1,6 @@
 package io.github.connellite.util;
 
+import io.github.connellite.util.internal.HexDigits;
 import lombok.experimental.UtilityClass;
 
 import java.math.BigInteger;
@@ -27,31 +28,19 @@ public class UuidUtil {
      */
     private static final BigInteger L = BigInteger.valueOf(Long.MAX_VALUE);
 
-    private static final byte[] HEX_VALUES;
-
-    static {
-        byte[] hexValues = new byte[128];
-        Arrays.fill(hexValues, (byte) -1);
-        for (int i = 0; i < 10; i++) {
-            hexValues['0' + i] = (byte) i;
-        }
-        for (int i = 0; i < 6; i++) {
-            hexValues['a' + i] = (byte) (i + 10);
-            hexValues['A' + i] = (byte) (i + 10);
-        }
-        HEX_VALUES = hexValues;
-    }
-
     /**
      * Returns the UUID string without hyphen separators.
      * <p>Example: {@code 550e8400-e29b-41d4-a716-446655440000} {@code ->}
      * {@code 550e8400e29b41d4a716446655440000}.</p>
      *
      * @param uuid the UUID; must not be {@code null}
-     * @return 32 lowercase hex characters (implementation follows {@link UUID#toString()})
+     * @return 32 lowercase hex characters, most significant bits first
      */
     public static String compactUuid(UUID uuid) {
-        return compactUuid(uuid.toString());
+        StringBuilder out = new StringBuilder(32);
+        HexDigits.appendHex(out, uuid.getMostSignificantBits());
+        HexDigits.appendHex(out, uuid.getLeastSignificantBits());
+        return out.toString();
     }
 
     /**
@@ -125,13 +114,12 @@ public class UuidUtil {
      * <ul>
      *   <li>length {@code 0}: {@code null}</li>
      *   <li>length {@code 16}: RFC binary (MSB then LSB, big-endian)</li>
-     *   <li>length {@code 32}: ASCII hex digits (same as {@link #hex2Uuid(byte[])})</li>
-     *   <li>length {@code 36}: ASCII canonical form with hyphens</li>
+     *   <li>length {@code 32}–{@code 36}: ASCII hex digits with optional hyphens (same as {@link #hex2Uuid(byte[])})</li>
      * </ul>
      *
-     * @param bytes {@code null}, empty, or 16/32/36 bytes as above
+     * @param bytes {@code null}, empty, 16 bytes, or 32–36 ASCII UUID bytes
      * @return the UUID, or {@code null} for {@code null} or empty array
-     * @throws IllegalArgumentException if length is not 0, 16, 32, or 36
+     * @throws IllegalArgumentException if length is not 0, 16, or 32–36
      */
     public static UUID convert2Uuid(byte[] bytes) {
         if (bytes == null) {
@@ -140,9 +128,9 @@ public class UuidUtil {
         return switch (bytes.length) {
             case 0 -> null;
             case 16 -> binary2Uuid(bytes);
-            case 32, 36 -> hex2Uuid(bytes);
+            case 32, 33, 34, 35, 36 -> hex2Uuid(bytes);
             default ->
-                    throw new IllegalArgumentException("Invalid UUID byte length: " + bytes.length + ". Expected 16, 32 or 36 bytes.");
+                    throw new IllegalArgumentException("Invalid UUID byte length: " + bytes.length + ". Expected 16 or 32-36 bytes.");
         };
     }
 
@@ -183,38 +171,51 @@ public class UuidUtil {
     }
 
     /**
-     * Parses a UUID from 32 or 36 bytes that are ASCII hex digits (0-9, a-f, A-F)
+     * Parses a UUID from 32–36 bytes that are ASCII hex digits (0-9, a-f, A-F)
      * with optional PostgreSQL-compatible hyphen placement.
      *
-     * @param hexBytes exactly 32 or 36 ASCII UUID bytes, or {@code null}
+     * @param hexBytes 32–36 ASCII UUID bytes, or {@code null}
      * @return the UUID, or {@code null} if {@code hexBytes} is {@code null}
-     * @throws IllegalArgumentException if length is not 32 or 36
+     * @throws IllegalArgumentException if length is less than 32 or greater than 36, or the bytes are not a UUID
      */
     public static UUID hex2Uuid(byte[] hexBytes) {
         if (null == hexBytes) {
             return null;
         }
-        if (hexBytes.length != 32 && hexBytes.length != 36) {
+        if (hexBytes.length < 32 || hexBytes.length > 36) {
             throw new IllegalArgumentException(Arrays.toString(hexBytes) + " is not a valid hex string");
         }
 
         return parseUuidBytes(hexBytes, 0, hexBytes.length);
     }
 
+    @SuppressWarnings("SameParameterValue")
     private static UUID parseUuidBytes(byte[] uuidBytes, int start, int end) {
+        UUID uuid = tryParseUuid(uuidBytes, start, end);
+        if (uuid == null) {
+            throw new IllegalArgumentException("Invalid UUID bytes: " + Arrays.toString(uuidBytes));
+        }
+        return uuid;
+    }
+
+    /**
+     * Parses 16 hex byte pairs in {@code [start, end)} with optional hyphens.
+     * Returns {@code null} when the slice is not a UUID.
+     */
+    private static UUID tryParseUuid(byte[] uuidBytes, int start, int end) {
         long mostSigBits = 0;
         long leastSigBits = 0;
 
         int pos = start;
         for (int i = 0; i < 16; i++) {
             if (pos + 1 >= end) {
-                throw new IllegalArgumentException("Invalid UUID bytes: " + Arrays.toString(uuidBytes));
+                return null;
             }
 
-            int hi = hexValue((char) uuidBytes[pos]);
-            int lo = hexValue((char) uuidBytes[pos + 1]);
+            int hi = HexDigits.hexValue(uuidBytes[pos]);
+            int lo = HexDigits.hexValue(uuidBytes[pos + 1]);
             if (hi < 0 || lo < 0) {
-                throw new IllegalArgumentException("Invalid UUID bytes: " + Arrays.toString(uuidBytes));
+                return null;
             }
             int value = (hi << 4) | lo;
 
@@ -231,7 +232,7 @@ public class UuidUtil {
         }
 
         if (pos != end) {
-            throw new IllegalArgumentException("Invalid UUID bytes: " + Arrays.toString(uuidBytes));
+            return null;
         }
         return new UUID(mostSigBits, leastSigBits);
     }
@@ -260,19 +261,31 @@ public class UuidUtil {
      * <a href="https://github.com/postgres/postgres/blob/901ed9b352b41f034e17bc540725082a488fce31/src/backend/utils/adt/uuid.c#L131">string_to_uuid</a>
      */
     private static UUID parseUuidString(String uuidString, int start, int end) {
+        UUID uuid = tryParseUuid(uuidString, start, end);
+        if (uuid == null) {
+            throw new IllegalArgumentException("Invalid UUID string: " + uuidString);
+        }
+        return uuid;
+    }
+
+    /**
+     * Parses 16 hex byte pairs in {@code [start, end)} with optional hyphens.
+     * Returns {@code null} when the slice is not a UUID.
+     */
+    private static UUID tryParseUuid(String uuidString, int start, int end) {
         long mostSigBits = 0;
         long leastSigBits = 0;
 
         int pos = start;
         for (int i = 0; i < 16; i++) {
             if (pos + 1 >= end) {
-                throw new IllegalArgumentException("Invalid UUID string: " + uuidString);
+                return null;
             }
 
-            int hi = hexValue(uuidString.charAt(pos));
-            int lo = hexValue(uuidString.charAt(pos + 1));
+            int hi = HexDigits.hexValue(uuidString.charAt(pos));
+            int lo = HexDigits.hexValue(uuidString.charAt(pos + 1));
             if (hi < 0 || lo < 0) {
-                throw new IllegalArgumentException("Invalid UUID string: " + uuidString);
+                return null;
             }
             int value = (hi << 4) | lo;
 
@@ -289,7 +302,7 @@ public class UuidUtil {
         }
 
         if (pos != end) {
-            throw new IllegalArgumentException("Invalid UUID string: " + uuidString);
+            return null;
         }
         return new UUID(mostSigBits, leastSigBits);
     }
@@ -314,10 +327,6 @@ public class UuidUtil {
 
     private static boolean isClosingWrapper(char ch) {
         return ch == ']' || ch == '}';
-    }
-
-    private static int hexValue(char ch) {
-        return ch < HEX_VALUES.length ? HEX_VALUES[ch] : -1;
     }
 
     /**
@@ -461,19 +470,48 @@ public class UuidUtil {
     }
 
     /**
-     * Returns whether {@code uuid} is accepted by {@link UUID#fromString(String)}.
+     * Returns whether {@code uuid} is accepted by {@link #convert2Uuid(String)}.
+     * {@code null}, blank input, and strings that cannot be parsed return {@code false} without throwing.
      *
-     * @param uuid the string to test
-     * @return {@code true} if parsing succeeds, {@code false} on {@link IllegalArgumentException} from {@code fromString}
-     * @throws NullPointerException if {@code uuid} is {@code null}
+     * @param uuid the string to test, or {@code null}
+     * @return {@code true} if {@link #convert2Uuid(String)} would return a UUID
      */
     public static boolean isUuid(String uuid) {
-        try {
-            UUID.fromString(uuid);
-            return true;
-        } catch (IllegalArgumentException e) {
+        if (uuid == null) {
             return false;
         }
+        int start = trimStart(uuid, 0, uuid.length());
+        int end = trimEnd(uuid, start, uuid.length());
+        if (start == end) {
+            return false;
+        }
+        if (isOpeningWrapper(uuid.charAt(start))) {
+            start++;
+        }
+        if (start == end) {
+            return false;
+        }
+        if (isClosingWrapper(uuid.charAt(end - 1))) {
+            end--;
+        }
+        if (start == end) {
+            return false;
+        }
+        return tryParseUuid(uuid, start, end) != null;
+    }
+
+    /**
+     * Returns whether {@code uuid} is 32–36 ASCII bytes accepted by {@link #hex2Uuid(byte[])}.
+     * {@code null} and any other length return {@code false} without throwing.
+     *
+     * @param uuid the bytes to test, or {@code null}
+     * @return {@code true} if {@link #hex2Uuid(byte[])} would return a UUID
+     */
+    public static boolean isUuid(byte[] uuid) {
+        if (uuid == null || uuid.length < 32 || uuid.length > 36) {
+            return false;
+        }
+        return tryParseUuid(uuid, 0, uuid.length) != null;
     }
 
     /**

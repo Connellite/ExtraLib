@@ -1,5 +1,6 @@
 package io.github.connellite.container.internal;
 
+import io.github.connellite.reflection.ReflectionUtil;
 import lombok.experimental.UtilityClass;
 
 import java.lang.reflect.InvocationHandler;
@@ -51,17 +52,16 @@ public final class LazyServiceProxy {
         }
 
         private Object invokeObjectMethod(Object proxy, Method method, Object[] args) {
-            String name = method.getName();
-            if ("equals".equals(name) && method.getParameterCount() == 1) {
+            if (ReflectionUtil.isEqualsMethod(method)) {
                 return proxy == args[0];
             }
-            if ("hashCode".equals(name) && method.getParameterCount() == 0) {
+            if (ReflectionUtil.isHashCodeMethod(method)) {
                 return System.identityHashCode(proxy);
             }
-            if ("toString".equals(name) && method.getParameterCount() == 0) {
+            if (ReflectionUtil.isToStringMethod(method)) {
                 return "LazyServiceProxy[" + serviceType.getName() + "]";
             }
-            throw new UnsupportedOperationException("Unsupported Object method: " + name);
+            throw new UnsupportedOperationException("Unsupported Object method: " + method.getName());
         }
     }
 }

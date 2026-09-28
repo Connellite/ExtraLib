@@ -1,5 +1,6 @@
 package io.github.connellite.util;
 
+import io.github.connellite.util.internal.HexDigits;
 import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayInputStream;
@@ -22,8 +23,8 @@ class DigestUtilsTest {
         byte[] md5Bytes = DigestUtils.digest(inputOf("hello"), "MD5");
         byte[] sha256Bytes = DigestUtils.digest(inputOf("hello"), "SHA-256");
 
-        assertEquals("5d41402abc4b2a76b9719d911017c592", bytesToHex(md5Bytes));
-        assertEquals("2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824", bytesToHex(sha256Bytes));
+        assertEquals("5d41402abc4b2a76b9719d911017c592", HexDigits.toHex(md5Bytes));
+        assertEquals("2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824", HexDigits.toHex(sha256Bytes));
 
         assertEquals("5d41402abc4b2a76b9719d911017c592", DigestUtils.digestHex(inputOf("hello"), "MD5"));
         assertEquals("2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824", DigestUtils.digestHex(inputOf("hello"), "SHA-256"));
@@ -40,7 +41,7 @@ class DigestUtilsTest {
         byte[] md5Bytes = DigestUtils.md5(inputOf("hello"));
         String md5Hex = DigestUtils.md5Hex(inputOf("hello"));
 
-        assertEquals("5d41402abc4b2a76b9719d911017c592", bytesToHex(md5Bytes));
+        assertEquals("5d41402abc4b2a76b9719d911017c592", HexDigits.toHex(md5Bytes));
         assertEquals("5d41402abc4b2a76b9719d911017c592", md5Hex);
     }
 
@@ -49,7 +50,7 @@ class DigestUtilsTest {
         byte[] shaBytes = DigestUtils.sha256(inputOf("hello"));
         String shaHex = DigestUtils.sha256Hex(inputOf("hello"));
 
-        assertEquals("2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824", bytesToHex(shaBytes));
+        assertEquals("2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824", HexDigits.toHex(shaBytes));
         assertEquals("2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824", shaHex);
     }
 
@@ -124,12 +125,4 @@ class DigestUtilsTest {
         assertThrows(IllegalArgumentException.class, () -> DigestUtils.fromBase64("not-base64!!".getBytes()));
     }
 
-    private String bytesToHex(byte[] bytes) {
-        StringBuilder sb = new StringBuilder(bytes.length * 2);
-        for (byte b : bytes) {
-            sb.append(Character.forDigit((b >>> 4) & 0xF, 16));
-            sb.append(Character.forDigit(b & 0xF, 16));
-        }
-        return sb.toString();
-    }
 }
