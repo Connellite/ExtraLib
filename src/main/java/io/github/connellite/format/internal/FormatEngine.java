@@ -1,22 +1,21 @@
-package io.github.connellite.format;
+package io.github.connellite.format.internal;
 
 import io.github.connellite.exception.FormatException;
-import io.github.connellite.util.DateTimeUtilFormat;
+import io.github.connellite.format.CompiledFormat;
 import io.github.connellite.util.StringUtils;
 import lombok.experimental.UtilityClass;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.util.ArrayList;
-import java.util.IllegalFormatException;
 import java.util.List;
 import java.util.Locale;
 import java.util.function.Consumer;
 
 @UtilityClass
-class FormatEngine {
+public class FormatEngine {
 
-    static CompiledFormat compile(CharSequence pattern) {
+    public static CompiledFormat compile(CharSequence pattern) {
         if (pattern == null) {
             throw new FormatException("format string is null");
         }
@@ -64,7 +63,7 @@ class FormatEngine {
         return new CompiledFormat(pieces, n);
     }
 
-    static String format(CompiledFormat compiled, Object[] args, Locale locale) {
+    public static String format(CompiledFormat compiled, Object[] args, Locale locale) {
         if (compiled == null) {
             throw new FormatException("compiled format is null");
         }
@@ -73,7 +72,7 @@ class FormatEngine {
         return sb.toString();
     }
 
-    static void formatTo(Appendable out, CompiledFormat compiled, Object[] args, Locale locale) {
+    public static void formatTo(Appendable out, CompiledFormat compiled, Object[] args, Locale locale) {
         if (compiled == null) {
             throw new FormatException("compiled format is null");
         }
@@ -84,7 +83,8 @@ class FormatEngine {
         }
     }
 
-    static void formatTo(Consumer<? super String> sink, CompiledFormat compiled, Object[] args, Locale locale) {
+    public static void formatTo(Consumer<? super String> sink, CompiledFormat compiled, Object[] args,
+                                Locale locale) {
         if (compiled == null) {
             throw new FormatException("compiled format is null");
         }
@@ -98,7 +98,8 @@ class FormatEngine {
         }
     }
 
-    private static void formatToImplConsumer(Consumer<? super String> sink, CompiledFormat compiled, ArgPack pack, Locale locale) throws IOException {
+    private static void formatToImplConsumer(Consumer<? super String> sink, CompiledFormat compiled,
+                                             ArgPack pack, Locale locale) throws IOException {
         StringBuilder sb = new StringBuilder(compiled.patternLength() + 32);
         formatToImpl(sb, compiled, pack, locale);
         sink.accept(sb.toString());
@@ -112,7 +113,8 @@ class FormatEngine {
             } else if (piece instanceof FieldSegment fieldSegment) {
                 ReplacementField field = fieldSegment.field();
                 Object arg = pack.resolve(field.id());
-                append(out, arg, expandDynamicSpec(field.spec(), pack, field.nextAutoIndex()), locale);
+                ValueFormatter.append(out, arg, expandDynamicSpec(field.spec(), pack, field.nextAutoIndex()),
+                        locale);
             }
         }
     }
@@ -217,32 +219,6 @@ class FormatEngine {
         return -1;
     }
 
-    private static void append(Appendable out, Object value, String spec, Locale locale)
-            throws IOException {
-        if (value instanceof FmtFormattable f) {
-            f.appendFormatted(out, locale, spec);
-            return;
-        }
-        if (spec == null || spec.isEmpty()) {
-            out.append(StringUtils.toString(value));
-            return;
-        }
-        if (spec.indexOf('%') >= 0) {
-            DateTimeUtilFormat.strftimeTo(out, locale, value, spec);
-            return;
-        }
-        String bridged = BraceSpec.tryFormat(locale, value, spec);
-        if (bridged != null) {
-            out.append(bridged);
-            return;
-        }
-        try {
-            out.append(String.format(locale, "%" + spec, value));
-        } catch (IllegalFormatException ex) {
-            throw new FormatException("invalid format specifier: " + spec, ex);
-        }
-    }
-
     private static ReplacementField parseField(String inside, int nextAuto) {
         String s = inside.trim();
         int colon = s.indexOf(':');
@@ -304,5 +280,4 @@ class FormatEngine {
         }
         return true;
     }
-
 }

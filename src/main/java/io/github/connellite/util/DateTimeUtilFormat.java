@@ -11,7 +11,11 @@ import java.io.UncheckedIOException;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.time.OffsetDateTime;
+import java.time.OffsetTime;
+import java.time.Year;
+import java.time.YearMonth;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.Calendar;
@@ -198,7 +202,8 @@ public class DateTimeUtilFormat {
      * supported types are interpreted in the {@linkplain ZoneId#systemDefault() system default} zone.
      * <p>
      * Supported types: {@link ZonedDateTime}, {@link OffsetDateTime}, {@link Instant}, {@link Date},
-     * {@link Calendar}, {@link LocalDateTime}, {@link LocalDate}. A {@code null} value yields the literal
+     * {@link Calendar}, {@link LocalDateTime}, {@link LocalDate}, {@link LocalTime},
+     * {@link OffsetTime}, {@link Year}, {@link YearMonth}. A {@code null} value yields the literal
      * {@code "null"}; an unsupported type throws {@link FormatException}.
      * </p>
      */
@@ -253,6 +258,14 @@ public class DateTimeUtilFormat {
             time.set(ldt, zone);
         } else if (value instanceof LocalDate ld) {
             time.set(ld, zone);
+        } else if (value instanceof LocalTime lt) {
+            time.set(LocalDate.of(1970, 1, 1).atTime(lt), zone);
+        } else if (value instanceof OffsetTime ot) {
+            time.set(ot.atDate(LocalDate.of(1970, 1, 1)));
+        } else if (value instanceof Year y) {
+            time.set(y.atDay(1), zone);
+        } else if (value instanceof YearMonth ym) {
+            time.set(ym.atDay(1), zone);
         } else {
             throw new FormatException("value type not supported for strftime: " + value.getClass().getName());
         }

@@ -1,6 +1,7 @@
-package io.github.connellite.format;
+package io.github.connellite.format.internal;
 
 import io.github.connellite.exception.FormatException;
+import io.github.connellite.format.Named;
 
 import java.util.Collections;
 import java.util.HashMap;

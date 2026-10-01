@@ -1,6 +1,7 @@
 package io.github.connellite.format;
 
 import io.github.connellite.exception.FormatException;
+import io.github.connellite.format.internal.FormatEngine;
 import lombok.Getter;
 import lombok.experimental.UtilityClass;
 
@@ -11,15 +12,43 @@ import java.util.Objects;
 import java.util.function.Consumer;
 
 /**
- * Minimal Java-only "fmt-style" formatting.
+ * Java port of {fmt} replacement-field formatting (fmtlib 11.2). Pointers ({@code p}) are not formatted.
+ *
+ * <p>Grammar and presentation types follow
+ * <a href="https://fmt.dev/11.2/syntax/">fmt 11.2 syntax</a>:
+ * {@code replacement_field ::= "{" [arg_id] [":" format_spec] "}"} and
+ * {@code format_spec ::= [[fill]align][sign]["#"]["0"][width]["." precision]["L"][type]}.
+ * Implementation references:
+ * <a href="https://github.com/fmtlib/fmt/blob/11.2.0/include/fmt/format.h">format.h</a>
+ * ({@code write_escaped_string} at
+ * <a href="https://github.com/fmtlib/fmt/blob/11.2.0/include/fmt/format.h#L1763">L1763</a>),
+ * <a href="https://github.com/fmtlib/fmt/blob/11.2.0/include/fmt/ranges.h">ranges.h</a>,
+ * <a href="https://github.com/fmtlib/fmt/blob/11.2.0/include/fmt/chrono.h">chrono.h</a>.
  *
  * <p><b>Null arguments</b> (similar in spirit to SLF4J / typical Java logging): with no format spec,
  * values use a default string form (like {@link String#valueOf(Object)} for non-arrays); {@code null}
  * becomes {@code "null"} (no NPE). Arrays render as {@code [1, 2, 3]} with nesting, not {@code [I@…}.
- * With a spec, behaviour follows {@link String#format} (string conversions apply the same array rule).
  *
  * <p><b>Radix</b>: types {@code b}/{@code B} produce binary (optional alternate {@code #} → {@code 0b}/{@code 0B});
- * {@code d}, {@code x}, {@code o} follow Java rules including {@code #} for {@code 0x}, leading {@code 0} on octal, etc.
+ * {@code d}/{@code i}, {@code x}, {@code o} use sign-and-magnitude for negatives ({@code {:x}} of
+ * {@code -42} is {@code -2a}); {@code #} adds {@code 0x}/{@code 0}/{@code 0b} after the sign.
+ * Type {@code S} upper-cases a string. {@code bits} / {@code Bf} print IEEE-754 bit patterns (Java extras).
+ *
+ * <p><b>Debug</b> ({@code ?}): strings and characters are quoted and escaped as in fmt
+ * {@code write_escaped_string} / {@code write_escaped_char}.
+ *
+ * <p><b>Ranges</b> (arrays, {@link Iterable}, {@link java.util.Map}): empty spec follows fmt
+ * ({@code ["a"]}, {@code {'x'}}, {@code {"k": 1}}); {@code {::spec}}, {@code n}, {@code s}/{@code ?s}
+ * follow
+ * <a href="https://fmt.dev/11.2/syntax/#range-format-specifications">{@code range_format_spec}</a>.
+ * {@code {::}} uses an empty element spec (unquoted strings/chars).
+ *
+ * <p><b>Chrono</b>: empty spec is fmt default ({@code %F %T} for date-times, {@code %F} for dates,
+ * tick+unit for {@link java.time.Duration}). With a spec, {@code [[fill]align][width][.precision]}
+ * then strftime ({@code %Y}, {@code %F}, glibc {@code %-H}/{@code %_S}/{@code %OS}, …) per
+ * <a href="https://fmt.dev/11.2/syntax/#chrono-format-specifications">{@code chrono_format_spec}</a>.
+ * Duration also accepts time-of-day conversions and {@code %Q}/{@code %q} (Java Duration ticks:
+ * seconds, or ms/us/ns when there is a fraction).
  *
  * <p><b>Sign</b> (after {@code ':'}, before type): {@code +} always; a single leading space flag for positives;
  * {@code -} default (only minus for negatives), same as omitting a sign flag.
@@ -27,14 +56,8 @@ import java.util.function.Consumer;
  * <p><b>Dynamic spec</b>: nested braces in the part after {@code ':'} pull further arguments, e.g.
  * {@code Fmt.format(Locale.US, "{:.{}f}", 3.14, 1)} → {@code "3.1"} (decimal separator follows {@link Locale}).
  *
- * <p><b>Date/time</b> when the spec contains {@code %}: strftime-like conversions (including names, week/date variants and
- * timezone forms such as {@code %Y} {@code %m} {@code %d} {@code %H} {@code %M} {@code %S} {@code %F} {@code %T}
- * {@code %a}/{@code %A} {@code %b}/{@code %B} {@code %I} {@code %p} {@code %U} {@code %W} {@code %V} {@code %z}
- * {@code %Z} {@code %%}) for {@link java.util.Date}, {@link java.util.Calendar}, {@link java.time.Instant},
- * {@link java.time.ZonedDateTime}, {@link java.time.LocalDateTime}, {@link java.time.LocalDate}, etc., in
- * {@link java.time.ZoneId#systemDefault()}.
- *
  * <p>Named fields ({@code {name}}) are supplied with {@link #arg(String, Object)} in the varargs list.
+ * Specs that are not a format_spec fall back to {@link String#format}({@code "%" + spec}).
  *
  * @see FormatException
  * @see Named
