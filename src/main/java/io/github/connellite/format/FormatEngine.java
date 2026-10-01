@@ -228,7 +228,7 @@ class FormatEngine {
             return;
         }
         if (spec.indexOf('%') >= 0) {
-            out.append(DateTimeUtilFormat.strftime(locale, value, spec));
+            DateTimeUtilFormat.strftimeTo(out, locale, value, spec);
             return;
         }
         String bridged = BraceSpec.tryFormat(locale, value, spec);

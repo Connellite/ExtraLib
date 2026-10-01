@@ -249,8 +249,8 @@ class FmtTest {
     }
 
     @Test
-    void strftimeUnknownConversionThrows() {
-        assertThrows(FormatException.class, () -> Fmt.format("{:%Q}", LocalDate.now()));
+    void strftimeUnknownConversionIsEchoedLiterally() {
+        assertEquals("%Q", Fmt.format("{:%Q}", LocalDate.now()));
     }
 
     @Test

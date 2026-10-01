@@ -1,5 +1,10 @@
 package io.github.connellite.util;
 
+import io.github.connellite.util.internal.CalendarNames;
+import io.github.connellite.util.internal.CharBounds;
+import io.github.connellite.util.internal.DateTimePatterns;
+import io.github.connellite.util.internal.DateTimeScanner;
+import io.github.connellite.util.internal.ParsedFields;
 import lombok.experimental.UtilityClass;
 
 import java.time.Instant;
@@ -9,18 +14,30 @@ import java.time.LocalTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
-import java.time.format.DateTimeFormatter;
-import java.time.format.DateTimeFormatterBuilder;
-import java.time.format.DateTimeParseException;
-import java.time.temporal.ChronoField;
 import java.util.Calendar;
 import java.util.Date;
-import java.util.List;
-import java.util.Locale;
 
 /**
- * Parses {@link LocalDate} and {@link LocalDateTime} from strings using a fixed set of patterns,
- * and converts between legacy {@link Date}/{@link Calendar} and {@link java.time} types.
+ * Parses {@link LocalDate}, {@link LocalDateTime} and {@link LocalTime} from strings of unknown
+ * layout, and converts between legacy {@link Date}/{@link Calendar} and {@link java.time} types.
+ *
+ * <p>Parsing is done by {@link DateTimeScanner} in a single pass over the input. ISO and RFC 3339
+ * date-times, SQL timestamps, compact {@code yyyyMMdd} forms, numeric dates with two- or
+ * four-digit years, localized month and weekday names, ordinal day suffixes, AM/PM markers,
+ * offsets and zone abbreviations are all recognised. A date missing its day or its month and day,
+ * such as {@code 2024-03} or {@code 2024}, resolves to the first such day.
+ *
+ * <p>A Unix epoch is read only by {@link #tryParseEpoch(String)} and
+ * {@link #tryParseLocalDateTime(String, ZoneId)}, since it names an instant and so needs a zone.
+ *
+ * <p>In an all-numeric date, a value above 12 is taken as the day, so both {@code 25/12/2024} and
+ * {@code 12/25/2024} mean Christmas. When both values could be a month, the order follows the
+ * {@linkplain java.util.Locale.Category#FORMAT formatting locale}: {@code 03/04/2024} is the
+ * fourth of March in the US and the third of April in the UK. Dot-separated dates are always
+ * day-first, because no month-first locale writes {@code 12.02.1999}.
+ *
+ * <p>An offset or zone in the input is accepted but never shifts the result: the returned value
+ * holds the date and time exactly as written.
  */
 @UtilityClass
 public class DateTimeUtil {
@@ -29,126 +46,157 @@ public class DateTimeUtil {
         private static final ZoneId INSTANCE = ZoneId.systemDefault();
     }
 
-    private static final List<DateTimeFormatter> INPUT_FORMATTERS = List.of(
-            DateTimeFormatter.ISO_LOCAL_DATE_TIME,
-            DateTimeFormatter.ISO_DATE_TIME,
-            DateTimeFormatter.RFC_1123_DATE_TIME,
-
-            new DateTimeFormatterBuilder()
-                    .appendPattern("yyyy-MM-dd HH:mm:ss")
-                    .appendFraction(ChronoField.NANO_OF_SECOND, 0, 9, true)
-                    .toFormatter(),
-
-            new DateTimeFormatterBuilder()
-                    .appendPattern("yyyy/MM/dd HH:mm:ss")
-                    .appendFraction(ChronoField.NANO_OF_SECOND, 0, 9, true)
-                    .toFormatter(),
-
-            new DateTimeFormatterBuilder()
-                    .appendPattern("dd.MM.yyyy HH:mm:ss")
-                    .appendFraction(ChronoField.NANO_OF_SECOND, 0, 9, true)
-                    .toFormatter(),
-
-            new DateTimeFormatterBuilder()
-                    .appendPattern("dd/MM/yyyy HH:mm:ss")
-                    .appendFraction(ChronoField.NANO_OF_SECOND, 0, 9, true)
-                    .toFormatter(),
-
-            DateTimeFormatter.ISO_LOCAL_DATE,
-            DateTimeFormatter.ISO_DATE,
-            DateTimeFormatter.BASIC_ISO_DATE,
-            DateTimeFormatter.ofPattern("dd.MM.yyyy"),
-            DateTimeFormatter.ofPattern("dd-MM-yyyy"),
-            DateTimeFormatter.ofPattern("dd/MM/yyyy"),
-            DateTimeFormatter.ofPattern("yyyy.MM.dd"),
-            DateTimeFormatter.ofPattern("yyyy/MM/dd"),
-
-            new DateTimeFormatterBuilder()
-                    .parseCaseInsensitive()
-                    .appendPattern("dd MMM yyyy")
-                    .toFormatter(Locale.ENGLISH),
-            new DateTimeFormatterBuilder()
-                    .parseCaseInsensitive()
-                    .appendPattern("yyyy MMM dd")
-                    .toFormatter(Locale.ENGLISH),
-            new DateTimeFormatterBuilder()
-                    .parseCaseInsensitive()
-                    .appendPattern("dd MMM yyyy")
-                    .toFormatter(new Locale("ru")),
-            new DateTimeFormatterBuilder()
-                    .parseCaseInsensitive()
-                    .appendPattern("dd MMMM yyyy")
-                    .toFormatter(new Locale("ru"))
-    );
-
     /**
-     * @return parsed date; time-of-day is discarded if present
-     * @throws IllegalArgumentException if {@code text} is null/blank or no formatter matches
+     * @return parsed date; time-of-day is discarded if present, or {@code null} if {@code text} is null/blank
+     * @throws IllegalArgumentException if {@code text} cannot be parsed
      */
     public static LocalDate parseLocalDate(String text) {
         if (text == null || text.isBlank()) return null;
-        text = text.trim();
 
-        try {
-            return OffsetDateTime.parse(text, DateTimeFormatter.ISO_DATE_TIME).toLocalDate();
-        } catch (DateTimeParseException ignored) {
+        LocalDate date = tryParseLocalDate(text);
+        if (date == null) {
+            throw new IllegalArgumentException("Unparseable date: '" + text.trim() + "'");
         }
-        for (DateTimeFormatter formatter : INPUT_FORMATTERS) {
-            try {
-                LocalDateTime dateTime = LocalDateTime.parse(text, formatter);
-                return dateTime.toLocalDate();
-            } catch (DateTimeParseException ignored) {
-                try {
-                    return LocalDate.parse(text, formatter);
-                } catch (DateTimeParseException ignored2) {
-                }
-            }
-        }
-        throw new IllegalArgumentException("Unparseable date: '" + text + "'");
+        return date;
     }
 
     /**
-     * @return parsed date-time; date-only strings use start of day (00:00)
-     * @throws IllegalArgumentException if {@code text} is null/blank or no formatter matches
+     * @return parsed date-time; date-only strings use start of day (00:00), or {@code null} if {@code text} is null/blank
+     * @throws IllegalArgumentException if {@code text} cannot be parsed
      */
     public static LocalDateTime parseLocalDateTime(String text) {
         if (text == null || text.isBlank()) return null;
-        text = text.trim();
 
-        try {
-            return OffsetDateTime.parse(text, DateTimeFormatter.ISO_DATE_TIME).toLocalDateTime();
-        } catch (DateTimeParseException ignored) {
+        LocalDateTime dateTime = tryParseLocalDateTime(text);
+        if (dateTime == null) {
+            throw new IllegalArgumentException("Unparseable date-time: '" + text.trim() + "'");
         }
-        for (DateTimeFormatter formatter : INPUT_FORMATTERS) {
-            try {
-                return LocalDateTime.parse(text, formatter);
-            } catch (DateTimeParseException ignored) {
-                try {
-                    LocalDate date = LocalDate.parse(text, formatter);
-                    return date.atStartOfDay();
-                } catch (DateTimeParseException ignored2) {
-                }
-            }
-        }
-        throw new IllegalArgumentException("Unparseable date-time: '" + text + "'");
+        return dateTime;
     }
 
     /**
-     * @return parsed local time
-     * @throws IllegalArgumentException if {@code text} is non-blank and cannot be parsed as a time/date-time
+     * @return parsed local time, or {@code null} if {@code text} is null/blank
+     * @throws IllegalArgumentException if {@code text} cannot be parsed
      */
     public static LocalTime parseLocalTime(String text) {
         if (text == null || text.isBlank()) return null;
-        text = text.trim();
-        try {
-            return LocalTime.parse(text);
-        } catch (DateTimeParseException ignored) {
+
+        LocalTime time = tryParseLocalTime(text);
+        if (time == null) {
+            throw new IllegalArgumentException("Unparseable time: '" + text.trim() + "'");
         }
-        try {
-            return toLocalTime(parseLocalDateTime(text));
-        } catch (IllegalArgumentException e) {
-            throw new IllegalArgumentException("Unparseable time: '" + text + "'", e);
+        return time;
+    }
+
+    /**
+     * Same as {@link #parseLocalDate(String)} without the exception on unparseable input.
+     *
+     * @return parsed date, or {@code null} if {@code text} is null/blank or unparseable
+     */
+    public static LocalDate tryParseLocalDate(String text) {
+        ParsedFields fields = parseFields(text);
+        return fields == null ? null : fields.toLocalDate();
+    }
+
+    /**
+     * Same as {@link #parseLocalDateTime(String)} without the exception on unparseable input.
+     *
+     * @return parsed date-time, or {@code null} if {@code text} is null/blank or unparseable
+     */
+    public static LocalDateTime tryParseLocalDateTime(String text) {
+        ParsedFields fields = parseFields(text);
+        return fields == null ? null : fields.toLocalDateTime();
+    }
+
+    /**
+     * Same as {@link #parseLocalTime(String)} without the exception on unparseable input.
+     *
+     * @return parsed time, or {@code null} if {@code text} is null/blank or unparseable
+     */
+    public static LocalTime tryParseLocalTime(String text) {
+        ParsedFields fields = parseFields(text);
+        return fields == null ? null : fields.toLocalTime();
+    }
+
+    /**
+     * Same as {@link #tryParseLocalDateTime(String)}, additionally reading a Unix epoch and
+     * resolving it in {@code zone}.
+     *
+     * <p>An epoch names an instant rather than a wall-clock reading, which is why it takes a zone
+     * and why {@link #tryParseLocalDateTime(String)} leaves it alone: every other shape this class
+     * parses is returned exactly as written, and no result depends on the zone of the machine.
+     *
+     * @param zone the zone to resolve an epoch in; must not be {@code null}
+     * @return parsed date-time, or {@code null} if {@code text} is null/blank or unparseable
+     */
+    public static LocalDateTime tryParseLocalDateTime(String text, ZoneId zone) {
+        Instant epoch = tryParseEpoch(text);
+        return epoch == null ? tryParseLocalDateTime(text) : epoch.atZone(zone).toLocalDateTime();
+    }
+
+    /**
+     * Reads a Unix epoch written as digits only, taking the unit from how many there are: ten
+     * digits are seconds, thirteen milliseconds, sixteen microseconds and nineteen nanoseconds.
+     *
+     * <p>Eight and fourteen digits are not epochs: {@link #tryParseLocalDate(String)} reads them as
+     * {@code yyyyMMdd} and {@code yyyyMMddHHmmss}, and no real epoch has either length.
+     *
+     * <p>Based on araddon/dateparse:
+     * <a href="https://github.com/araddon/dateparse/blob/5dd51ed0f76a3790e35b502070d9acbb404fab30/parseany.go#L1734">dateDigit</a>,
+     * which takes the unit from the length of the string in the same way. Lengths it leaves without
+     * a result, and numbers too large for the unit, are rejected here rather than returning an
+     * epoch of zero.
+     *
+     * @return the instant, or {@code null} if {@code text} is null/blank or is not such a number
+     */
+    public static Instant tryParseEpoch(String text) {
+        if (text == null || text.isBlank()) return null;
+
+        int start = CharBounds.trimStart(text, 0, text.length());
+        int end = CharBounds.trimEnd(text, start, text.length());
+
+        long value = 0;
+        for (int i = start; i < end; i++) {
+            int digit = text.charAt(i) - '0';
+            if (digit < 0 || digit > 9 || value > (Long.MAX_VALUE - digit) / 10) return null;
+            value = value * 10 + digit;
         }
+        return switch (end - start) {
+            case 10 -> Instant.ofEpochSecond(value);
+            case 13 -> Instant.ofEpochMilli(value);
+            case 16 -> Instant.ofEpochSecond(value / 1_000_000, value % 1_000_000 * 1_000);
+            case 19 -> Instant.ofEpochSecond(value / 1_000_000_000, value % 1_000_000_000);
+            default -> null;
+        };
+    }
+
+    /**
+     * Recognises {@code text} in up to three stages, each one only reached when the cheaper stage
+     * before it found nothing: the scanner with the common name tables, the fallback formatters, and
+     * finally the scanner with the name tables of every JDK language.
+     *
+     * @return the parsed fields, or {@code null} if {@code text} is null/blank or unparseable
+     */
+    private static ParsedFields parseFields(String text) {
+        if (text == null || text.isBlank()) return null;
+
+        int start = CharBounds.trimStart(text, 0, text.length());
+        int end = CharBounds.trimEnd(text, start, text.length());
+
+        ParsedFields fields = new ParsedFields();
+        if (DateTimeScanner.scan(text, start, end, CalendarNames.primary(), fields)) {
+            return fields;
+        }
+        fields.reset();
+        if (DateTimePatterns.parse(text, start, end, fields)) {
+            return fields;
+        }
+        fields.reset();
+        if (DateTimeScanner.mayContainLocalizedNames(text, start, end)
+                && DateTimeScanner.scan(text, start, end, CalendarNames.global(), fields)) {
+            return fields;
+        }
+        return null;
     }
 
     /**

@@ -1,5 +1,6 @@
 package io.github.connellite.util;
 
+import io.github.connellite.util.internal.CharBounds;
 import io.github.connellite.util.internal.HexDigits;
 import lombok.experimental.UtilityClass;
 
@@ -148,21 +149,17 @@ public class UuidUtil {
         if (uuidString == null) {
             return null;
         }
-        int start = trimStart(uuidString, 0, uuidString.length());
-        int end = trimEnd(uuidString, start, uuidString.length());
+        int start = CharBounds.trimStart(uuidString, 0, uuidString.length());
+        int end = CharBounds.trimEnd(uuidString, start, uuidString.length());
         if (start == end) {
             return null;
         }
 
-        if (isOpeningWrapper(uuidString.charAt(start))) {
-            start++;
-        }
+        start = CharBounds.skipOpeningWrapper(uuidString, start, end);
         if (start == end) {
             return null;
         }
-        if (isClosingWrapper(uuidString.charAt(end - 1))) {
-            end--;
-        }
+        end = CharBounds.skipClosingWrapper(uuidString, start, end);
         if (start == end) {
             return null;
         }
@@ -305,28 +302,6 @@ public class UuidUtil {
             return null;
         }
         return new UUID(mostSigBits, leastSigBits);
-    }
-
-    private static int trimStart(String s, int start, int end) {
-        while (start < end && Character.isWhitespace(s.charAt(start))) {
-            start++;
-        }
-        return start;
-    }
-
-    private static int trimEnd(String s, int start, int end) {
-        while (start < end && Character.isWhitespace(s.charAt(end - 1))) {
-            end--;
-        }
-        return end;
-    }
-
-    private static boolean isOpeningWrapper(char ch) {
-        return ch == '[' || ch == '{';
-    }
-
-    private static boolean isClosingWrapper(char ch) {
-        return ch == ']' || ch == '}';
     }
 
     /**
@@ -480,20 +455,16 @@ public class UuidUtil {
         if (uuid == null) {
             return false;
         }
-        int start = trimStart(uuid, 0, uuid.length());
-        int end = trimEnd(uuid, start, uuid.length());
+        int start = CharBounds.trimStart(uuid, 0, uuid.length());
+        int end = CharBounds.trimEnd(uuid, start, uuid.length());
         if (start == end) {
             return false;
         }
-        if (isOpeningWrapper(uuid.charAt(start))) {
-            start++;
-        }
+        start = CharBounds.skipOpeningWrapper(uuid, start, end);
         if (start == end) {
             return false;
         }
-        if (isClosingWrapper(uuid.charAt(end - 1))) {
-            end--;
-        }
+        end = CharBounds.skipClosingWrapper(uuid, start, end);
         if (start == end) {
             return false;
         }

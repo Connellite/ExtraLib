@@ -1,29 +1,32 @@
 package io.github.connellite.util;
 
 import io.github.connellite.exception.FormatException;
+import io.github.connellite.util.internal.BrokenDownTime;
+import io.github.connellite.util.internal.Strftime;
 import lombok.NonNull;
 import lombok.experimental.UtilityClass;
 
-import java.time.DayOfWeek;
+import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
-import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
-import java.time.format.DateTimeFormatter;
-import java.time.format.FormatStyle;
-import java.time.temporal.TemporalAdjusters;
-import java.time.temporal.WeekFields;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.Locale;
 
 /**
- * POSIX/C99-style {@code strftime} formatting for {@link java.time} and legacy date types,
- * built on top of {@link DateTimeUtil} conversions where needed.
+ * POSIX {@code strftime} formatting for {@link java.time} and legacy date types.
+ * <p>
+ * The conversions are produced by {@link Strftime}, a port of the glibc engine, so the output
+ * matches a C library byte for byte wherever the JDK exposes the same locale data. See that class
+ * for the three places where it cannot and what it does instead.
+ * </p>
  */
+@SuppressWarnings("SpellCheckingInspection")
 @UtilityClass
 public class DateTimeUtilFormat {
 
@@ -32,91 +35,41 @@ public class DateTimeUtilFormat {
     }
 
     /**
-     * Formats a date-time using a subset of C99 / POSIX {@code strftime} conversion specifiers.
+     * Formats a date-time using POSIX {@code strftime} conversion specifiers.
      * <p>
-     * Supported specifiers include {@code %a %A %b %B %c %C %d %D %e %F %g %G %H %h %I %j %k %l %m %M %n %p %r %R %S
-     * %s %T %t %u %U %V %w %W %x %X %y %Y %z %Z %%}. Locale affects names where specified by POSIX (weekday/month names,
-     * {@code %c %x %X %p}, and {@code %Z}). {@code %c} follows common C-library layout
-     * {@code %a %b %e %H:%M:%S %Y}. Week-based specifiers {@code %g %G %V} follow ISO week date rules.
+     * A specifier is {@code '%'}, an optional flag out of {@code - _ 0 + ^ #}, an optional minimum
+     * field width, an optional {@code E} or {@code O} modifier, and the conversion character. The
+     * POSIX set {@code %a %A %b %B %c %C %d %D %e %F %g %G %h %H %I %j %m %M %n %p %r %R %S %t %T
+     * %u %U %V %w %W %x %X %y %Y %z %Z %%} is supported, as are the GNU extensions {@code %k %l %P
+     * %s}. An unknown conversion is echoed back literally, including the {@code '%'}, as glibc
+     * does.
      * </p>
      * <p>
-     * {@code %z} is the offset from UTC in ISO 8601 <em>basic</em> form {@code ±hhmm} (no colon), as in POSIX.
-     * {@code %Z} is the time-zone abbreviation or short name from the JDK formatter pattern {@code z}
-     * (implementation-defined where no abbreviation exists, per POSIX).
+     * {@code E} selects the locale's alternative calendar, which the JDK provides for locales
+     * carrying a {@code ca} extension such as {@code ja-JP-u-ca-japanese}; {@code O} selects the
+     * locale's alternative digits. Where the locale has neither, the conversion behaves as if the
+     * modifier were absent, which is what POSIX requires.
+     * </p>
+     * <p>
+     * {@code %z} is the offset from UTC in ISO 8601 <em>basic</em> form {@code ±hhmm} (no colon).
+     * {@code %Z} is the time-zone abbreviation or short name from the JDK formatter pattern
+     * {@code z}. {@code %c} follows the common C-library layout {@code %a %b %e %H:%M:%S %Y}, while
+     * {@code %x} and {@code %X} are localized. Week-based specifiers {@code %g %G %V} follow ISO
+     * week date rules.
      * </p>
      *
      * @param locale  locale for localized elements; must not be {@code null}
      * @param zdt     the zoned date-time, or {@code null} (treated as the literal string {@code "null"})
      * @param pattern format string with {@code %} conversions; must not be {@code null}
      * @return formatted string
-     * @throws FormatException if the pattern contains an unknown {@code %} conversion
      */
     public static String strftime(@NonNull Locale locale, ZonedDateTime zdt, @NonNull String pattern) {
         if (zdt == null) {
             return "null";
         }
-        StringBuilder sb = new StringBuilder();
-        for (int i = 0; i < pattern.length(); i++) {
-            char c = pattern.charAt(i);
-            if (c != '%' || i + 1 >= pattern.length()) {
-                sb.append(c);
-                continue;
-            }
-            char d = pattern.charAt(++i);
-            switch (d) {
-                case '%' -> sb.append('%');
-                case 'a' -> sb.append(DateTimeFormatter.ofPattern("EEE", locale).format(zdt));
-                case 'A' -> sb.append(DateTimeFormatter.ofPattern("EEEE", locale).format(zdt));
-                case 'b', 'h' -> sb.append(DateTimeFormatter.ofPattern("MMM", locale).format(zdt));
-                case 'B' -> sb.append(DateTimeFormatter.ofPattern("MMMM", locale).format(zdt));
-                case 'c' -> sb.append(strftime(locale, zdt, "%a %b %e %H:%M:%S %Y"));
-                case 'C' -> appendPadded(sb, Math.floorDiv(zdt.getYear(), 100), 2);
-                case 'd' -> appendPadded(sb, zdt.getDayOfMonth(), 2);
-                case 'D' -> sb.append(strftime(locale, zdt, "%m/%d/%y"));
-                case 'e' -> appendSpacePadded(sb, zdt.getDayOfMonth(), 2);
-                case 'F' -> sb.append(strftime(locale, zdt, "%Y-%m-%d"));
-                case 'g' -> appendPadded(sb, Math.floorMod(zdt.get(WeekFields.ISO.weekBasedYear()), 100), 2);
-                case 'G' -> appendPadded(sb, zdt.get(WeekFields.ISO.weekBasedYear()), 4);
-                case 'H' -> appendPadded(sb, zdt.getHour(), 2);
-                case 'k' -> appendSpacePadded(sb, zdt.getHour(), 2);
-                case 'I' -> {
-                    int hour = zdt.getHour() % 12;
-                    appendPadded(sb, hour == 0 ? 12 : hour, 2);
-                }
-                case 'l' -> {
-                    int hour12 = zdt.getHour() % 12;
-                    appendSpacePadded(sb, hour12 == 0 ? 12 : hour12, 2);
-                }
-                case 'j' -> appendPadded(sb, zdt.getDayOfYear(), 3);
-                case 'm' -> appendPadded(sb, zdt.getMonthValue(), 2);
-                case 'M' -> appendPadded(sb, zdt.getMinute(), 2);
-                case 'n' -> sb.append('\n');
-                case 'p' -> sb.append(DateTimeFormatter.ofPattern("a", locale).format(zdt));
-                case 'r' -> sb.append(strftime(locale, zdt, "%I:%M:%S %p"));
-                case 'R' -> sb.append(strftime(locale, zdt, "%H:%M"));
-                case 'S' -> appendPadded(sb, zdt.getSecond(), 2);
-                case 's' -> sb.append(zdt.toInstant().getEpochSecond());
-                case 'T' -> sb.append(strftime(locale, zdt, "%H:%M:%S"));
-                case 't' -> sb.append('\t');
-                case 'u' -> sb.append(zdt.getDayOfWeek().getValue());
-                case 'U' -> appendPadded(sb, weekNumberSundayFirst(zdt.toLocalDate()), 2);
-                case 'V' -> appendPadded(sb, zdt.get(WeekFields.ISO.weekOfWeekBasedYear()), 2);
-                case 'w' -> sb.append(zdt.getDayOfWeek() == DayOfWeek.SUNDAY ? 0 : zdt.getDayOfWeek().getValue());
-                case 'W' -> appendPadded(sb, weekNumberMondayFirst(zdt.toLocalDate()), 2);
-                case 'x' ->
-                        sb.append(DateTimeFormatter.ofLocalizedDate(FormatStyle.SHORT).withLocale(locale).format(zdt));
-                case 'X' ->
-                        sb.append(DateTimeFormatter.ofLocalizedTime(FormatStyle.MEDIUM).withLocale(locale).format(zdt));
-                case 'y' -> appendPadded(sb, Math.floorMod(zdt.getYear(), 100), 2);
-                case 'Y' -> appendPadded(sb, zdt.getYear(), 4);
-                case 'z' -> appendStrftimePercentZ(sb, zdt);
-                case 'Z' -> sb.append(DateTimeFormatter.ofPattern("z", locale).format(zdt));
-                default -> throw new FormatException("unknown strftime conversion '%%%c' at position %d in pattern: %s"
-                        .formatted(d, i - 1, pattern));
-
-            }
-        }
-        return sb.toString();
+        Strftime engine = new Strftime();
+        engine.time().set(zdt);
+        return render(engine, locale, pattern);
     }
 
     /**
@@ -124,10 +77,7 @@ public class DateTimeUtilFormat {
      * {@linkplain ZoneId#systemDefault() system default} time zone.
      */
     public static String strftime(@NonNull Locale locale, Instant instant, @NonNull String pattern) {
-        if (instant == null) {
-            return "null";
-        }
-        return strftime(locale, DateTimeUtil.toZonedDateTime(instant, SystemDefaultZoneHolder.INSTANCE), pattern);
+        return strftime(locale, instant, SystemDefaultZoneHolder.INSTANCE, pattern);
     }
 
     /**
@@ -137,7 +87,9 @@ public class DateTimeUtilFormat {
         if (instant == null) {
             return "null";
         }
-        return strftime(locale, DateTimeUtil.toZonedDateTime(instant, zone), pattern);
+        Strftime engine = new Strftime();
+        engine.time().set(instant, zone);
+        return render(engine, locale, pattern);
     }
 
     /**
@@ -145,10 +97,7 @@ public class DateTimeUtilFormat {
      * {@linkplain ZoneId#systemDefault() system default} time zone.
      */
     public static String strftime(@NonNull Locale locale, OffsetDateTime odt, @NonNull String pattern) {
-        if (odt == null) {
-            return "null";
-        }
-        return strftime(locale, DateTimeUtil.toZonedDateTime(odt, SystemDefaultZoneHolder.INSTANCE), pattern);
+        return strftime(locale, odt, SystemDefaultZoneHolder.INSTANCE, pattern);
     }
 
     /**
@@ -158,7 +107,9 @@ public class DateTimeUtilFormat {
         if (odt == null) {
             return "null";
         }
-        return strftime(locale, DateTimeUtil.toZonedDateTime(odt, zone), pattern);
+        Strftime engine = new Strftime();
+        engine.time().set(odt.toInstant(), zone);
+        return render(engine, locale, pattern);
     }
 
     /**
@@ -166,10 +117,7 @@ public class DateTimeUtilFormat {
      * {@linkplain ZoneId#systemDefault() system default} time zone.
      */
     public static String strftime(@NonNull Locale locale, Date date, @NonNull String pattern) {
-        if (date == null) {
-            return "null";
-        }
-        return strftime(locale, DateTimeUtil.toZonedDateTime(date, SystemDefaultZoneHolder.INSTANCE), pattern);
+        return strftime(locale, date, SystemDefaultZoneHolder.INSTANCE, pattern);
     }
 
     /**
@@ -179,7 +127,9 @@ public class DateTimeUtilFormat {
         if (date == null) {
             return "null";
         }
-        return strftime(locale, DateTimeUtil.toZonedDateTime(date, zone), pattern);
+        Strftime engine = new Strftime();
+        engine.time().set(date, zone);
+        return render(engine, locale, pattern);
     }
 
     /**
@@ -187,10 +137,7 @@ public class DateTimeUtilFormat {
      * {@linkplain ZoneId#systemDefault() system default} time zone (same instant on the time-line).
      */
     public static String strftime(@NonNull Locale locale, Calendar calendar, @NonNull String pattern) {
-        if (calendar == null) {
-            return "null";
-        }
-        return strftime(locale, DateTimeUtil.toZonedDateTime(calendar, SystemDefaultZoneHolder.INSTANCE), pattern);
+        return strftime(locale, calendar, SystemDefaultZoneHolder.INSTANCE, pattern);
     }
 
     /**
@@ -200,7 +147,9 @@ public class DateTimeUtilFormat {
         if (calendar == null) {
             return "null";
         }
-        return strftime(locale, DateTimeUtil.toZonedDateTime(calendar, zone), pattern);
+        Strftime engine = new Strftime();
+        engine.time().set(calendar, zone);
+        return render(engine, locale, pattern);
     }
 
     /**
@@ -208,10 +157,7 @@ public class DateTimeUtilFormat {
      * then {@link #strftime(Locale, ZonedDateTime, String)}.
      */
     public static String strftime(@NonNull Locale locale, LocalDateTime ldt, @NonNull String pattern) {
-        if (ldt == null) {
-            return "null";
-        }
-        return strftime(locale, DateTimeUtil.toZonedDateTime(ldt, SystemDefaultZoneHolder.INSTANCE), pattern);
+        return strftime(locale, ldt, SystemDefaultZoneHolder.INSTANCE, pattern);
     }
 
     /**
@@ -221,7 +167,9 @@ public class DateTimeUtilFormat {
         if (ldt == null) {
             return "null";
         }
-        return strftime(locale, DateTimeUtil.toZonedDateTime(ldt, zone), pattern);
+        Strftime engine = new Strftime();
+        engine.time().set(ldt, zone);
+        return render(engine, locale, pattern);
     }
 
     /**
@@ -229,10 +177,7 @@ public class DateTimeUtilFormat {
      * then {@link #strftime(Locale, ZonedDateTime, String)}.
      */
     public static String strftime(@NonNull Locale locale, LocalDate ld, @NonNull String pattern) {
-        if (ld == null) {
-            return "null";
-        }
-        return strftime(locale, DateTimeUtil.toZonedDateTime(ld, SystemDefaultZoneHolder.INSTANCE), pattern);
+        return strftime(locale, ld, SystemDefaultZoneHolder.INSTANCE, pattern);
     }
 
     /**
@@ -242,12 +187,13 @@ public class DateTimeUtilFormat {
         if (ld == null) {
             return "null";
         }
-        return strftime(locale, DateTimeUtil.toZonedDateTime(ld, zone), pattern);
+        Strftime engine = new Strftime();
+        engine.time().set(ld, zone);
+        return render(engine, locale, pattern);
     }
 
     /**
-     * Formats a supported date-time {@code value} for {@code Fmt} and similar APIs: converts to
-     * {@link ZonedDateTime}, then {@link #strftime(Locale, ZonedDateTime, String)}.
+     * Formats a supported date-time {@code value} for {@code Fmt} and similar APIs.
      * {@link ZonedDateTime} is left unchanged; {@link OffsetDateTime} keeps its fixed offset. All other
      * supported types are interpreted in the {@linkplain ZoneId#systemDefault() system default} zone.
      * <p>
@@ -260,80 +206,61 @@ public class DateTimeUtilFormat {
         if (value == null) {
             return "null";
         }
-        ZonedDateTime zdt = strftimeValueToZonedDateTime(value);
-        if (zdt == null) {
+        Strftime engine = new Strftime();
+        fill(engine.time(), value);
+        return render(engine, locale, pattern);
+    }
+
+    /**
+     * Formats {@code value} straight into {@code out}, for callers that already hold the buffer the
+     * result is headed for.
+     *
+     * @throws FormatException if {@code value} is of an unsupported type
+     * @see #strftime(Locale, Object, String)
+     */
+    public static void strftimeTo(@NonNull Appendable out, @NonNull Locale locale, Object value,
+                                  @NonNull String pattern) {
+        if (out instanceof StringBuilder sb) {
+            if (value == null) {
+                sb.append("null");
+                return;
+            }
+            Strftime engine = new Strftime();
+            fill(engine.time(), value);
+            engine.format(sb, pattern, locale);
+            return;
+        }
+        try {
+            out.append(strftime(locale, value, pattern));
+        } catch (IOException ex) {
+            throw new UncheckedIOException(ex);
+        }
+    }
+
+    private static void fill(BrokenDownTime time, Object value) {
+        ZoneId zone = SystemDefaultZoneHolder.INSTANCE;
+        if (value instanceof ZonedDateTime z) {
+            time.set(z);
+        } else if (value instanceof OffsetDateTime o) {
+            time.set(o);
+        } else if (value instanceof Instant instant) {
+            time.set(instant, zone);
+        } else if (value instanceof Date d) {
+            time.set(d, zone);
+        } else if (value instanceof Calendar cal) {
+            time.set(cal, zone);
+        } else if (value instanceof LocalDateTime ldt) {
+            time.set(ldt, zone);
+        } else if (value instanceof LocalDate ld) {
+            time.set(ld, zone);
+        } else {
             throw new FormatException("value type not supported for strftime: " + value.getClass().getName());
         }
-        return strftime(locale, zdt, pattern);
     }
 
-    private static ZonedDateTime strftimeValueToZonedDateTime(Object value) {
-        if (value instanceof ZonedDateTime z) {
-            return z;
-        }
-        if (value instanceof OffsetDateTime o) {
-            return DateTimeUtil.toZonedDateTime(o);
-        }
-        if (value instanceof Instant ins) {
-            return DateTimeUtil.toZonedDateTime(ins, SystemDefaultZoneHolder.INSTANCE);
-        }
-        if (value instanceof Date d) {
-            return DateTimeUtil.toZonedDateTime(d, SystemDefaultZoneHolder.INSTANCE);
-        }
-        if (value instanceof Calendar cal) {
-            return DateTimeUtil.toZonedDateTime(cal, SystemDefaultZoneHolder.INSTANCE);
-        }
-        if (value instanceof LocalDateTime ldt) {
-            return DateTimeUtil.toZonedDateTime(ldt, SystemDefaultZoneHolder.INSTANCE);
-        }
-        if (value instanceof LocalDate ld) {
-            return DateTimeUtil.toZonedDateTime(ld, SystemDefaultZoneHolder.INSTANCE);
-        }
-        return null;
-    }
-
-    private static void appendStrftimePercentZ(StringBuilder sb, ZonedDateTime zdt) {
-        ZoneOffset offset = zdt.getOffset();
-        int totalSeconds = offset.getTotalSeconds();
-        sb.append(totalSeconds >= 0 ? '+' : '-');
-        int abs = Math.abs(totalSeconds);
-        int hours = abs / 3600;
-        int minutes = (abs % 3600) / 60;
-        appendPadded(sb, hours, 2);
-        appendPadded(sb, minutes, 2);
-    }
-
-    private static void appendPadded(StringBuilder sb, int v, int width) {
-        String s = Integer.toString(v);
-        sb.append("0".repeat(Math.max(0, width - s.length())));
-        sb.append(s);
-    }
-
-    private static void appendSpacePadded(StringBuilder sb, int v, int width) {
-        String s = Integer.toString(v);
-        sb.append(" ".repeat(Math.max(0, width - s.length())));
-        sb.append(s);
-    }
-
-    private static int weekNumberSundayFirst(LocalDate date) {
-        LocalDate jan1 = date.withDayOfYear(1);
-        LocalDate firstSunday = jan1.with(TemporalAdjusters.nextOrSame(DayOfWeek.SUNDAY));
-        if (date.isBefore(firstSunday)) {
-            return 0;
-        }
-        int w = (int) ((date.toEpochDay() - firstSunday.toEpochDay()) / 7) + 1;
-        // POSIX range is [00,53]; values beyond 53 are treated as week 00 of the following year
-        return w > 53 ? 0 : w;
-    }
-
-    private static int weekNumberMondayFirst(LocalDate date) {
-        LocalDate jan1 = date.withDayOfYear(1);
-        LocalDate firstMonday = jan1.with(TemporalAdjusters.nextOrSame(DayOfWeek.MONDAY));
-        if (date.isBefore(firstMonday)) {
-            return 0;
-        }
-        int w = (int) ((date.toEpochDay() - firstMonday.toEpochDay()) / 7) + 1;
-        // POSIX range is [00,53]; values beyond 53 are treated as week 00 of the following year
-        return w > 53 ? 0 : w;
+    private static String render(Strftime engine, Locale locale, String pattern) {
+        StringBuilder sb = new StringBuilder(pattern.length() + 16);
+        engine.format(sb, pattern, locale);
+        return sb.toString();
     }
 }

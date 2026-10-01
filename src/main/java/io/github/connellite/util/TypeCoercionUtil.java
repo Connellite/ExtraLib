@@ -135,11 +135,8 @@ public class TypeCoercionUtil {
                 return (T) new java.sql.Date(millis);
             }
             if (raw instanceof String s) {
-                try {
-                    return (T) java.sql.Date.valueOf(DateTimeUtil.parseLocalDate(s));
-                } catch (IllegalArgumentException e) {
-                    throw cannotCoerce(boxed, e);
-                }
+                LocalDate parsed = requireLocalDate(s, boxed);
+                return parsed == null ? null : (T) java.sql.Date.valueOf(parsed);
             }
             return null;
         }
@@ -163,11 +160,8 @@ public class TypeCoercionUtil {
                 return (T) new Time(millis);
             }
             if (raw instanceof String s) {
-                try {
-                    return (T) Time.valueOf(DateTimeUtil.parseLocalTime(s));
-                } catch (IllegalArgumentException e) {
-                    throw cannotCoerce(boxed, e);
-                }
+                LocalTime parsed = requireLocalTime(s, boxed);
+                return parsed == null ? null : (T) Time.valueOf(parsed);
             }
             return null;
         }
@@ -179,11 +173,8 @@ public class TypeCoercionUtil {
                 return (T) new Timestamp(millis);
             }
             if (raw instanceof String s) {
-                try {
-                    return (T) Timestamp.valueOf(DateTimeUtil.parseLocalDateTime(s));
-                } catch (IllegalArgumentException e) {
-                    throw cannotCoerce(boxed, e);
-                }
+                LocalDateTime parsed = requireLocalDateTime(s, boxed);
+                return parsed == null ? null : (T) Timestamp.valueOf(parsed);
             }
             return null;
         }
@@ -196,15 +187,8 @@ public class TypeCoercionUtil {
             if (raw instanceof LocalDate ld) return (T) DateTimeUtil.toDate(ld);
             if (raw instanceof Instant ins) return (T) DateTimeUtil.toDate(ins);
             if (raw instanceof String s) {
-                try {
-                    return (T) DateTimeUtil.toDate(DateTimeUtil.parseLocalDateTime(s));
-                } catch (IllegalArgumentException e) {
-                    try {
-                        return (T) DateTimeUtil.toDate(DateTimeUtil.parseLocalDate(s));
-                    } catch (IllegalArgumentException e2) {
-                        throw cannotCoerce(boxed, e2);
-                    }
-                }
+                LocalDateTime parsed = requireLocalDateTime(s, boxed);
+                return parsed == null ? null : (T) DateTimeUtil.toDate(parsed);
             }
             return null;
         }
@@ -218,11 +202,7 @@ public class TypeCoercionUtil {
             if (raw instanceof ZonedDateTime zdt) return (T) DateTimeUtil.toLocalDate(zdt);
             if (raw instanceof OffsetDateTime odt) return (T) DateTimeUtil.toLocalDate(odt);
             if (raw instanceof String s) {
-                try {
-                    return (T) DateTimeUtil.parseLocalDate(s);
-                } catch (IllegalArgumentException e) {
-                    throw cannotCoerce(boxed, e);
-                }
+                return (T) requireLocalDate(s, boxed);
             }
             return null;
         }
@@ -237,11 +217,7 @@ public class TypeCoercionUtil {
             if (raw instanceof ZonedDateTime zdt) return (T) DateTimeUtil.toLocalTime(DateTimeUtil.toDate(zdt));
             if (raw instanceof OffsetDateTime odt) return (T) DateTimeUtil.toLocalTime(DateTimeUtil.toDate(odt));
             if (raw instanceof String s) {
-                try {
-                    return (T) DateTimeUtil.parseLocalTime(s);
-                } catch (IllegalArgumentException e) {
-                    throw cannotCoerce(boxed, e);
-                }
+                return (T) requireLocalTime(s, boxed);
             }
             return null;
         }
@@ -255,11 +231,7 @@ public class TypeCoercionUtil {
             if (raw instanceof ZonedDateTime zdt) return (T) DateTimeUtil.toLocalDateTime(zdt);
             if (raw instanceof OffsetDateTime odt) return (T) DateTimeUtil.toLocalDateTime(odt);
             if (raw instanceof String s) {
-                try {
-                    return (T) DateTimeUtil.parseLocalDateTime(s);
-                } catch (IllegalArgumentException e) {
-                    throw cannotCoerce(boxed, e);
-                }
+                return (T) requireLocalDateTime(s, boxed);
             }
             return null;
         }
@@ -273,11 +245,8 @@ public class TypeCoercionUtil {
             if (raw instanceof Timestamp ts) return (T) ts.toInstant();
             if (raw instanceof Date d) return (T) d.toInstant();
             if (raw instanceof String s) {
-                try {
-                    return (T) DateTimeUtil.toZonedDateTime(DateTimeUtil.parseLocalDateTime(s)).toInstant();
-                } catch (IllegalArgumentException e) {
-                    throw cannotCoerce(boxed, e);
-                }
+                LocalDateTime parsed = requireLocalDateTime(s, boxed);
+                return parsed == null ? null : (T) DateTimeUtil.toZonedDateTime(parsed).toInstant();
             }
             return null;
         }
@@ -291,11 +260,8 @@ public class TypeCoercionUtil {
             if (raw instanceof Timestamp ts) return (T) DateTimeUtil.toZonedDateTime(ts);
             if (raw instanceof Date d) return (T) DateTimeUtil.toZonedDateTime(d);
             if (raw instanceof String s) {
-                try {
-                    return (T) DateTimeUtil.toZonedDateTime(DateTimeUtil.parseLocalDateTime(s));
-                } catch (IllegalArgumentException e) {
-                    throw cannotCoerce(boxed, e);
-                }
+                LocalDateTime parsed = requireLocalDateTime(s, boxed);
+                return parsed == null ? null : (T) DateTimeUtil.toZonedDateTime(parsed);
             }
             return null;
         }
@@ -309,15 +275,48 @@ public class TypeCoercionUtil {
             if (raw instanceof Timestamp ts) return (T) DateTimeUtil.toOffsetDateTime(ts);
             if (raw instanceof Date d) return (T) DateTimeUtil.toOffsetDateTime(d);
             if (raw instanceof String s) {
-                try {
-                    return (T) DateTimeUtil.toOffsetDateTime(DateTimeUtil.parseLocalDateTime(s));
-                } catch (IllegalArgumentException e) {
-                    throw cannotCoerce(boxed, e);
-                }
+                LocalDateTime parsed = requireLocalDateTime(s, boxed);
+                return parsed == null ? null : (T) DateTimeUtil.toOffsetDateTime(parsed);
             }
             return null;
         }
         throw unsupportedTarget(targetType);
+    }
+
+    /**
+     * @return parsed date, or {@code null} when {@code text} is blank
+     * @throws TypeCoercionException when {@code text} holds something that is not a date
+     */
+    private static LocalDate requireLocalDate(String text, Class<?> targetType) {
+        LocalDate parsed = DateTimeUtil.tryParseLocalDate(text);
+        if (parsed == null && !text.isBlank()) {
+            throw cannotCoerce(targetType, null);
+        }
+        return parsed;
+    }
+
+    /**
+     * @return parsed date-time, or {@code null} when {@code text} is blank
+     * @throws TypeCoercionException when {@code text} holds something that is not a date-time
+     */
+    private static LocalDateTime requireLocalDateTime(String text, Class<?> targetType) {
+        LocalDateTime parsed = DateTimeUtil.tryParseLocalDateTime(text);
+        if (parsed == null && !text.isBlank()) {
+            throw cannotCoerce(targetType, null);
+        }
+        return parsed;
+    }
+
+    /**
+     * @return parsed time, or {@code null} when {@code text} is blank
+     * @throws TypeCoercionException when {@code text} holds something that is not a time
+     */
+    private static LocalTime requireLocalTime(String text, Class<?> targetType) {
+        LocalTime parsed = DateTimeUtil.tryParseLocalTime(text);
+        if (parsed == null && !text.isBlank()) {
+            throw cannotCoerce(targetType, null);
+        }
+        return parsed;
     }
 
     private static Long epochMillis(Object value) {

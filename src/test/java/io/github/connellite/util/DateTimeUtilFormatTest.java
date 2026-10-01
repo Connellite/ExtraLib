@@ -77,6 +77,15 @@ class DateTimeUtilFormatTest {
         assertEquals(
                 DateTimeUtilFormat.strftime(loc, zdt, "%F"),
                 DateTimeUtilFormat.strftime(loc, Date.from(instant), "%F"));
+
+        java.util.Calendar calendar = java.util.Calendar.getInstance(java.util.TimeZone.getTimeZone("UTC"));
+        calendar.setTimeInMillis(instant.toEpochMilli());
+        assertEquals(
+                DateTimeUtilFormat.strftime(loc, instant, ZoneOffset.UTC, "%F %H"),
+                DateTimeUtilFormat.strftime(loc, calendar, ZoneOffset.UTC, "%F %H"));
+        assertEquals(
+                DateTimeUtilFormat.strftime(loc, zdt, "%F"),
+                DateTimeUtilFormat.strftime(loc, zdt.toLocalDateTime(), SYSTEM_ZONE, "%F"));
     }
 
     @Test
