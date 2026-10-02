@@ -4,6 +4,7 @@ import io.github.connellite.exception.TypeCoercionException;
 import io.github.connellite.jdbc.LobUtils;
 import org.junit.jupiter.api.Test;
 
+import java.nio.charset.StandardCharsets;
 import java.sql.Blob;
 import java.sql.Clob;
 import java.sql.Time;
@@ -12,7 +13,12 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.MonthDay;
 import java.time.OffsetDateTime;
+import java.time.OffsetTime;
+import java.time.Year;
+import java.time.YearMonth;
+import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.Calendar;
@@ -20,11 +26,7 @@ import java.util.Date;
 import java.util.List;
 import java.util.UUID;
 
-import static org.junit.jupiter.api.Assertions.assertArrayEquals;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 class TypeCoercionUtilTest {
 
@@ -53,6 +55,11 @@ class TypeCoercionUtilTest {
         assertEquals("clob-text", TypeCoercionUtil.coerce(clob, String.class));
 
         assertEquals("[1, 2]", TypeCoercionUtil.coerce(new int[]{1, 2}, String.class));
+        assertEquals("я", TypeCoercionUtil.coerce("я".toCharArray(), String.class));
+        assertEquals("я", TypeCoercionUtil.coerce(NumberUtils.charsToObjectCharacters("я".toCharArray()), String.class));
+        assertEquals("я", TypeCoercionUtil.coerce("я".getBytes(StandardCharsets.UTF_8), String.class));
+        assertEquals("я", TypeCoercionUtil.coerce(NumberUtils.bytesToObjectBytes("я".getBytes(StandardCharsets.UTF_8)), String.class));
+        assertEquals("я", TypeCoercionUtil.coerce(LobUtils.createBlob("я".getBytes(StandardCharsets.UTF_8)), String.class));
     }
 
     @Test
@@ -84,6 +91,7 @@ class TypeCoercionUtilTest {
         UUID uuid = UUID.fromString("550e8400-e29b-41d4-a716-446655440000");
         assertEquals(uuid, TypeCoercionUtil.coerce(uuid.toString(), UUID.class));
         assertEquals(uuid, TypeCoercionUtil.coerce(uuid, UUID.class));
+        assertEquals(uuid, TypeCoercionUtil.coerce(NumberUtils.bytesToObjectBytes(UuidUtil.uuid2binary(uuid)), UUID.class));
     }
 
     @Test
@@ -91,7 +99,7 @@ class TypeCoercionUtilTest {
         TypeCoercionException ex = assertThrows(
                 TypeCoercionException.class,
                 () -> TypeCoercionUtil.coerce(300, byte.class));
-        assertTrue(ex.getCause() instanceof ArithmeticException);
+        assertInstanceOf(ArithmeticException.class, ex.getCause());
     }
 
     @Test
@@ -99,7 +107,7 @@ class TypeCoercionUtilTest {
         TypeCoercionException ex = assertThrows(
                 TypeCoercionException.class,
                 () -> TypeCoercionUtil.coerce(1.5d, int.class));
-        assertTrue(ex.getCause() instanceof ArithmeticException);
+        assertInstanceOf(ArithmeticException.class, ex.getCause());
     }
 
     @Test
@@ -131,7 +139,80 @@ class TypeCoercionUtilTest {
 
         Blob blob = LobUtils.createBlob(bytes);
         assertArrayEquals(bytes, TypeCoercionUtil.coerce(blob, byte[].class));
-        assertNull(TypeCoercionUtil.coerce("text", byte[].class));
+    }
+
+    @Test
+    void coerce_stringToByteAndCharArrays() {
+        assertArrayEquals("text".getBytes(StandardCharsets.UTF_8), TypeCoercionUtil.coerce("text", byte[].class));
+        assertArrayEquals("text".toCharArray(), TypeCoercionUtil.coerce("text", char[].class));
+        assertArrayEquals("я".getBytes(StandardCharsets.UTF_8), TypeCoercionUtil.coerce("я", byte[].class));
+        assertArrayEquals("я".toCharArray(), TypeCoercionUtil.coerce("я", char[].class));
+        assertArrayEquals(new byte[0], TypeCoercionUtil.coerce("", byte[].class));
+        assertArrayEquals(new char[0], TypeCoercionUtil.coerce("", char[].class));
+
+        assertArrayEquals(
+                "text".getBytes(StandardCharsets.UTF_8),
+                NumberUtils.objectBytesToBytes(TypeCoercionUtil.coerce("text", Byte[].class)));
+        assertArrayEquals(
+                "text".toCharArray(),
+                NumberUtils.objectCharactersToChars(TypeCoercionUtil.coerce("text", Character[].class)));
+        assertNull(TypeCoercionUtil.coerce("text", int[].class));
+    }
+
+    @Test
+    void coerce_arraySameInstance() {
+        int[] ints = {1, 2};
+        assertSame(ints, TypeCoercionUtil.coerce(ints, int[].class));
+        byte[] bytes = {1, 2, 3};
+        assertSame(bytes, TypeCoercionUtil.coerce(bytes, byte[].class));
+    }
+
+    @Test
+    void coerce_primitiveWrapperArrayRoundTrip() {
+        byte[] bytes = {0, 127, -1, -128};
+        assertArrayEquals(bytes, TypeCoercionUtil.coerce(TypeCoercionUtil.coerce(bytes, Byte[].class), byte[].class));
+
+        short[] shorts = {0, Short.MAX_VALUE, -1, Short.MIN_VALUE};
+        assertArrayEquals(shorts, TypeCoercionUtil.coerce(TypeCoercionUtil.coerce(shorts, Short[].class), short[].class));
+
+        int[] ints = {0, Integer.MAX_VALUE, -1, Integer.MIN_VALUE};
+        assertArrayEquals(ints, TypeCoercionUtil.coerce(TypeCoercionUtil.coerce(ints, Integer[].class), int[].class));
+
+        long[] longs = {0L, Long.MAX_VALUE, -1L, Long.MIN_VALUE};
+        assertArrayEquals(longs, TypeCoercionUtil.coerce(TypeCoercionUtil.coerce(longs, Long[].class), long[].class));
+
+        float[] floats = {0f, -1f, Float.NaN, Float.POSITIVE_INFINITY, Float.NEGATIVE_INFINITY};
+        assertArrayEquals(floats, TypeCoercionUtil.coerce(TypeCoercionUtil.coerce(floats, Float[].class), float[].class));
+
+        double[] doubles = {0d, -1d, Double.NaN, Double.POSITIVE_INFINITY, Double.NEGATIVE_INFINITY};
+        assertArrayEquals(doubles, TypeCoercionUtil.coerce(TypeCoercionUtil.coerce(doubles, Double[].class), double[].class));
+
+        char[] chars = {'\0', 'A', Character.MAX_VALUE};
+        assertArrayEquals(chars, TypeCoercionUtil.coerce(TypeCoercionUtil.coerce(chars, Character[].class), char[].class));
+
+        boolean[] booleans = {true, false};
+        assertArrayEquals(booleans, TypeCoercionUtil.coerce(TypeCoercionUtil.coerce(booleans, Boolean[].class), boolean[].class));
+
+        assertArrayEquals(new Integer[0], TypeCoercionUtil.coerce(new int[0], Integer[].class));
+    }
+
+    @Test
+    void coerce_arrayNullElementToPrimitiveThrows() {
+        assertThrows(TypeCoercionException.class, () -> TypeCoercionUtil.coerce(new Byte[]{1, null}, byte[].class));
+        assertThrows(TypeCoercionException.class, () -> TypeCoercionUtil.coerce(new Integer[]{1, null}, int[].class));
+        assertThrows(TypeCoercionException.class, () -> TypeCoercionUtil.coerce(new Boolean[]{true, null}, boolean[].class));
+    }
+
+    @Test
+    void coerce_stringArrayToIntArray() {
+        assertArrayEquals(new int[]{1, 2}, TypeCoercionUtil.coerce(new String[]{"1", "2"}, int[].class));
+    }
+
+    @Test
+    void coerce_wrapperArrayKeepsNullElement() {
+        Integer[] source = {1, null};
+        Integer[] coerced = TypeCoercionUtil.coerce(new Long[]{1L, null}, Integer[].class);
+        assertArrayEquals(source, coerced);
     }
 
     @Test
@@ -142,6 +223,12 @@ class TypeCoercionUtilTest {
         byte[] bytes = {9, 8, 7};
         Blob blob = TypeCoercionUtil.coerce(bytes, Blob.class);
         assertArrayEquals(bytes, LobUtils.convertBlobToByteArray(blob));
+        Blob fromBoxed = TypeCoercionUtil.coerce(NumberUtils.bytesToObjectBytes(bytes), Blob.class);
+        assertArrayEquals(bytes, LobUtils.convertBlobToByteArray(fromBoxed));
+
+        assertEquals("я", LobUtils.convertClobToString(TypeCoercionUtil.coerce("я".toCharArray(), Clob.class)));
+        assertEquals("я", LobUtils.convertClobToString(
+                TypeCoercionUtil.coerce(NumberUtils.charsToObjectCharacters("я".toCharArray()), Clob.class)));
     }
 
     @Test
@@ -208,6 +295,53 @@ class TypeCoercionUtilTest {
         assertEquals(offset, TypeCoercionUtil.coerce(offset, OffsetDateTime.class));
         assertEquals(zoned, TypeCoercionUtil.coerce(zoned, ZonedDateTime.class));
         assertEquals(offset, TypeCoercionUtil.coerce(zoned, OffsetDateTime.class));
+    }
+
+    @Test
+    void coerce_yearYearMonthMonthDay() {
+        LocalDate date = LocalDate.of(2024, 3, 21);
+        Instant instant = date.atStartOfDay(ZoneOffset.UTC).toInstant();
+
+        assertEquals(Year.of(2024), TypeCoercionUtil.coerce(date, Year.class));
+        assertEquals(Year.of(2024), TypeCoercionUtil.coerce(date.atTime(10, 15), Year.class));
+        assertEquals(Year.from(DateTimeUtil.toLocalDate(instant)), TypeCoercionUtil.coerce(instant, Year.class));
+        assertEquals(Year.of(2024), TypeCoercionUtil.coerce(2024, Year.class));
+        assertEquals(Year.of(2024), TypeCoercionUtil.coerce("2024", Year.class));
+        assertEquals(YearMonth.of(2024, 3), TypeCoercionUtil.coerce(date, YearMonth.class));
+        assertEquals(YearMonth.of(2024, 3), TypeCoercionUtil.coerce("2024-03", YearMonth.class));
+        assertEquals(YearMonth.of(2024, 1), TypeCoercionUtil.coerce("2024", YearMonth.class));
+        assertEquals(MonthDay.of(3, 21), TypeCoercionUtil.coerce(date, MonthDay.class));
+        assertEquals(MonthDay.of(1, 1), TypeCoercionUtil.coerce("2024", MonthDay.class));
+        assertNull(TypeCoercionUtil.coerce("  ", Year.class));
+        assertThrows(TypeCoercionException.class, () -> TypeCoercionUtil.coerce("not-a-date", Year.class));
+        assertThrows(TypeCoercionException.class, () -> TypeCoercionUtil.coerce(1.5d, Year.class));
+    }
+
+    @Test
+    void coerce_offsetTimeZoneIdZoneOffset() {
+        LocalDateTime dateTime = LocalDateTime.of(2024, 3, 21, 10, 15, 30);
+        OffsetDateTime offsetDateTime = dateTime.atOffset(ZoneOffset.ofHours(3));
+        ZonedDateTime zonedDateTime = dateTime.atZone(ZoneId.of("Europe/Moscow"));
+        OffsetTime offsetTime = OffsetTime.of(LocalTime.of(10, 15, 30), ZoneOffset.ofHours(3));
+
+        assertEquals(offsetDateTime.toOffsetTime(), TypeCoercionUtil.coerce(offsetDateTime, OffsetTime.class));
+        assertEquals(zonedDateTime.toOffsetDateTime().toOffsetTime(), TypeCoercionUtil.coerce(zonedDateTime, OffsetTime.class));
+        assertEquals(offsetTime, TypeCoercionUtil.coerce("2024-03-21T10:15:30+03:00", OffsetTime.class));
+        assertNull(TypeCoercionUtil.coerce("   ", OffsetTime.class));
+        assertThrows(TypeCoercionException.class, () -> TypeCoercionUtil.coerce("10:15:30", OffsetTime.class));
+
+        assertEquals(ZoneId.of("Europe/Moscow"), TypeCoercionUtil.coerce(zonedDateTime, ZoneId.class));
+        assertEquals(ZoneOffset.ofHours(3), TypeCoercionUtil.coerce(offsetDateTime, ZoneId.class));
+        assertEquals(ZoneId.of("Europe/Moscow"), TypeCoercionUtil.coerce("2024-03-21T10:15:30+03:00[Europe/Moscow]", ZoneId.class));
+        assertEquals(ZoneId.of("Europe/Moscow"), TypeCoercionUtil.coerce("Europe/Moscow", ZoneId.class));
+        assertEquals(ZoneOffset.ofHours(3), TypeCoercionUtil.coerce("2024-03-21T10:15:30+03:00", ZoneId.class));
+        assertEquals(ZoneOffset.ofHours(3), TypeCoercionUtil.coerce("+03:00", ZoneId.class));
+        assertEquals(ZoneOffset.ofHours(3), TypeCoercionUtil.coerce("+03:00", ZoneOffset.class));
+
+        assertEquals(ZoneOffset.ofHours(3), TypeCoercionUtil.coerce(offsetDateTime, ZoneOffset.class));
+        assertEquals(zonedDateTime.getOffset(), TypeCoercionUtil.coerce(zonedDateTime, ZoneOffset.class));
+        assertEquals(ZoneOffset.ofHours(3), TypeCoercionUtil.coerce("2024-03-21T10:15:30+03:00", ZoneOffset.class));
+        assertThrows(TypeCoercionException.class, () -> TypeCoercionUtil.coerce("2024-03-21T10:15:30[Europe/Moscow]", ZoneOffset.class));
     }
 
     @Test

@@ -12,7 +12,7 @@ import java.util.Arrays;
 @UtilityClass
 public class HexDigits {
 
-    private static final char[] LOWER_HEX = "0123456789abcdef".toCharArray();
+    private static final char[] HEX_CHARS = "0123456789abcdef".toCharArray();
 
     private static final byte[] HEX_VALUES;
 
@@ -71,8 +71,8 @@ public class HexDigits {
         try {
             for (int shift = (digits - 2) * 4; shift >= 0; shift -= 8) {
                 int unsigned = (int) ((value >>> shift) & 0xFF);
-                out.append(LOWER_HEX[unsigned >>> 4]);
-                out.append(LOWER_HEX[unsigned & 0x0F]);
+                out.append(HEX_CHARS[unsigned >>> 4]);
+                out.append(HEX_CHARS[unsigned & 0x0F]);
             }
         } catch (IOException e) {
             throw new UncheckedIOException(e);

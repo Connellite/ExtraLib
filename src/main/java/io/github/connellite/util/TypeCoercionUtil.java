@@ -4,21 +4,14 @@ import io.github.connellite.exception.TypeCoercionException;
 import io.github.connellite.jdbc.LobUtils;
 import io.github.connellite.reflection.ReflectionUtil;
 import io.github.connellite.reflection.SimpleMapBeanMapper;
+import io.github.connellite.util.internal.ArrayCoercion;
+import io.github.connellite.util.internal.DateTimeCoercion;
 import lombok.experimental.UtilityClass;
 
+import java.nio.charset.StandardCharsets;
 import java.sql.Blob;
 import java.sql.Clob;
 import java.sql.SQLException;
-import java.sql.Time;
-import java.sql.Timestamp;
-import java.time.Instant;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.LocalTime;
-import java.time.OffsetDateTime;
-import java.time.ZonedDateTime;
-import java.util.Calendar;
-import java.util.Date;
 import java.util.Objects;
 import java.util.UUID;
 
@@ -39,17 +32,33 @@ import java.util.UUID;
  * </p>
  * <ul>
  *   <li>scalars: {@link String}, numeric wrappers, {@link Boolean}, {@link Character},
- *       {@code byte[]}, {@link UUID}, enums (by name or ordinal)</li>
- *   <li>JDBC: {@link Blob}, {@link Clob}, {@link java.sql.Date}, {@link Time},
- *       {@link Timestamp}</li>
- *   <li>legacy and {@code java.time}: {@link Date}, {@link LocalDate}, {@link LocalTime},
- *       {@link LocalDateTime}, {@link Instant}, {@link ZonedDateTime},
- *       {@link OffsetDateTime}</li>
+ *       {@link UUID}, enums (by name or ordinal)</li>
+ *   <li>arrays of those scalars, including primitive arrays and the matching wrapper arrays
+ *       ({@code byte[]}, {@code short[]}, {@code int[]}, {@code long[]}, {@code float[]},
+ *       {@code double[]}, {@code char[]}, {@code boolean[]})</li>
+ *   <li>JDBC: {@link Blob}, {@link Clob}, {@link java.sql.Date}, {@link java.sql.Time},
+ *       {@link java.sql.Timestamp}</li>
+ *   <li>legacy and {@code java.time}: {@link java.util.Date}, {@link java.time.LocalDate},
+ *       {@link java.time.LocalTime}, {@link java.time.LocalDateTime}, {@link java.time.Instant},
+ *       {@link java.time.ZonedDateTime}, {@link java.time.OffsetDateTime}, {@link java.time.Year},
+ *       {@link java.time.YearMonth}, {@link java.time.MonthDay}, {@link java.time.OffsetTime},
+ *       {@link java.time.ZoneId}, {@link java.time.ZoneOffset}</li>
  * </ul>
  * <p>
- * JDBC date/time targets also accept {@code java.time} values, {@link Calendar},
+ * JDBC date/time targets also accept {@code java.time} values, {@link java.util.Calendar},
  * epoch {@link Number}, and all-digit epoch-millis strings. Other strings delegate to
  * {@link DateTimeUtil} ({@code LocalDate}, {@code LocalTime}, {@code LocalDateTime} formats).
+ * </p>
+ * <p>
+ * A primitive array and the array of its wrapper are copied through {@link NumberUtils}.
+ * Any other array is converted element by element. {@code null} elements stay {@code null}
+ * in a wrapper array. A {@code null} element stored into a primitive array throws
+ * {@link TypeCoercionException}. {@link Blob} still converts to {@code byte[]}.
+ * A {@link String} converts to {@code byte[]}/{@link Byte}{@code []} as UTF-8
+ * and to {@code char[]}/{@link Character}{@code []} as its characters.
+ * The reverse uses {@code new String}: chars as written, bytes and {@link Blob} decoded as UTF-8.
+ * {@code char[]}/{@link Character}{@code []} become a {@link Clob} the same way a string does.
+ * {@link Byte}{@code []} is accepted wherever {@code byte[]} is: {@link Blob} and {@link UUID}.
  * </p>
  */
 @UtilityClass
@@ -75,14 +84,17 @@ public class TypeCoercionUtil {
         if (boxed == String.class) {
             if (raw instanceof String s) return (T) s;
             if (raw instanceof Clob clob) return (T) coerceClobToString(clob);
+            if (raw instanceof char[] chars) return (T) new String(chars);
+            if (raw instanceof Character[] chars) return (T) new String(NumberUtils.objectCharactersToChars(chars));
+            if (raw instanceof byte[] bytes) return (T) new String(bytes, StandardCharsets.UTF_8);
+            if (raw instanceof Byte[] bytes) return (T) new String(NumberUtils.objectBytesToBytes(bytes), StandardCharsets.UTF_8);
+            if (raw instanceof Blob blob) return (T) coerceBlobToString(blob);
             if (raw.getClass().isArray()) return (T) StringUtils.toString(raw);
             return (T) Objects.toString(raw, null);
         }
 
-        if (boxed == byte[].class) {
-            if (raw instanceof byte[] bytes) return (T) bytes;
-            if (raw instanceof Blob blob) return (T) coerceBlobToByteArray(blob);
-            return null;
+        if (targetType.isArray()) {
+            return ArrayCoercion.coerce(raw, targetType);
         }
 
         if (boxed.isInstance(raw) && !(raw instanceof Number)) {
@@ -117,7 +129,8 @@ public class TypeCoercionUtil {
 
         if (boxed == UUID.class) {
             try {
-                return (T) UuidUtil.convert2Uuid(raw);
+                Object value = raw instanceof Byte[] bytes ? NumberUtils.objectBytesToBytes(bytes) : raw;
+                return (T) UuidUtil.convert2Uuid(value);
             } catch (IllegalArgumentException e) {
                 throw cannotCoerce(boxed, e);
             }
@@ -128,209 +141,25 @@ public class TypeCoercionUtil {
             return (T) coerceEnum(raw, enumClass);
         }
 
-        if (boxed == java.sql.Date.class) {
-            if (raw instanceof java.sql.Date d) return (T) d;
-            Long millis = epochMillis(raw);
-            if (millis != null) {
-                return (T) new java.sql.Date(millis);
-            }
-            if (raw instanceof String s) {
-                LocalDate parsed = requireLocalDate(s, boxed);
-                return parsed == null ? null : (T) java.sql.Date.valueOf(parsed);
-            }
-            return null;
+        if (DateTimeCoercion.supports(targetType)) {
+            return DateTimeCoercion.coerce(raw, targetType);
         }
 
         if (boxed == Clob.class) {
             if (raw instanceof Clob clob) return (T) clob;
             if (raw instanceof String s) return (T) coerceStringToClob(s);
+            if (raw instanceof char[] chars) return (T) coerceStringToClob(new String(chars));
+            if (raw instanceof Character[] chars) return (T) coerceStringToClob(new String(NumberUtils.objectCharactersToChars(chars)));
             return null;
         }
 
         if (boxed == Blob.class) {
             if (raw instanceof Blob blob) return (T) blob;
             if (raw instanceof byte[] bytes) return (T) coerceByteArrayToBlob(bytes);
-            return null;
-        }
-
-        if (boxed == Time.class) {
-            if (raw instanceof Time t) return (T) t;
-            Long millis = epochMillis(raw);
-            if (millis != null) {
-                return (T) new Time(millis);
-            }
-            if (raw instanceof String s) {
-                LocalTime parsed = requireLocalTime(s, boxed);
-                return parsed == null ? null : (T) Time.valueOf(parsed);
-            }
-            return null;
-        }
-
-        if (boxed == Timestamp.class) {
-            if (raw instanceof Timestamp ts) return (T) ts;
-            Long millis = epochMillis(raw);
-            if (millis != null) {
-                return (T) new Timestamp(millis);
-            }
-            if (raw instanceof String s) {
-                LocalDateTime parsed = requireLocalDateTime(s, boxed);
-                return parsed == null ? null : (T) Timestamp.valueOf(parsed);
-            }
-            return null;
-        }
-
-        if (boxed == Date.class) {
-            if (raw instanceof Timestamp ts) return (T) new Date(ts.getTime());
-            if (raw instanceof java.sql.Date d) return (T) new Date(d.getTime());
-            if (raw instanceof Date d) return (T) d;
-            if (raw instanceof LocalDateTime ldt) return (T) DateTimeUtil.toDate(ldt);
-            if (raw instanceof LocalDate ld) return (T) DateTimeUtil.toDate(ld);
-            if (raw instanceof Instant ins) return (T) DateTimeUtil.toDate(ins);
-            if (raw instanceof String s) {
-                LocalDateTime parsed = requireLocalDateTime(s, boxed);
-                return parsed == null ? null : (T) DateTimeUtil.toDate(parsed);
-            }
-            return null;
-        }
-
-        if (boxed == LocalDate.class) {
-            if (raw instanceof LocalDate ld) return (T) ld;
-            if (raw instanceof java.sql.Date d) return (T) DateTimeUtil.toLocalDate(d);
-            if (raw instanceof Timestamp ts) return (T) DateTimeUtil.toLocalDate(ts);
-            if (raw instanceof Date d) return (T) DateTimeUtil.toLocalDate(d);
-            if (raw instanceof Instant ins) return (T) DateTimeUtil.toLocalDate(ins);
-            if (raw instanceof ZonedDateTime zdt) return (T) DateTimeUtil.toLocalDate(zdt);
-            if (raw instanceof OffsetDateTime odt) return (T) DateTimeUtil.toLocalDate(odt);
-            if (raw instanceof String s) {
-                return (T) requireLocalDate(s, boxed);
-            }
-            return null;
-        }
-
-        if (boxed == LocalTime.class) {
-            if (raw instanceof LocalTime lt) return (T) lt;
-            if (raw instanceof LocalDateTime ldt) return (T) DateTimeUtil.toLocalTime(ldt);
-            if (raw instanceof Time t) return (T) DateTimeUtil.toLocalTime(t);
-            if (raw instanceof Timestamp ts) return (T) DateTimeUtil.toLocalTime(ts);
-            if (raw instanceof Date d) return (T) DateTimeUtil.toLocalTime(d);
-            if (raw instanceof Instant ins) return (T) DateTimeUtil.toLocalTime(DateTimeUtil.toDate(ins));
-            if (raw instanceof ZonedDateTime zdt) return (T) DateTimeUtil.toLocalTime(DateTimeUtil.toDate(zdt));
-            if (raw instanceof OffsetDateTime odt) return (T) DateTimeUtil.toLocalTime(DateTimeUtil.toDate(odt));
-            if (raw instanceof String s) {
-                return (T) requireLocalTime(s, boxed);
-            }
-            return null;
-        }
-
-        if (boxed == LocalDateTime.class) {
-            if (raw instanceof LocalDateTime ldt) return (T) ldt;
-            if (raw instanceof LocalDate ld) return (T) DateTimeUtil.toLocalDateTime(ld);
-            if (raw instanceof Timestamp ts) return (T) DateTimeUtil.toLocalDateTime(ts);
-            if (raw instanceof Date d) return (T) DateTimeUtil.toLocalDateTime(d);
-            if (raw instanceof Instant ins) return (T) DateTimeUtil.toLocalDateTime(ins);
-            if (raw instanceof ZonedDateTime zdt) return (T) DateTimeUtil.toLocalDateTime(zdt);
-            if (raw instanceof OffsetDateTime odt) return (T) DateTimeUtil.toLocalDateTime(odt);
-            if (raw instanceof String s) {
-                return (T) requireLocalDateTime(s, boxed);
-            }
-            return null;
-        }
-
-        if (boxed == Instant.class) {
-            if (raw instanceof Instant ins) return (T) ins;
-            if (raw instanceof ZonedDateTime zdt) return (T) zdt.toInstant();
-            if (raw instanceof OffsetDateTime odt) return (T) odt.toInstant();
-            if (raw instanceof LocalDateTime ldt) return (T) DateTimeUtil.toZonedDateTime(ldt).toInstant();
-            if (raw instanceof LocalDate ld) return (T) DateTimeUtil.toZonedDateTime(ld).toInstant();
-            if (raw instanceof Timestamp ts) return (T) ts.toInstant();
-            if (raw instanceof Date d) return (T) d.toInstant();
-            if (raw instanceof String s) {
-                LocalDateTime parsed = requireLocalDateTime(s, boxed);
-                return parsed == null ? null : (T) DateTimeUtil.toZonedDateTime(parsed).toInstant();
-            }
-            return null;
-        }
-
-        if (boxed == ZonedDateTime.class) {
-            if (raw instanceof ZonedDateTime zdt) return (T) zdt;
-            if (raw instanceof OffsetDateTime odt) return (T) odt.toZonedDateTime();
-            if (raw instanceof Instant ins) return (T) DateTimeUtil.toZonedDateTime(ins);
-            if (raw instanceof LocalDateTime ldt) return (T) DateTimeUtil.toZonedDateTime(ldt);
-            if (raw instanceof LocalDate ld) return (T) DateTimeUtil.toZonedDateTime(ld);
-            if (raw instanceof Timestamp ts) return (T) DateTimeUtil.toZonedDateTime(ts);
-            if (raw instanceof Date d) return (T) DateTimeUtil.toZonedDateTime(d);
-            if (raw instanceof String s) {
-                LocalDateTime parsed = requireLocalDateTime(s, boxed);
-                return parsed == null ? null : (T) DateTimeUtil.toZonedDateTime(parsed);
-            }
-            return null;
-        }
-
-        if (boxed == OffsetDateTime.class) {
-            if (raw instanceof OffsetDateTime odt) return (T) odt;
-            if (raw instanceof Instant ins) return (T) DateTimeUtil.toOffsetDateTime(ins);
-            if (raw instanceof ZonedDateTime zdt) return (T) DateTimeUtil.toOffsetDateTime(zdt);
-            if (raw instanceof LocalDateTime ldt) return (T) DateTimeUtil.toOffsetDateTime(ldt);
-            if (raw instanceof LocalDate ld) return (T) DateTimeUtil.toOffsetDateTime(DateTimeUtil.toLocalDateTime(ld));
-            if (raw instanceof Timestamp ts) return (T) DateTimeUtil.toOffsetDateTime(ts);
-            if (raw instanceof Date d) return (T) DateTimeUtil.toOffsetDateTime(d);
-            if (raw instanceof String s) {
-                LocalDateTime parsed = requireLocalDateTime(s, boxed);
-                return parsed == null ? null : (T) DateTimeUtil.toOffsetDateTime(parsed);
-            }
+            if (raw instanceof Byte[] bytes) return (T) coerceByteArrayToBlob(NumberUtils.objectBytesToBytes(bytes));
             return null;
         }
         throw unsupportedTarget(targetType);
-    }
-
-    /**
-     * @return parsed date, or {@code null} when {@code text} is blank
-     * @throws TypeCoercionException when {@code text} holds something that is not a date
-     */
-    private static LocalDate requireLocalDate(String text, Class<?> targetType) {
-        LocalDate parsed = DateTimeUtil.tryParseLocalDate(text);
-        if (parsed == null && !text.isBlank()) {
-            throw cannotCoerce(targetType, null);
-        }
-        return parsed;
-    }
-
-    /**
-     * @return parsed date-time, or {@code null} when {@code text} is blank
-     * @throws TypeCoercionException when {@code text} holds something that is not a date-time
-     */
-    private static LocalDateTime requireLocalDateTime(String text, Class<?> targetType) {
-        LocalDateTime parsed = DateTimeUtil.tryParseLocalDateTime(text);
-        if (parsed == null && !text.isBlank()) {
-            throw cannotCoerce(targetType, null);
-        }
-        return parsed;
-    }
-
-    /**
-     * @return parsed time, or {@code null} when {@code text} is blank
-     * @throws TypeCoercionException when {@code text} holds something that is not a time
-     */
-    private static LocalTime requireLocalTime(String text, Class<?> targetType) {
-        LocalTime parsed = DateTimeUtil.tryParseLocalTime(text);
-        if (parsed == null && !text.isBlank()) {
-            throw cannotCoerce(targetType, null);
-        }
-        return parsed;
-    }
-
-    private static Long epochMillis(Object value) {
-        if (value instanceof Date date) return date.getTime();
-        if (value instanceof Calendar calendar) return calendar.getTimeInMillis();
-        if (value instanceof Number number) return number.longValue();
-        if (value instanceof LocalDateTime localDateTime) return Timestamp.valueOf(localDateTime).getTime();
-        if (value instanceof LocalDate localDate) return java.sql.Date.valueOf(localDate).getTime();
-        if (value instanceof LocalTime localTime) return Time.valueOf(localTime).getTime();
-        if (value instanceof OffsetDateTime offsetDateTime) return offsetDateTime.toInstant().toEpochMilli();
-        if (value instanceof ZonedDateTime zonedDateTime) return zonedDateTime.toInstant().toEpochMilli();
-        if (value instanceof Instant instant) return instant.toEpochMilli();
-        if (value instanceof String text && StringUtils.isDigits(text)) return Long.parseLong(text);
-        return null;
     }
 
     @SuppressWarnings("unchecked")
@@ -342,19 +171,19 @@ public class TypeCoercionUtil {
         }
     }
 
-    private static String coerceClobToString(Clob clob) {
+    private static String coerceBlobToString(Blob blob) {
         try {
-            return LobUtils.convertClobToString(clob);
+            return new String(LobUtils.convertBlobToByteArray(blob), StandardCharsets.UTF_8);
         } catch (SQLException e) {
             throw cannotCoerce(String.class, e);
         }
     }
 
-    private static byte[] coerceBlobToByteArray(Blob blob) {
+    private static String coerceClobToString(Clob clob) {
         try {
-            return LobUtils.convertBlobToByteArray(blob);
+            return LobUtils.convertClobToString(clob);
         } catch (SQLException e) {
-            throw cannotCoerce(byte[].class, e);
+            throw cannotCoerce(String.class, e);
         }
     }
 

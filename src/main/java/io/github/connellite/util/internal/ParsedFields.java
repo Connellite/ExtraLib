@@ -4,6 +4,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.OffsetDateTime;
+import java.time.OffsetTime;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
 
@@ -68,6 +69,7 @@ public final class ParsedFields {
      *
      * @return {@code false} when the values are out of range, leaving the instance unchanged
      */
+    @SuppressWarnings("BooleanMethodIsAlwaysInverted")
     public boolean setTime(int hour, int minute, int second, int nano) {
         if (hour < 0 || hour > 23
                 || minute < 0 || minute > 59
@@ -88,6 +90,7 @@ public final class ParsedFields {
      *
      * @return {@code false} when {@code offsetSeconds} exceeds the {@link ZoneOffset} range
      */
+    @SuppressWarnings("BooleanMethodIsAlwaysInverted")
     public boolean setOffsetSeconds(int offsetSeconds) {
         if (offsetSeconds < -18 * 3600 || offsetSeconds > 18 * 3600) {
             return false;
@@ -166,6 +169,50 @@ public final class ParsedFields {
             return null;
         }
         return OffsetDateTime.of(dateTime, resolveOffset(dateTime));
+    }
+
+    /**
+     * @return the time of day at the parsed offset or zone, or {@code null} when the input carried
+     * no time or neither an offset nor a zone
+     */
+    public OffsetTime toOffsetTime() {
+        if (!hasTime()) {
+            return null;
+        }
+        ZoneOffset offset = toZoneOffset();
+        if (offset == null && hasZone()) {
+            if (zone instanceof ZoneOffset zoneOffset) {
+                offset = zoneOffset;
+            } else if (hasDate()) {
+                offset = zone.getRules().getOffset(toLocalDateTime());
+            }
+        }
+        if (offset == null) {
+            return null;
+        }
+        return OffsetTime.of(LocalTime.of(hour, minute, second, nano), offset);
+    }
+
+    /**
+     * @return the explicit offset written in the input, or {@code null} when there was none.
+     * A named zone is not turned into an offset.
+     */
+    public ZoneOffset toZoneOffset() {
+        if (!hasOffset()) {
+            return null;
+        }
+        return ZoneOffset.ofTotalSeconds(offsetSeconds);
+    }
+
+    /**
+     * @return the named zone, or the explicit offset when the input named no zone,
+     * or {@code null} when it carried neither
+     */
+    public ZoneId toZoneId() {
+        if (hasZone()) {
+            return zone;
+        }
+        return toZoneOffset();
     }
 
     private ZoneOffset resolveOffset(LocalDateTime dateTime) {

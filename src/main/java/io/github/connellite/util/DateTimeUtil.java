@@ -7,12 +7,15 @@ import io.github.connellite.util.internal.DateTimeScanner;
 import io.github.connellite.util.internal.ParsedFields;
 import lombok.experimental.UtilityClass;
 
+import java.time.DateTimeException;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.OffsetDateTime;
+import java.time.OffsetTime;
 import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.Calendar;
 import java.util.Date;
@@ -116,6 +119,53 @@ public class DateTimeUtil {
     public static LocalTime tryParseLocalTime(String text) {
         ParsedFields fields = parseFields(text);
         return fields == null ? null : fields.toLocalTime();
+    }
+
+    /**
+     * Reads an {@link OffsetTime} from {@code text} with the same recognition as
+     * {@link #tryParseLocalTime(String)}.
+     * The result is {@code null} when the input has no time, or has a time but neither an offset nor a zone.
+     *
+     * @return the offset time, or {@code null} if {@code text} is null/blank or does not carry one
+     */
+    public static OffsetTime tryParseOffsetTime(String text) {
+        ParsedFields fields = parseFields(text);
+        return fields == null ? null : fields.toOffsetTime();
+    }
+
+    /**
+     * Reads a {@link ZoneId} from {@code text}.
+     * A bare zone or offset is read by {@link ZoneId#of(String)}. Anything else, such as a date-time
+     * that carries a zone, falls back to the scanner: a named zone wins, and an explicit offset is
+     * used when the input named no zone.
+     *
+     * @return the zone, or {@code null} if {@code text} is null/blank or carries neither a zone nor an offset
+     */
+    public static ZoneId tryParseZoneId(String text) {
+        if (text == null || text.isBlank()) return null;
+        try {
+            return ZoneId.of(text.trim());
+        } catch (DateTimeException e) {
+            ParsedFields fields = parseFields(text);
+            return fields == null ? null : fields.toZoneId();
+        }
+    }
+
+    /**
+     * Reads a {@link ZoneOffset} from {@code text}.
+     * A bare offset is read by {@link ZoneOffset#of(String)}. Anything else falls back to the scanner,
+     * which returns only an offset written in the input. A named zone is left alone.
+     *
+     * @return the offset, or {@code null} if {@code text} is null/blank or carries no offset
+     */
+    public static ZoneOffset tryParseZoneOffset(String text) {
+        if (text == null || text.isBlank()) return null;
+        try {
+            return ZoneOffset.of(text.trim());
+        } catch (DateTimeException e) {
+            ParsedFields fields = parseFields(text);
+            return fields == null ? null : fields.toZoneOffset();
+        }
     }
 
     /**

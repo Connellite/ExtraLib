@@ -444,6 +444,7 @@ public class NumberUtils {
      *
      * @param bytes the source array, or {@code null}
      * @return a new {@code byte[]} with the same values and order, or {@code null} if {@code bytes} is {@code null}
+     * @throws NullPointerException if any element of {@code bytes} is {@code null}
      */
     public static byte[] objectBytesToBytes(Byte[] bytes) {
         if (bytes == null) return null;
@@ -451,6 +452,228 @@ public class NumberUtils {
 
         for (int i = 0; i < bytes.length; ++i) {
             result[i] = bytes[i];
+        }
+
+        return result;
+    }
+
+    /**
+     * Copies a primitive {@code short[]} into a boxed {@link Short}{@code []} of the same length.
+     * Each element is autoboxed; the returned array is a new instance.
+     *
+     * @param shorts the source array, or {@code null}
+     * @return a new {@code Short[]} with the same values and order, or {@code null} if {@code shorts} is {@code null}
+     */
+    public static Short[] shortsToObjectShorts(short[] shorts) {
+        if (shorts == null) return null;
+        Short[] result = new Short[shorts.length];
+
+        for (int i = 0; i < shorts.length; ++i) {
+            result[i] = shorts[i];
+        }
+
+        return result;
+    }
+
+    /**
+     * Copies a boxed {@link Short}{@code []} into a primitive {@code short[]} of the same length.
+     * Each element is unboxed; the returned array is a new instance.
+     *
+     * @param shorts the source array, or {@code null}
+     * @return a new {@code short[]} with the same values and order, or {@code null} if {@code shorts} is {@code null}
+     * @throws NullPointerException if any element of {@code shorts} is {@code null}
+     */
+    public static short[] objectShortsToShorts(Short[] shorts) {
+        if (shorts == null) return null;
+        short[] result = new short[shorts.length];
+
+        for (int i = 0; i < shorts.length; ++i) {
+            result[i] = shorts[i];
+        }
+
+        return result;
+    }
+
+    /**
+     * Copies a primitive {@code int[]} into a boxed {@link Integer}{@code []} of the same length.
+     * Each element is autoboxed; the returned array is a new instance.
+     *
+     * @param ints the source array, or {@code null}
+     * @return a new {@code Integer[]} with the same values and order, or {@code null} if {@code ints} is {@code null}
+     */
+    public static Integer[] intsToObjectIntegers(int[] ints) {
+        if (ints == null) return null;
+        Integer[] result = new Integer[ints.length];
+
+        for (int i = 0; i < ints.length; ++i) {
+            result[i] = ints[i];
+        }
+
+        return result;
+    }
+
+    /**
+     * Copies a boxed {@link Integer}{@code []} into a primitive {@code int[]} of the same length.
+     * Each element is unboxed; the returned array is a new instance.
+     *
+     * @param ints the source array, or {@code null}
+     * @return a new {@code int[]} with the same values and order, or {@code null} if {@code ints} is {@code null}
+     * @throws NullPointerException if any element of {@code ints} is {@code null}
+     */
+    public static int[] objectIntegersToInts(Integer[] ints) {
+        if (ints == null) return null;
+        int[] result = new int[ints.length];
+
+        for (int i = 0; i < ints.length; ++i) {
+            result[i] = ints[i];
+        }
+
+        return result;
+    }
+
+    /**
+     * Copies a primitive {@code long[]} into a boxed {@link Long}{@code []} of the same length.
+     * Each element is autoboxed; the returned array is a new instance.
+     *
+     * @param longs the source array, or {@code null}
+     * @return a new {@code Long[]} with the same values and order, or {@code null} if {@code longs} is {@code null}
+     */
+    public static Long[] longsToObjectLongs(long[] longs) {
+        if (longs == null) return null;
+        Long[] result = new Long[longs.length];
+
+        for (int i = 0; i < longs.length; ++i) {
+            result[i] = longs[i];
+        }
+
+        return result;
+    }
+
+    /**
+     * Copies a boxed {@link Long}{@code []} into a primitive {@code long[]} of the same length.
+     * Each element is unboxed; the returned array is a new instance.
+     *
+     * @param longs the source array, or {@code null}
+     * @return a new {@code long[]} with the same values and order, or {@code null} if {@code longs} is {@code null}
+     * @throws NullPointerException if any element of {@code longs} is {@code null}
+     */
+    public static long[] objectLongsToLongs(Long[] longs) {
+        if (longs == null) return null;
+        long[] result = new long[longs.length];
+
+        for (int i = 0; i < longs.length; ++i) {
+            result[i] = longs[i];
+        }
+
+        return result;
+    }
+
+    /**
+     * Copies a primitive {@code float[]} into a boxed {@link Float}{@code []} of the same length.
+     * Each element is autoboxed; the returned array is a new instance.
+     *
+     * @param floats the source array, or {@code null}
+     * @return a new {@code Float[]} with the same values and order, or {@code null} if {@code floats} is {@code null}
+     */
+    public static Float[] floatsToObjectFloats(float[] floats) {
+        if (floats == null) return null;
+        Float[] result = new Float[floats.length];
+
+        for (int i = 0; i < floats.length; ++i) {
+            result[i] = floats[i];
+        }
+
+        return result;
+    }
+
+    /**
+     * Copies a boxed {@link Float}{@code []} into a primitive {@code float[]} of the same length.
+     * Each element is unboxed; the returned array is a new instance.
+     *
+     * @param floats the source array, or {@code null}
+     * @return a new {@code float[]} with the same values and order, or {@code null} if {@code floats} is {@code null}
+     * @throws NullPointerException if any element of {@code floats} is {@code null}
+     */
+    public static float[] objectFloatsToFloats(Float[] floats) {
+        if (floats == null) return null;
+        float[] result = new float[floats.length];
+
+        for (int i = 0; i < floats.length; ++i) {
+            result[i] = floats[i];
+        }
+
+        return result;
+    }
+
+    /**
+     * Copies a primitive {@code double[]} into a boxed {@link Double}{@code []} of the same length.
+     * Each element is autoboxed; the returned array is a new instance.
+     *
+     * @param doubles the source array, or {@code null}
+     * @return a new {@code Double[]} with the same values and order, or {@code null} if {@code doubles} is {@code null}
+     */
+    public static Double[] doublesToObjectDoubles(double[] doubles) {
+        if (doubles == null) return null;
+        Double[] result = new Double[doubles.length];
+
+        for (int i = 0; i < doubles.length; ++i) {
+            result[i] = doubles[i];
+        }
+
+        return result;
+    }
+
+    /**
+     * Copies a boxed {@link Double}{@code []} into a primitive {@code double[]} of the same length.
+     * Each element is unboxed; the returned array is a new instance.
+     *
+     * @param doubles the source array, or {@code null}
+     * @return a new {@code double[]} with the same values and order, or {@code null} if {@code doubles} is {@code null}
+     * @throws NullPointerException if any element of {@code doubles} is {@code null}
+     */
+    public static double[] objectDoublesToDoubles(Double[] doubles) {
+        if (doubles == null) return null;
+        double[] result = new double[doubles.length];
+
+        for (int i = 0; i < doubles.length; ++i) {
+            result[i] = doubles[i];
+        }
+
+        return result;
+    }
+
+    /**
+     * Copies a primitive {@code char[]} into a boxed {@link Character}{@code []} of the same length.
+     * Each element is autoboxed; the returned array is a new instance.
+     *
+     * @param chars the source array, or {@code null}
+     * @return a new {@code Character[]} with the same values and order, or {@code null} if {@code chars} is {@code null}
+     */
+    public static Character[] charsToObjectCharacters(char[] chars) {
+        if (chars == null) return null;
+        Character[] result = new Character[chars.length];
+
+        for (int i = 0; i < chars.length; ++i) {
+            result[i] = chars[i];
+        }
+
+        return result;
+    }
+
+    /**
+     * Copies a boxed {@link Character}{@code []} into a primitive {@code char[]} of the same length.
+     * Each element is unboxed; the returned array is a new instance.
+     *
+     * @param chars the source array, or {@code null}
+     * @return a new {@code char[]} with the same values and order, or {@code null} if {@code chars} is {@code null}
+     * @throws NullPointerException if any element of {@code chars} is {@code null}
+     */
+    public static char[] objectCharactersToChars(Character[] chars) {
+        if (chars == null) return null;
+        char[] result = new char[chars.length];
+
+        for (int i = 0; i < chars.length; ++i) {
+            result[i] = chars[i];
         }
 
         return result;

@@ -201,6 +201,234 @@ class NumberUtilsTest {
     }
 
     @Test
+    void shortsToObjectShorts_nullReturnsNull() {
+        assertNull(NumberUtils.shortsToObjectShorts(null));
+    }
+
+    @Test
+    void objectShortsToShorts_nullReturnsNull() {
+        assertNull(NumberUtils.objectShortsToShorts(null));
+    }
+
+    @Test
+    void shortsToObjectShorts_emptyArray() {
+        assertArrayEquals(new Short[0], NumberUtils.shortsToObjectShorts(new short[0]));
+    }
+
+    @Test
+    void objectShortsToShorts_emptyArray() {
+        assertArrayEquals(new short[0], NumberUtils.objectShortsToShorts(new Short[0]));
+    }
+
+    @Test
+    void shortsRoundTrip_viaObjectShorts() {
+        short[] original = {0, Short.MAX_VALUE, -1, Short.MIN_VALUE};
+        Short[] boxed = NumberUtils.shortsToObjectShorts(original);
+        assertEquals(Short.valueOf((short) 0), boxed[0]);
+        assertEquals(Short.valueOf(Short.MAX_VALUE), boxed[1]);
+        assertEquals(Short.valueOf((short) -1), boxed[2]);
+        assertEquals(Short.valueOf(Short.MIN_VALUE), boxed[3]);
+        assertArrayEquals(original, NumberUtils.objectShortsToShorts(boxed));
+    }
+
+    @Test
+    void objectShortsToShorts_nullElementThrows() {
+        Short[] withNull = {(short) 1, null};
+        assertThrows(NullPointerException.class, () -> NumberUtils.objectShortsToShorts(withNull));
+    }
+
+    @Test
+    void intsToObjectIntegers_nullReturnsNull() {
+        assertNull(NumberUtils.intsToObjectIntegers(null));
+    }
+
+    @Test
+    void objectIntegersToInts_nullReturnsNull() {
+        assertNull(NumberUtils.objectIntegersToInts(null));
+    }
+
+    @Test
+    void intsToObjectIntegers_emptyArray() {
+        assertArrayEquals(new Integer[0], NumberUtils.intsToObjectIntegers(new int[0]));
+    }
+
+    @Test
+    void objectIntegersToInts_emptyArray() {
+        assertArrayEquals(new int[0], NumberUtils.objectIntegersToInts(new Integer[0]));
+    }
+
+    @Test
+    void intsRoundTrip_viaObjectIntegers() {
+        int[] original = {0, Integer.MAX_VALUE, -1, Integer.MIN_VALUE};
+        Integer[] boxed = NumberUtils.intsToObjectIntegers(original);
+        assertEquals(Integer.valueOf(0), boxed[0]);
+        assertEquals(Integer.valueOf(Integer.MAX_VALUE), boxed[1]);
+        assertEquals(Integer.valueOf(-1), boxed[2]);
+        assertEquals(Integer.valueOf(Integer.MIN_VALUE), boxed[3]);
+        assertArrayEquals(original, NumberUtils.objectIntegersToInts(boxed));
+    }
+
+    @Test
+    void objectIntegersToInts_nullElementThrows() {
+        Integer[] withNull = {1, null};
+        assertThrows(NullPointerException.class, () -> NumberUtils.objectIntegersToInts(withNull));
+    }
+
+    @Test
+    void longsToObjectLongs_nullReturnsNull() {
+        assertNull(NumberUtils.longsToObjectLongs(null));
+    }
+
+    @Test
+    void objectLongsToLongs_nullReturnsNull() {
+        assertNull(NumberUtils.objectLongsToLongs(null));
+    }
+
+    @Test
+    void longsToObjectLongs_emptyArray() {
+        assertArrayEquals(new Long[0], NumberUtils.longsToObjectLongs(new long[0]));
+    }
+
+    @Test
+    void objectLongsToLongs_emptyArray() {
+        assertArrayEquals(new long[0], NumberUtils.objectLongsToLongs(new Long[0]));
+    }
+
+    @Test
+    void longsRoundTrip_viaObjectLongs() {
+        long[] original = {0L, Long.MAX_VALUE, -1L, Long.MIN_VALUE};
+        Long[] boxed = NumberUtils.longsToObjectLongs(original);
+        assertEquals(Long.valueOf(0L), boxed[0]);
+        assertEquals(Long.valueOf(Long.MAX_VALUE), boxed[1]);
+        assertEquals(Long.valueOf(-1L), boxed[2]);
+        assertEquals(Long.valueOf(Long.MIN_VALUE), boxed[3]);
+        assertArrayEquals(original, NumberUtils.objectLongsToLongs(boxed));
+    }
+
+    @Test
+    void objectLongsToLongs_nullElementThrows() {
+        Long[] withNull = {1L, null};
+        assertThrows(NullPointerException.class, () -> NumberUtils.objectLongsToLongs(withNull));
+    }
+
+    @Test
+    void floatsToObjectFloats_nullReturnsNull() {
+        assertNull(NumberUtils.floatsToObjectFloats(null));
+    }
+
+    @Test
+    void objectFloatsToFloats_nullReturnsNull() {
+        assertNull(NumberUtils.objectFloatsToFloats(null));
+    }
+
+    @Test
+    void floatsToObjectFloats_emptyArray() {
+        assertArrayEquals(new Float[0], NumberUtils.floatsToObjectFloats(new float[0]));
+    }
+
+    @Test
+    void objectFloatsToFloats_emptyArray() {
+        assertArrayEquals(new float[0], NumberUtils.objectFloatsToFloats(new Float[0]));
+    }
+
+    @Test
+    void floatsRoundTrip_viaObjectFloats() {
+        float[] original = {0f, Float.MAX_VALUE, -1f, Float.MIN_VALUE, Float.NaN, Float.POSITIVE_INFINITY, Float.NEGATIVE_INFINITY};
+        Float[] boxed = NumberUtils.floatsToObjectFloats(original);
+        assertEquals(Float.valueOf(0f), boxed[0]);
+        assertEquals(Float.valueOf(Float.MAX_VALUE), boxed[1]);
+        assertEquals(Float.valueOf(-1f), boxed[2]);
+        assertEquals(Float.valueOf(Float.MIN_VALUE), boxed[3]);
+        assertEquals(Float.valueOf(Float.NaN), boxed[4]);
+        assertEquals(Float.valueOf(Float.POSITIVE_INFINITY), boxed[5]);
+        assertEquals(Float.valueOf(Float.NEGATIVE_INFINITY), boxed[6]);
+        assertArrayEquals(original, NumberUtils.objectFloatsToFloats(boxed));
+    }
+
+    @Test
+    void objectFloatsToFloats_nullElementThrows() {
+        Float[] withNull = {1f, null};
+        assertThrows(NullPointerException.class, () -> NumberUtils.objectFloatsToFloats(withNull));
+    }
+
+    @Test
+    void doublesToObjectDoubles_nullReturnsNull() {
+        assertNull(NumberUtils.doublesToObjectDoubles(null));
+    }
+
+    @Test
+    void objectDoublesToDoubles_nullReturnsNull() {
+        assertNull(NumberUtils.objectDoublesToDoubles(null));
+    }
+
+    @Test
+    void doublesToObjectDoubles_emptyArray() {
+        assertArrayEquals(new Double[0], NumberUtils.doublesToObjectDoubles(new double[0]));
+    }
+
+    @Test
+    void objectDoublesToDoubles_emptyArray() {
+        assertArrayEquals(new double[0], NumberUtils.objectDoublesToDoubles(new Double[0]));
+    }
+
+    @Test
+    void doublesRoundTrip_viaObjectDoubles() {
+        double[] original = {0d, Double.MAX_VALUE, -1d, Double.MIN_VALUE, Double.NaN, Double.POSITIVE_INFINITY, Double.NEGATIVE_INFINITY};
+        Double[] boxed = NumberUtils.doublesToObjectDoubles(original);
+        assertEquals(Double.valueOf(0d), boxed[0]);
+        assertEquals(Double.valueOf(Double.MAX_VALUE), boxed[1]);
+        assertEquals(Double.valueOf(-1d), boxed[2]);
+        assertEquals(Double.valueOf(Double.MIN_VALUE), boxed[3]);
+        assertEquals(Double.valueOf(Double.NaN), boxed[4]);
+        assertEquals(Double.valueOf(Double.POSITIVE_INFINITY), boxed[5]);
+        assertEquals(Double.valueOf(Double.NEGATIVE_INFINITY), boxed[6]);
+        assertArrayEquals(original, NumberUtils.objectDoublesToDoubles(boxed));
+    }
+
+    @Test
+    void objectDoublesToDoubles_nullElementThrows() {
+        Double[] withNull = {1d, null};
+        assertThrows(NullPointerException.class, () -> NumberUtils.objectDoublesToDoubles(withNull));
+    }
+
+    @Test
+    void charsToObjectCharacters_nullReturnsNull() {
+        assertNull(NumberUtils.charsToObjectCharacters(null));
+    }
+
+    @Test
+    void objectCharactersToChars_nullReturnsNull() {
+        assertNull(NumberUtils.objectCharactersToChars(null));
+    }
+
+    @Test
+    void charsToObjectCharacters_emptyArray() {
+        assertArrayEquals(new Character[0], NumberUtils.charsToObjectCharacters(new char[0]));
+    }
+
+    @Test
+    void objectCharactersToChars_emptyArray() {
+        assertArrayEquals(new char[0], NumberUtils.objectCharactersToChars(new Character[0]));
+    }
+
+    @Test
+    void charsRoundTrip_viaObjectCharacters() {
+        char[] original = {'\0', 'A', '\u00FF', Character.MAX_VALUE};
+        Character[] boxed = NumberUtils.charsToObjectCharacters(original);
+        assertEquals(Character.valueOf('\0'), boxed[0]);
+        assertEquals(Character.valueOf('A'), boxed[1]);
+        assertEquals(Character.valueOf('\u00FF'), boxed[2]);
+        assertEquals(Character.valueOf(Character.MAX_VALUE), boxed[3]);
+        assertArrayEquals(original, NumberUtils.objectCharactersToChars(boxed));
+    }
+
+    @Test
+    void objectCharactersToChars_nullElementThrows() {
+        Character[] withNull = {'A', null};
+        assertThrows(NullPointerException.class, () -> NumberUtils.objectCharactersToChars(withNull));
+    }
+
+    @Test
     void isNumeric_nullThrows() {
         assertThrows(NullPointerException.class, () -> NumberUtils.isNumeric(null));
     }
