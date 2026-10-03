@@ -37,8 +37,9 @@ import java.util.Locale;
  *       {@code %x} and {@code %X} are localized.</li>
  * </ul>
  *
- * <p>An instance holds the scratch buffer and the per-specifier state, so it is not thread-safe and
- * is meant to be created, used once and discarded.
+ * <p>An instance holds the scratch buffer and the per-specifier state, so it is not thread-safe.
+ * {@link io.github.connellite.util.DateTimeUtilFormat} reuses one engine per thread; after a format
+ * call {@link #clear()} drops the output buffer and the last temporal so they do not linger.
  */
 public final class Strftime {
 
@@ -97,6 +98,16 @@ public final class Strftime {
         this.out = out;
         this.text = CalendarText.of(locale);
         run(pattern);
+    }
+
+    /**
+     * Drops the last output buffer, locale text and temporal, so a reused engine does not retain
+     * the caller's objects.
+     */
+    public void clear() {
+        this.out = null;
+        this.text = null;
+        time.clear();
     }
 
     private void run(CharSequence pattern) {

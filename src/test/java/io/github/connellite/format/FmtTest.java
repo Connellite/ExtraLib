@@ -1,6 +1,7 @@
 package io.github.connellite.format;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -452,6 +453,12 @@ class FmtTest {
         CompiledFormat c = Fmt.compile("{} = {:d}");
         assertEquals("x = 1", Fmt.format(c, "x", 1));
         assertEquals("y = 2", Fmt.format(c, "y", 2));
+    }
+
+    @Test
+    void compileAlwaysReturnsNewInstance() {
+        String pattern = "fresh {}";
+        assertNotSame(Fmt.compile(pattern), Fmt.compile(pattern));
     }
 
     @Test

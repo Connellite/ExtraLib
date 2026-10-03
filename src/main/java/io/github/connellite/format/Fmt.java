@@ -59,6 +59,9 @@ import java.util.function.Consumer;
  * <p>Named fields ({@code {name}}) are supplied with {@link #arg(String, Object)} in the varargs list.
  * Specs that are not a format_spec fall back to {@link String#format}({@code "%" + spec}).
  *
+ * <p>String overloads of {@code format} and {@code formatTo} reuse a compiled form for a pattern of
+ * at most 256 characters. {@link #compile(CharSequence)} always parses anew.
+ *
  * @see FormatException
  * @see Named
  * @see FmtFormattable
@@ -105,6 +108,7 @@ public final class Fmt {
 
     /**
      * Parses a template and returns a reusable compiled representation.
+     * Each call parses {@code pattern} again and returns a new instance.
      *
      * @param pattern template text
      * @return compiled template
@@ -121,7 +125,7 @@ public final class Fmt {
      * @return rendered text
      */
     public static String format(CharSequence pattern, Object... args) {
-        return FormatEngine.format(compile(pattern), args, defaultLocale);
+        return FormatEngine.format(FormatEngine.compileCached(pattern), args, defaultLocale);
     }
 
     /**
@@ -133,7 +137,7 @@ public final class Fmt {
      * @return rendered text
      */
     public static String format(Locale locale, CharSequence pattern, Object... args) {
-        return FormatEngine.format(compile(pattern), args, locale);
+        return FormatEngine.format(FormatEngine.compileCached(pattern), args, locale);
     }
 
     /**
@@ -295,7 +299,7 @@ public final class Fmt {
      * @param args formatting arguments
      */
     public static void formatTo(Appendable out, CharSequence pattern, Object... args) {
-        FormatEngine.formatTo(out, compile(pattern), args, defaultLocale);
+        FormatEngine.formatTo(out, FormatEngine.compileCached(pattern), args, defaultLocale);
     }
 
     /**
@@ -307,7 +311,7 @@ public final class Fmt {
      * @param args formatting arguments
      */
     public static void formatTo(Appendable out, Locale locale, CharSequence pattern, Object... args) {
-        FormatEngine.formatTo(out, compile(pattern), args, locale);
+        FormatEngine.formatTo(out, FormatEngine.compileCached(pattern), args, locale);
     }
 
     /**
@@ -341,7 +345,7 @@ public final class Fmt {
      * @param args formatting arguments
      */
     public static void formatTo(Consumer<? super String> sink, CharSequence pattern, Object... args) {
-        FormatEngine.formatTo(sink, compile(pattern), args, defaultLocale);
+        FormatEngine.formatTo(sink, FormatEngine.compileCached(pattern), args, defaultLocale);
     }
 
     /**
@@ -353,7 +357,7 @@ public final class Fmt {
      * @param args formatting arguments
      */
     public static void formatTo(Consumer<? super String> sink, Locale locale, CharSequence pattern, Object... args) {
-        FormatEngine.formatTo(sink, compile(pattern), args, locale);
+        FormatEngine.formatTo(sink, FormatEngine.compileCached(pattern), args, locale);
     }
 
     /**

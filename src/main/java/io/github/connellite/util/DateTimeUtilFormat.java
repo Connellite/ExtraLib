@@ -38,6 +38,10 @@ public class DateTimeUtilFormat {
         private static final ZoneId INSTANCE = ZoneId.systemDefault();
     }
 
+    private static final class StrftimeEngineHolder {
+        private static final ThreadLocal<Strftime> ENGINE = ThreadLocal.withInitial(Strftime::new);
+    }
+
     /**
      * Formats a date-time using POSIX {@code strftime} conversion specifiers.
      * <p>
@@ -71,7 +75,7 @@ public class DateTimeUtilFormat {
         if (zdt == null) {
             return "null";
         }
-        Strftime engine = new Strftime();
+        Strftime engine = engine();
         engine.time().set(zdt);
         return render(engine, locale, pattern);
     }
@@ -91,7 +95,7 @@ public class DateTimeUtilFormat {
         if (instant == null) {
             return "null";
         }
-        Strftime engine = new Strftime();
+        Strftime engine = engine();
         engine.time().set(instant, zone);
         return render(engine, locale, pattern);
     }
@@ -111,7 +115,7 @@ public class DateTimeUtilFormat {
         if (odt == null) {
             return "null";
         }
-        Strftime engine = new Strftime();
+        Strftime engine = engine();
         engine.time().set(odt.toInstant(), zone);
         return render(engine, locale, pattern);
     }
@@ -131,7 +135,7 @@ public class DateTimeUtilFormat {
         if (date == null) {
             return "null";
         }
-        Strftime engine = new Strftime();
+        Strftime engine = engine();
         engine.time().set(date, zone);
         return render(engine, locale, pattern);
     }
@@ -151,7 +155,7 @@ public class DateTimeUtilFormat {
         if (calendar == null) {
             return "null";
         }
-        Strftime engine = new Strftime();
+        Strftime engine = engine();
         engine.time().set(calendar, zone);
         return render(engine, locale, pattern);
     }
@@ -171,7 +175,7 @@ public class DateTimeUtilFormat {
         if (ldt == null) {
             return "null";
         }
-        Strftime engine = new Strftime();
+        Strftime engine = engine();
         engine.time().set(ldt, zone);
         return render(engine, locale, pattern);
     }
@@ -191,7 +195,7 @@ public class DateTimeUtilFormat {
         if (ld == null) {
             return "null";
         }
-        Strftime engine = new Strftime();
+        Strftime engine = engine();
         engine.time().set(ld, zone);
         return render(engine, locale, pattern);
     }
@@ -211,7 +215,7 @@ public class DateTimeUtilFormat {
         if (value == null) {
             return "null";
         }
-        Strftime engine = new Strftime();
+        Strftime engine = engine();
         fill(engine.time(), value);
         return render(engine, locale, pattern);
     }
@@ -230,9 +234,13 @@ public class DateTimeUtilFormat {
                 sb.append("null");
                 return;
             }
-            Strftime engine = new Strftime();
-            fill(engine.time(), value);
-            engine.format(sb, pattern, locale);
+            Strftime engine = engine();
+            try {
+                fill(engine.time(), value);
+                engine.format(sb, pattern, locale);
+            } finally {
+                engine.clear();
+            }
             return;
         }
         try {
@@ -271,9 +279,17 @@ public class DateTimeUtilFormat {
         }
     }
 
+    private static Strftime engine() {
+        return StrftimeEngineHolder.ENGINE.get();
+    }
+
     private static String render(Strftime engine, Locale locale, String pattern) {
-        StringBuilder sb = new StringBuilder(pattern.length() + 16);
-        engine.format(sb, pattern, locale);
-        return sb.toString();
+        try {
+            StringBuilder sb = new StringBuilder(pattern.length() + 16);
+            engine.format(sb, pattern, locale);
+            return sb.toString();
+        } finally {
+            engine.clear();
+        }
     }
 }

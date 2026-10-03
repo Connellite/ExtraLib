@@ -8,13 +8,53 @@ import lombok.experimental.UtilityClass;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.function.Consumer;
 
 @UtilityClass
 public class FormatEngine {
 
+    static final int COMPILE_CACHE_CAPACITY = 256;
+
+    // Patterns longer than this are compiled and dropped; they are almost never repeated.
+    static final int MAX_CACHED_PATTERN_LENGTH = 256;
+
+    private static final Map<String, CompiledFormat> COMPILE_CACHE =
+            Collections.synchronizedMap(new LinkedHashMap<>(16, 0.75f, true) {
+                @Override
+                protected boolean removeEldestEntry(Map.Entry<String, CompiledFormat> eldest) {
+                    return size() > COMPILE_CACHE_CAPACITY;
+                }
+            });
+
+    /**
+     * Same as {@link #compile}, but reuses a previous result for patterns of at most
+     * {@link #MAX_CACHED_PATTERN_LENGTH} characters. Longer patterns are compiled and not stored.
+     */
+    public static CompiledFormat compileCached(CharSequence pattern) {
+        if (pattern == null) {
+            throw new FormatException("format string is null");
+        }
+        if (pattern.length() > MAX_CACHED_PATTERN_LENGTH) {
+            return compile(pattern);
+        }
+        String key = pattern instanceof String s ? s : pattern.toString();
+        CompiledFormat cached = COMPILE_CACHE.get(key);
+        if (cached != null) {
+            return cached;
+        }
+        CompiledFormat compiled = compile(key);
+        COMPILE_CACHE.put(key, compiled);
+        return compiled;
+    }
+
+    /**
+     * Parses {@code pattern} without consulting the compile cache. Each call returns a new instance.
+     */
     public static CompiledFormat compile(CharSequence pattern) {
         if (pattern == null) {
             throw new FormatException("format string is null");

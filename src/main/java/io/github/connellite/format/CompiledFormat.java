@@ -11,6 +11,7 @@ import java.util.List;
  * <p>Opaque handle: construct only via {@link Fmt#compile}. Segment accessors exist for the
  * formatting engine in this module and are not a supported client API.
  */
+@SuppressWarnings("ClassEscapesDefinedScope")
 public record CompiledFormat(List<FormatSegment> segments, int patternLength) {
 
     /**

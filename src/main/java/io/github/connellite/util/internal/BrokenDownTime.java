@@ -67,6 +67,17 @@ public final class BrokenDownTime {
     }
 
     /**
+     * Drops the references held on behalf of the last format call, so that a pooled instance does
+     * not keep a caller's objects alive.
+     */
+    void clear() {
+        this.local = null;
+        this.offset = null;
+        this.zone = null;
+        this.temporal = null;
+    }
+
+    /**
      * Fills the fields from a zoned date-time, which already carries everything needed.
      */
     public void set(ZonedDateTime value) {
