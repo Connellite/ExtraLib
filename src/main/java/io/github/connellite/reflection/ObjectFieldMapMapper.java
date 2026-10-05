@@ -59,11 +59,7 @@ public class ObjectFieldMapMapper {
         if (mapField == null || mapField.converter() == MapTypeConverter.DefaultConverter.class) {
             return null;
         }
-        try {
-            return ReflectionUtil.getInstance(mapField.converter());
-        } catch (ReflectiveOperationException e) {
-            throw new IllegalStateException("Cannot instantiate converter " + mapField.converter().getName(), e);
-        }
+        return InstanceFactory.newInstance(mapField.converter());
     }
 
     private static String resolveKey(Field field, MapField mapField) {

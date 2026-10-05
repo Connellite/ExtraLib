@@ -262,13 +262,13 @@ class BeanIteratorSimpleResultSetBeanMapperSqliteTest {
     }
 
     @Test
-    void simpleBeanMapperFailsForRootBeanWithoutConverter() throws Exception {
+    void simpleBeanMapperInstantiatesBeanWithoutNoArgConstructor() throws Exception {
         ResultSet rs = fakeRowResultSet("1", "{\"name\":\"alpha\"}");
         SimpleResultSetBeanMapper<MockJsonValue> mapper = new SimpleResultSetBeanMapper<>(MockJsonValue.class);
 
-        SQLException ex = assertThrows(SQLException.class, () -> mapper.mapRow(rs));
-        String message = ex.getMessage();
-        assertTrue(message.contains("Cannot instantiate") || message.contains("Unsupported field type"));
+        MockJsonValue value = mapper.mapRow(rs);
+
+        assertNull(value.value());
     }
 
     @Test

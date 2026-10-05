@@ -1,6 +1,7 @@
 package io.github.connellite.cloner;
 
 import io.github.connellite.exception.CloningException;
+import io.github.connellite.reflection.InstanceFactory;
 import io.github.connellite.reflection.ReflectionUtil;
 import lombok.experimental.UtilityClass;
 
@@ -104,7 +105,7 @@ public class ReflectionCloning {
             return newArray;
         }
 
-        T newInstance = newInstance(clz);
+        T newInstance = InstanceFactory.newInstance(clz);
         clones.put(original, newInstance);
 
         for (Field field : allFields(clz)) {
@@ -139,7 +140,7 @@ public class ReflectionCloning {
             return newArray;
         }
 
-        T newInstance = newInstance(clz);
+        T newInstance =  InstanceFactory.newInstance(clz);
 
         for (Field field : allFields(clz)) {
             if (Modifier.isStatic(field.getModifiers())) {
@@ -150,16 +151,6 @@ public class ReflectionCloning {
         }
 
         return newInstance;
-    }
-
-    private static <T> T newInstance(Class<T> c) {
-        try {
-            return ReflectionUtil.getInstance(c);
-        } catch (NoSuchMethodException e) {
-            throw new CloningException("No accessible no-arg constructor for " + c.getName(), e);
-        } catch (ReflectiveOperationException e) {
-            throw new CloningException("Cannot instantiate " + c.getName(), e);
-        }
     }
 
     private static List<Field> allFields(Class<?> c) {

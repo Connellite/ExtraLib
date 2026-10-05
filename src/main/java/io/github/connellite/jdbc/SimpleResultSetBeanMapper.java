@@ -4,6 +4,7 @@ import io.github.connellite.collections.ConcurrentReferenceHashMap;
 import io.github.connellite.jdbc.annotation.Column;
 import io.github.connellite.exception.TypeCoercionException;
 import io.github.connellite.util.TypeCoercionUtil;
+import io.github.connellite.reflection.InstanceFactory;
 import io.github.connellite.reflection.ReflectionUtil;
 import lombok.NonNull;
 
@@ -145,12 +146,7 @@ public class SimpleResultSetBeanMapper<T> {
         if (beanClass.isRecord()) {
             return mapRecordRow(rs);
         }
-        final T instance;
-        try {
-            instance = ReflectionUtil.getInstance(beanClass);
-        } catch (ReflectiveOperationException e) {
-            throw new SQLException("Cannot instantiate " + beanClass.getName(), e);
-        }
+        final T instance = InstanceFactory.newInstance(beanClass);
 
         for (FieldBinding b : metadata.bindings()) {
             Object raw = readColumnValue(rs, b.columnName());
@@ -353,15 +349,11 @@ public class SimpleResultSetBeanMapper<T> {
         return obj;
     }
 
-    private static TypeConverter<?> resolveAnnotationConverter(Column col) throws SQLException {
+    private static TypeConverter<?> resolveAnnotationConverter(Column col) {
         if (col == null || col.converter() == TypeConverter.DefaultConverter.class) {
             return null;
         }
-        try {
-            return ReflectionUtil.getInstance(col.converter());
-        } catch (ReflectiveOperationException e) {
-            throw new SQLException("Cannot instantiate converter " + col.converter().getName(), e);
-        }
+        return InstanceFactory.newInstance(col.converter());
     }
 
     private record FieldBinding(Field field, String columnName, TypeConverter<?> converter) {

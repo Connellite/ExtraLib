@@ -2,6 +2,7 @@ package io.github.connellite.util;
 
 import io.github.connellite.logger.Logger;
 import io.github.connellite.logger.LoggerFactory;
+import io.github.connellite.reflection.InstanceFactory;
 import io.github.connellite.reflection.ReflectionUtil;
 import lombok.experimental.UtilityClass;
 
@@ -240,7 +241,7 @@ public class ProcessRunner {
         if (main == null) {
             throw new NoSuchMethodException(clazz.getName() + ".main(String[])");
         }
-        Object target = Modifier.isStatic(main.getModifiers()) ? null : ReflectionUtil.getInstance(clazz);
+        Object target = Modifier.isStatic(main.getModifiers()) ? null : InstanceFactory.newInstance(clazz);
         return ReflectionUtil.invoke(main, target, new Object[]{new String[0]});
     }
 
@@ -249,7 +250,7 @@ public class ProcessRunner {
         if (method == null) {
             throw new NoSuchMethodException(clazz.getName() + "." + methodName + "()");
         }
-        Object target = Modifier.isStatic(method.getModifiers()) ? null : ReflectionUtil.getInstance(clazz);
+        Object target = Modifier.isStatic(method.getModifiers()) ? null : InstanceFactory.newInstance(clazz);
         return ReflectionUtil.invoke(method, target);
     }
 

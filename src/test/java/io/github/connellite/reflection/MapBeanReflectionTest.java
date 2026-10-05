@@ -294,12 +294,9 @@ class MapBeanReflectionTest {
         }
 
         @Test
-        void nonInstantiableWrapperClassThrowsIllegalState() {
+        void wrapperClassIsInstantiatedWithoutConstructor() {
             SimpleMapBeanMapper<Integer> mapper = new SimpleMapBeanMapper<>(Integer.class);
-            IllegalStateException ex = assertThrows(
-                    IllegalStateException.class,
-                    () -> mapper.mapRow(Map.of("value", 1)));
-            assertTrue(ex.getMessage().contains("Cannot instantiate java.lang.Integer"), ex.getMessage());
+            assertEquals(0, mapper.mapRow(Map.of("value", 1)));
         }
 
         @Test

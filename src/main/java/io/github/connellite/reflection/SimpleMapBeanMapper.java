@@ -48,12 +48,7 @@ public class SimpleMapBeanMapper<T> {
             return mapRecordRowFromMap(row);
         }
 
-        final T instance;
-        try {
-            instance = ReflectionUtil.getInstance(beanClass);
-        } catch (ReflectiveOperationException e) {
-            throw new IllegalStateException("Cannot instantiate " + beanClass.getName(), e);
-        }
+        final T instance = InstanceFactory.newInstance(beanClass);
 
         for (FieldBinding b : bindings) {
             Object raw = row.get(b.key());
@@ -141,11 +136,7 @@ public class SimpleMapBeanMapper<T> {
         if (mapField == null || mapField.converter() == MapTypeConverter.DefaultConverter.class) {
             return null;
         }
-        try {
-            return ReflectionUtil.getInstance(mapField.converter());
-        } catch (ReflectiveOperationException e) {
-            throw new IllegalStateException("Cannot instantiate converter " + mapField.converter().getName(), e);
-        }
+        return InstanceFactory.newInstance(mapField.converter());
     }
 
     private static String resolveKey(String defaultName, MapField mapField) {

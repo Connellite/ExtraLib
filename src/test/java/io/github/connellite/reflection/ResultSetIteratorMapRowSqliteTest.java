@@ -54,15 +54,13 @@ class ResultSetIteratorMapRowSqliteTest {
     }
 
     @Test
-    void mapRowScalarTypeCannotBeInstantiated() throws Exception {
+    void mapRowWrapperClassIsInstantiatedWithoutConstructor() throws Exception {
         try (Connection c = SqliteMemory.open()) {
             SqliteMemory.bootstrapDemoSchema(c);
             SimpleMapBeanMapper<Integer> mapper = new SimpleMapBeanMapper<>(Integer.class);
             try (ResultSetIterator it = new ResultSetIterator(c, "SELECT id FROM demo WHERE id = ?", 2)) {
                 assertTrue(it.hasNext());
-                Map<String, Object> row = it.next();
-                IllegalStateException ex = assertThrows(IllegalStateException.class, () -> mapper.mapRow(row));
-                assertTrue(ex.getMessage().contains("Cannot instantiate java.lang.Integer"), ex.getMessage());
+                assertEquals(0, mapper.mapRow(it.next()));
             }
         }
     }
