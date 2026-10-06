@@ -136,7 +136,11 @@ public class SimpleMapBeanMapper<T> {
         if (mapField == null || mapField.converter() == MapTypeConverter.DefaultConverter.class) {
             return null;
         }
-        return InstanceFactory.newInstance(mapField.converter());
+        try {
+            return ReflectionUtil.getInstance(mapField.converter());
+        } catch (ReflectiveOperationException e) {
+            throw new IllegalStateException("Cannot instantiate converter " + mapField.converter().getName(), e);
+        }
     }
 
     private static String resolveKey(String defaultName, MapField mapField) {

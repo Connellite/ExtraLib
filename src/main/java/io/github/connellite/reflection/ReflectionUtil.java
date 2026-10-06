@@ -379,30 +379,51 @@ public class ReflectionUtil {
     }
 
     /**
-     * Whether {@code annotation} is present on {@code clazz} itself or on its {@link Package}
+     * {@code annotation} on {@code clazz} itself, or else on its {@link Package}
      * (typically from {@code package-info}). Superclasses and implemented interfaces are not searched.
      *
      * @param clazz      class to inspect
      * @param annotation annotation type; must have {@link java.lang.annotation.RetentionPolicy#RUNTIME}
-     * @return {@code true} if the annotation is found on the class or its package; {@code false} if
-     *         the class has no package (for example the unnamed package) and the class itself is unmarked
+     * @return the annotation, or {@code null} when it is absent. A class in the unnamed package has no package annotation
      */
-    public static boolean hasClassOrPackageAnnotation(Class<?> clazz, Class<? extends Annotation> annotation) {
+    public static <A extends Annotation> A getClassOrPackageAnnotation(Class<?> clazz, Class<A> annotation) {
+        A onClass = clazz.getAnnotation(annotation);
+        if (onClass != null) {
+            return onClass;
+        }
         Package packageInfo = clazz.getPackage();
-        return clazz.getAnnotation(annotation) != null || packageInfo != null && packageInfo.getAnnotation(annotation) != null;
+        return packageInfo == null ? null : packageInfo.getAnnotation(annotation);
     }
 
     /**
-     * Whether {@code annotation} is present on {@code clazz} itself or on its {@link Module}
+     * Whether {@link #getClassOrPackageAnnotation(Class, Class)} finds the annotation.
+     */
+    public static boolean hasClassOrPackageAnnotation(Class<?> clazz, Class<? extends Annotation> annotation) {
+        return getClassOrPackageAnnotation(clazz, annotation) != null;
+    }
+
+    /**
+     * {@code annotation} on {@code clazz} itself, or else on its {@link Module}
      * (typically from {@code module-info}). Superclasses and implemented interfaces are not searched.
      *
      * @param clazz      class to inspect
      * @param annotation annotation type; must have {@link java.lang.annotation.RetentionPolicy#RUNTIME}
-     * @return {@code true} if the annotation is found on the class or its module
+     * @return the annotation, or {@code null} when it is absent
+     */
+    public static <A extends Annotation> A getClassOrModuleAnnotation(Class<?> clazz, Class<A> annotation) {
+        A onClass = clazz.getAnnotation(annotation);
+        if (onClass != null) {
+            return onClass;
+        }
+        Module moduleInfo = clazz.getModule();
+        return moduleInfo == null ? null : moduleInfo.getAnnotation(annotation);
+    }
+
+    /**
+     * Whether {@link #getClassOrModuleAnnotation(Class, Class)} finds the annotation.
      */
     public static boolean hasClassOrModuleAnnotation(Class<?> clazz, Class<? extends Annotation> annotation) {
-        Module moduleInfo = clazz.getModule();
-        return clazz.getAnnotation(annotation) != null || moduleInfo != null && moduleInfo.getAnnotation(annotation) != null;
+        return getClassOrModuleAnnotation(clazz, annotation) != null;
     }
 
     /**

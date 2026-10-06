@@ -349,11 +349,15 @@ public class SimpleResultSetBeanMapper<T> {
         return obj;
     }
 
-    private static TypeConverter<?> resolveAnnotationConverter(Column col) {
+    private static TypeConverter<?> resolveAnnotationConverter(Column col) throws SQLException {
         if (col == null || col.converter() == TypeConverter.DefaultConverter.class) {
             return null;
         }
-        return InstanceFactory.newInstance(col.converter());
+        try {
+            return ReflectionUtil.getInstance(col.converter());
+        } catch (ReflectiveOperationException e) {
+            throw new SQLException("Cannot instantiate converter " + col.converter().getName(), e);
+        }
     }
 
     private record FieldBinding(Field field, String columnName, TypeConverter<?> converter) {

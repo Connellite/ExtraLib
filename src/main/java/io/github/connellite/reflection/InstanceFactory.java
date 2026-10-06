@@ -30,19 +30,12 @@ public class InstanceFactory {
         if (USE_OBJENESIS) {
             return ObjenesisInstantiator.newInstance(type);
         }
-        return ReflectionInstantiator.newInstance(type);
-    }
 
-    private static final class ReflectionInstantiator {
-
-        private static <T> T newInstance(Class<T> type) {
-            try {
-                return ReflectionUtil.getInstance(type);
-            } catch (ReflectiveOperationException e) {
-                throw new IllegalStateException(
-                        "No accessible no-arg constructor for " + type.getName() + ". Provide a no-arg constructor or add the Objenesis library",
-                        e);
-            }
+        try {
+            return ReflectionUtil.getInstance(type);
+        } catch (ReflectiveOperationException e) {
+            String message = "No accessible no-arg constructor for " + type.getName() + ". Provide a no-arg constructor or add the Objenesis library";
+            throw new IllegalStateException(message, e);
         }
     }
 

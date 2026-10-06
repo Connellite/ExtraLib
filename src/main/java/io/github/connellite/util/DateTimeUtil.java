@@ -1,10 +1,10 @@
 package io.github.connellite.util;
 
-import io.github.connellite.util.internal.CalendarNames;
+import io.github.connellite.util.internal.dateparse.CalendarNames;
 import io.github.connellite.util.internal.CharBounds;
-import io.github.connellite.util.internal.DateTimePatterns;
-import io.github.connellite.util.internal.DateTimeScanner;
-import io.github.connellite.util.internal.ParsedFields;
+import io.github.connellite.util.internal.dateparse.DateTimePatterns;
+import io.github.connellite.util.internal.dateparse.DateTimeScanner;
+import io.github.connellite.util.internal.dateparse.ParsedFields;
 import lombok.experimental.UtilityClass;
 
 import java.time.DateTimeException;

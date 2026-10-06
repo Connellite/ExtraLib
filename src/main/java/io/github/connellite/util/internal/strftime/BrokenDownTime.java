@@ -1,4 +1,4 @@
-package io.github.connellite.util.internal;
+package io.github.connellite.util.internal.strftime;
 
 import java.time.Instant;
 import java.time.LocalDate;

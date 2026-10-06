@@ -1,4 +1,4 @@
-package io.github.connellite.util.internal;
+package io.github.connellite.util.internal.dateparse;
 
 import lombok.experimental.UtilityClass;
 

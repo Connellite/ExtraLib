@@ -3,32 +3,40 @@ package io.github.connellite.util.internal;
 import lombok.experimental.UtilityClass;
 
 /**
- * Index-range helpers for skipping leading/trailing whitespace and optional wrapper brackets
- * without allocating a substring.
+ * Index-range helpers for skipping leading/trailing space and control characters,
+ * and optional wrapper brackets, without allocating a substring.
  */
 @UtilityClass
 public class CharBounds {
 
     /**
-     * @return the first index in {@code [start, end)} that is not whitespace, or {@code end} when
-     * the whole range is whitespace
+     * @return the first index in {@code [start, end)} that is not a space or control character,
+     * or {@code end} when the whole range is
      */
     public static int trimStart(CharSequence text, int start, int end) {
-        while (start < end && Character.isWhitespace(text.charAt(start))) {
+        while (start < end && isSpaceOrControl(text.charAt(start))) {
             start++;
         }
         return start;
     }
 
     /**
-     * @return one past the last index in {@code [start, end)} that is not whitespace, or
-     * {@code start} when the whole range is whitespace
+     * @return one past the last index in {@code [start, end)} that is not a space or control character,
+     * or {@code start} when the whole range is
      */
     public static int trimEnd(CharSequence text, int start, int end) {
-        while (start < end && Character.isWhitespace(text.charAt(end - 1))) {
+        while (start < end && isSpaceOrControl(text.charAt(end - 1))) {
             end--;
         }
         return end;
+    }
+
+    /**
+     * {@code true} for {@link Character#isWhitespace(char)}, {@link Character#isSpaceChar(char)},
+     * or {@link Character#isISOControl(char)}.
+     */
+    public static boolean isSpaceOrControl(char ch) {
+        return Character.isWhitespace(ch) || Character.isSpaceChar(ch) || Character.isISOControl(ch);
     }
 
     /**

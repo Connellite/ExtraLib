@@ -134,6 +134,17 @@ class UuidUtilTest {
     void convertFromEmptyAndBlankStringReturnsNull() {
         assertNull(UuidUtil.convert2Uuid(""));
         assertNull(UuidUtil.convert2Uuid(" "));
+        assertNull(UuidUtil.convert2Uuid("\u0000\u0007\u00A0"));
+        assertFalse(UuidUtil.isUuid("\u0000\u0007\u00A0"));
+    }
+
+    @Test
+    void convertTrimsSpaceAndControlCharacters() {
+        UUID expected = UUID.fromString("550e8400-e29b-41d4-a716-446655440000");
+        String wrapped = "\u0000 \t\u00A0\u007F{550e8400-e29b-41d4-a716-446655440000]\n\u0001\u00A0";
+
+        assertEquals(expected, UuidUtil.convert2Uuid(wrapped));
+        assertTrue(UuidUtil.isUuid(wrapped));
     }
 
     @Test

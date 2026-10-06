@@ -1,4 +1,4 @@
-package io.github.connellite.util.internal;
+package io.github.connellite.util.internal.strftime;
 
 import java.text.DateFormatSymbols;
 import java.time.Month;
@@ -27,6 +27,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * <a href="https://sourceware.org/git/?p=glibc.git;a=blob;f=time/strftime_l.c;hb=HEAD#l953">nl_get_alt_digit</a>
  * for the {@code O} modifier.
  */
+@SuppressWarnings("JavadocReference")
 public final class CalendarText {
 
     private static final ConcurrentHashMap<Locale, CalendarText> CACHE = new ConcurrentHashMap<>();

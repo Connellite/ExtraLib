@@ -1,8 +1,8 @@
 package io.github.connellite.util;
 
 import io.github.connellite.exception.FormatException;
-import io.github.connellite.util.internal.BrokenDownTime;
-import io.github.connellite.util.internal.Strftime;
+import io.github.connellite.util.internal.strftime.BrokenDownTime;
+import io.github.connellite.util.internal.strftime.Strftime;
 import lombok.NonNull;
 import lombok.experimental.UtilityClass;
 
