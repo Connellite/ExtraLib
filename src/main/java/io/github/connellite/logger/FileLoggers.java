@@ -26,8 +26,8 @@ import java.util.logging.Logger;
  * }</pre>
  * <p>
  * Shorter overload: {@link #forLogFile(Path)} uses {@link Path#getFileName()} as the logger name.
- * Two different paths that resolve to the same file cannot each have an open {@link FileLogHandler} in one JVM
- * ({@link FileLogHandler} registers a single active writer per path).
+ * Async counterparts are {@link #forAsyncLogFile(String, Path, AsyncFileLogHandlerConfig)} and
+ * {@link #addAsyncFileHandler(Logger, Path, AsyncFileLogHandlerConfig)}.
  * </p>
  * <p>
  * Each record is one line from the handler's {@link java.util.logging.Formatter}
@@ -96,12 +96,86 @@ public final class FileLoggers {
         return addFileHandler(logger, logFile, FileLogHandlerConfig.DEFAULT);
     }
 
+    /**
+     * {@code Logger.getLogger(loggerName)} plus a single {@link AsyncFileLogHandler} for {@code logFile}
+     * (no parent handlers).
+     */
+    public static Logger forAsyncLogFile(String loggerName, Path logFile, AsyncFileLogHandlerConfig config) {
+        Objects.requireNonNull(loggerName, "loggerName must not be null");
+        Objects.requireNonNull(config, "config");
+        Path normalized = logFile.toAbsolutePath().normalize();
+        Logger logger = Logger.getLogger(loggerName);
+        synchronized (logger) {
+            logger.setUseParentHandlers(false);
+            if (findOurAsyncHandlerForFile(logger, normalized, config) != null) {
+                if (logger.getLevel() == null) {
+                    logger.setLevel(Level.FINE);
+                }
+                return logger;
+            }
+            removeOurHandlersForFile(logger, normalized);
+            logger.addHandler(new AsyncFileLogHandler(normalized, config));
+            if (logger.getLevel() == null) {
+                logger.setLevel(Level.FINE);
+            }
+        }
+        return logger;
+    }
+
+    public static Logger forAsyncLogFile(String loggerName, Path logFile) {
+        return forAsyncLogFile(loggerName, logFile, AsyncFileLogHandlerConfig.DEFAULT);
+    }
+
+    /**
+     * Uses {@code logFile.getFileName().toString()} as the logger name (two different paths with the same file name
+     * share one {@link Logger} — pass an explicit name if that is a problem).
+     */
+    public static Logger forAsyncLogFile(Path logFile) {
+        return forAsyncLogFile(logFile.getFileName().toString(), logFile);
+    }
+
+    public static Logger forAsyncLogFile(Path logFile, AsyncFileLogHandlerConfig config) {
+        return forAsyncLogFile(logFile.getFileName().toString(), logFile, config);
+    }
+
+    public static AsyncFileLogHandler addAsyncFileHandler(Logger logger, Path logFile, AsyncFileLogHandlerConfig config) {
+        Objects.requireNonNull(logger, "logger");
+        Objects.requireNonNull(config, "config");
+        Path normalized = logFile.toAbsolutePath().normalize();
+        synchronized (logger) {
+            AsyncFileLogHandler existing = findOurAsyncHandlerForFile(logger, normalized, config);
+            if (existing != null) {
+                return existing;
+            }
+            removeOurHandlersForFile(logger, normalized);
+            AsyncFileLogHandler handler = new AsyncFileLogHandler(normalized, config);
+            logger.addHandler(handler);
+            return handler;
+        }
+    }
+
+    public static AsyncFileLogHandler addAsyncFileHandler(Logger logger, Path logFile) {
+        return addAsyncFileHandler(logger, logFile, AsyncFileLogHandlerConfig.DEFAULT);
+    }
+
     private static FileLogHandler findOurHandlerForFile(Logger logger, Path normalized, FileLogHandlerConfig config) {
         for (Handler h : logger.getHandlers()) {
             if (h instanceof FileLogHandler fh
+                    && !(h instanceof AsyncFileLogHandler)
                     && fh.getLogFile().equals(normalized)
                     && fh.getConfig().equals(config)) {
                 return fh;
+            }
+        }
+        return null;
+    }
+
+    private static AsyncFileLogHandler findOurAsyncHandlerForFile(Logger logger, Path normalized, AsyncFileLogHandlerConfig config) {
+        for (Handler h : logger.getHandlers()) {
+            if (h instanceof AsyncFileLogHandler ah
+                    && ah.getLogFile().equals(normalized)
+                    && ah.getAsyncConfig().equals(config)) {
+                return ah;
             }
         }
         return null;

@@ -11,89 +11,88 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
-import java.lang.ref.WeakReference;
 import java.time.LocalDate;
-import java.util.Objects;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.logging.Formatter;
-import java.util.logging.SimpleFormatter;
-import java.util.stream.Stream;
 import java.time.ZoneId;
+import java.util.Objects;
+import java.util.concurrent.locks.ReadWriteLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.logging.ErrorManager;
+import java.util.logging.Formatter;
 import java.util.logging.Handler;
 import java.util.logging.LogRecord;
+import java.util.logging.SimpleFormatter;
+import java.util.stream.Stream;
 
 /**
  * {@link Handler} that appends one line per {@link LogRecord} using the configured {@link Formatter}
  * (default {@link SimpleFormatter} when {@link FileLogHandlerConfig#formatter()} is {@code null}).
  * Optional rotation renames the current file to {@code name.log.0}, shifts older segments, and starts a new file.
  * <p>
- * {@link #publish} and rotation are synchronized on this handler: while {@link java.nio.file.Files#move} runs during
- * rotation, other threads block on this instance (typical for JUL; async rotation is out of scope here).
+ * {@link #publish} holds the read side of {@link #writerLock} while a record is written. Rotation and {@link #close()}
+ * hold the write side: while {@link Files#move} runs, other threads block (async rotation is out of scope).
+ * Byte writes themselves are serialized on {@link #streamLock}, because the stream is not safe for concurrent use.
  * </p>
  */
+@SuppressWarnings("JavadocLinkAsPlainText")
 public class FileLogHandler extends Handler {
-
-    private static final ConcurrentHashMap<Path, WeakReference<FileLogHandler>> ACTIVE_WRITERS = new ConcurrentHashMap<>();
 
     @Getter
     private final Path logFile;
     @Getter
     private final FileLogHandlerConfig config;
     private final ZoneId zone = ZoneId.systemDefault();
+    /**
+     * Lock for the open writer. Read side covers a publish or flush; write side covers open, rotation, and close.
+     * The write lock is reentrant so {@link #closeWriter()} and {@link #openWriter()} can lock again while the caller
+     * already holds it.
+     */
+    private final ReadWriteLock writerLock = new ReentrantReadWriteLock();
+    /** Serializes byte writes on {@link #writer}. Several publishes may hold the read lock at once. */
+    private final Object streamLock = new Object();
 
-    private BufferedOutputStream buffered;
-    private FileOutputStream fileOut;
-    private long bytesWritten;
-    private LocalDate dayOfCurrentFile;
+    private volatile BufferedOutputStream writer;
+    private volatile long bytesWritten;
+    /** {@code yyyy-MM-dd} while daily rotation is on, {@code ""} when it is off, {@code null} when no file is open. */
+    private volatile String date;
     private volatile boolean closed;
-    /** Set after {@link #openAppendStreams} completes so a failed first open can {@linkplain #releaseOutputFile() release} the path. */
-    private boolean logStreamEverOpened;
 
     public FileLogHandler(Path logFile, FileLogHandlerConfig config) {
         Objects.requireNonNull(logFile, "logFile cannot be null");
         Objects.requireNonNull(config, "config cannot be null");
         this.logFile = logFile.toAbsolutePath().normalize();
         this.config = config;
-        Formatter f = config.formatter();
-        setFormatter(f != null ? f : new SimpleFormatter());
-        try {
-            setEncoding(StandardCharsets.UTF_8.name());
-        } catch (UnsupportedEncodingException e) {
-            throw new IllegalStateException("UTF-8 must be supported by the JVM (required charset)", e);
-        }
-        claimOutputFile();
+        configure();
     }
 
     public FileLogHandler(Path logFile) {
         this(logFile, FileLogHandlerConfig.DEFAULT);
     }
 
-    private void claimOutputFile() {
-        ACTIVE_WRITERS.compute(logFile, (path, oldRef) -> {
-            FileLogHandler prev = oldRef == null ? null : oldRef.get();
-            if (prev != null && prev != this) {
-                throw new IllegalStateException("Another FileLogHandler is already writing to " + path);
-            }
-            return new WeakReference<>(this);
-        });
+    /**
+     * Applies the formatter and UTF-8 encoding from {@link #config}.
+     * <p>
+     * Tomcat reference:
+     * https://github.com/apache/tomcat/blob/05b5d70555068a6647226e9924b2d7f1b9978b03/java/org/apache/juli/FileHandler.java
+     */
+    private void configure() {
+        Formatter formatter = config.formatter();
+        setFormatter(formatter != null ? formatter : new SimpleFormatter());
+        try {
+            setEncoding(StandardCharsets.UTF_8.name());
+        } catch (UnsupportedEncodingException e) {
+            throw new IllegalStateException("UTF-8 must be supported by the JVM (required charset)", e);
+        }
     }
 
-    private void releaseOutputFile() {
-        ACTIVE_WRITERS.compute(logFile, (path, ref) -> {
-            if (ref == null) {
-                return null;
-            }
-            FileLogHandler h = ref.get();
-            if (h == null || h == this) {
-                return null;
-            }
-            return ref;
-        });
-    }
-
+    /**
+     * Formats the record, rotates when the calendar day or the size limit says so, then appends one line.
+     * Formatting runs before rotation, so a formatter failure does not rotate the file.
+     * <p>
+     * Tomcat reference:
+     * https://github.com/apache/tomcat/blob/05b5d70555068a6647226e9924b2d7f1b9978b03/java/org/apache/juli/FileHandler.java
+     */
     @Override
-    public synchronized void publish(LogRecord record) {
+    public void publish(LogRecord record) {
         if (closed || !isLoggable(record)) {
             return;
         }
@@ -106,96 +105,193 @@ public class FileLogHandler extends Handler {
         }
         byte[] bytes = line.getBytes(StandardCharsets.UTF_8);
         boolean needsNl = bytes.length == 0 || bytes[bytes.length - 1] != '\n';
-        int payloadLen = bytes.length + (needsNl ? 1 : 0);
+        String tsDate = config.rotateDaily() ? LocalDate.now(zone).toString() : "";
+        writerLock.readLock().lock();
         try {
-            if (buffered != null && config.rotateDaily() && !LocalDate.now(zone).equals(dayOfCurrentFile)) {
-                rotateLocked();
+            if (closed) {
+                return;
             }
-            ensureOpen();
-            if (config.maxFileBytes() > 0 && bytesWritten >= config.maxFileBytes()) {
-                rotateLocked();
+            if (needsSwitch(tsDate)) {
+                writerLock.readLock().unlock();
+                writerLock.writeLock().lock();
+                try {
+                    if (!closed && needsSwitch(tsDate)) {
+                        applySwitch();
+                    }
+                } finally {
+                    writerLock.readLock().lock();
+                    writerLock.writeLock().unlock();
+                }
             }
-            buffered.write(bytes);
-            if (needsNl) {
-                buffered.write('\n');
+            if (closed) {
+                return;
             }
-            bytesWritten += payloadLen;
-        } catch (IllegalStateException ex) {
-            reportError(null, ex, ErrorManager.GENERIC_FAILURE);
+            writePayload(bytes, needsNl);
         } catch (IOException ex) {
             reportError(null, ex, ErrorManager.WRITE_FAILURE);
+        } finally {
+            writerLock.readLock().unlock();
         }
     }
 
-    private void ensureParentDirs() throws IOException {
-        Path parent = logFile.getParent();
-        if (parent != null) {
-            Files.createDirectories(parent);
+    private boolean needsSwitch(String tsDate) {
+        if (writer == null) {
+            return true;
+        }
+        if (config.rotateDaily() && !tsDate.equals(date)) {
+            return true;
+        }
+        return sizeReached();
+    }
+
+    /**
+     * First open only opens the file (a stale daily file is shifted inside {@link #openWriter()}).
+     * A later day change or a full file closes, shifts, and opens again. An already-large file rotates once more
+     * after that first open.
+     */
+    private void applySwitch() throws IOException {
+        if (writer == null) {
+            openWriter();
+            if (sizeReached()) {
+                rotate();
+            }
+        } else {
+            rotate();
+        }
+    }
+
+    private String currentDateToken() {
+        return config.rotateDaily() ? LocalDate.now(zone).toString() : "";
+    }
+
+    private boolean sizeReached() {
+        if (config.maxFileBytes() <= 0) {
+            return false;
+        }
+        synchronized (streamLock) {
+            return bytesWritten >= config.maxFileBytes();
+        }
+    }
+
+    private void rotate() throws IOException {
+        closeWriter();
+        shiftLogs(logFile, config.maxBackupFiles(), config.compressRotatedGzip());
+        openWriter();
+    }
+
+    private void writePayload(byte[] bytes, boolean needsNl) throws IOException {
+        synchronized (streamLock) {
+            BufferedOutputStream current = writer;
+            if (current == null) {
+                reportError(null, null, ErrorManager.WRITE_FAILURE);
+                return;
+            }
+            current.write(bytes);
+            if (needsNl) {
+                current.write('\n');
+            }
+            bytesWritten += bytes.length + (needsNl ? 1 : 0);
         }
     }
 
     /**
-     * Lazily opens the file when needed. When {@code buffered != null}, {@link #dayOfCurrentFile} is already current
-     * because calendar rollover is handled above in {@link #publish} via {@link #rotateLocked()} before this returns early.
-     * Registration uses {@link #claimOutputFile()} alone (no prior {@code get}) so two threads cannot both see an empty slot then race.
+     * Opens the current log file for append. When daily rotation is on and the existing file's last-modified day is
+     * not today, that file is shifted before the new stream is created.
+     * <p>
+     * Tomcat reference:
+     * https://github.com/apache/tomcat/blob/05b5d70555068a6647226e9924b2d7f1b9978b03/java/org/apache/juli/FileHandler.java
      */
-    private void ensureOpen() throws IOException {
-        if (buffered != null) {
-            return;
-        }
-        claimOutputFile();
+    private void openWriter() throws IOException {
+        writerLock.writeLock().lock();
         try {
-            ensureParentDirs();
-            if (config.rotateDaily() && Files.isRegularFile(logFile)) {
-                LocalDate fileDay = LocalDate.ofInstant(Files.getLastModifiedTime(logFile).toInstant(), zone);
-                if (!fileDay.equals(LocalDate.now(zone))) {
-                    shiftLogs(logFile, config.maxBackupFiles(), config.compressRotatedGzip());
+            if (writer != null || closed) {
+                return;
+            }
+            BufferedOutputStream opened = null;
+            try {
+                Path parent = logFile.getParent();
+                if (parent != null) {
+                    Files.createDirectories(parent);
+                }
+                if (config.rotateDaily() && Files.isRegularFile(logFile)) {
+                    LocalDate fileDay = LocalDate.ofInstant(Files.getLastModifiedTime(logFile).toInstant(), zone);
+                    if (!fileDay.equals(LocalDate.now(zone))) {
+                        shiftLogs(logFile, config.maxBackupFiles(), config.compressRotatedGzip());
+                    }
+                }
+                boolean existed = Files.isRegularFile(logFile);
+                opened = new BufferedOutputStream(new FileOutputStream(logFile.toFile(), true), config.bufferSize());
+                byte[] head = utf8(getFormatter().getHead(this));
+                long size = existed ? Files.size(logFile) : 0L;
+                if (head.length > 0) {
+                    opened.write(head);
+                    size += head.length;
+                }
+                bytesWritten = size;
+                date = currentDateToken();
+                writer = opened;
+                opened = null;
+            } finally {
+                if (opened != null) {
+                    try {
+                        opened.close();
+                    } catch (IOException closeEx) {
+                        reportError(null, closeEx, ErrorManager.CLOSE_FAILURE);
+                    }
                 }
             }
-            boolean existed = Files.isRegularFile(logFile);
-            openAppendStreams(existed);
-        } catch (IOException e) {
-            closeStreamsNoMarkClosed();
-            if (!logStreamEverOpened) {
-                releaseOutputFile();
-            }
-            throw e;
+        } finally {
+            writerLock.writeLock().unlock();
         }
     }
 
-    private void rotateLocked() throws IOException {
-        closeStreamsNoMarkClosed();
-        shiftLogs(logFile, config.maxBackupFiles(), config.compressRotatedGzip());
-        bytesWritten = 0;
-        dayOfCurrentFile = LocalDate.now(zone);
-        ensureParentDirs();
-        openAppendStreams(Files.isRegularFile(logFile));
-    }
-
-    private void openAppendStreams(boolean existed) throws IOException {
-        fileOut = new FileOutputStream(logFile.toFile(), true);
-        buffered = new BufferedOutputStream(fileOut, config.bufferSize());
-        bytesWritten = existed ? Files.size(logFile) : 0;
-        dayOfCurrentFile = LocalDate.now(zone);
-        logStreamEverOpened = true;
-    }
-
-    private void closeStreamsNoMarkClosed() {
-        BufferedOutputStream b = buffered;
-        buffered = null;
-        fileOut = null;
-        if (b != null) {
+    /**
+     * Flushes and closes the open stream without marking this handler closed.
+     * Rotation uses the same path as {@link #close()}.
+     * <p>
+     * Tomcat reference:
+     * https://github.com/apache/tomcat/blob/05b5d70555068a6647226e9924b2d7f1b9978b03/java/org/apache/juli/FileHandler.java
+     */
+    private void closeWriter() {
+        writerLock.writeLock().lock();
+        try {
+            BufferedOutputStream current;
+            synchronized (streamLock) {
+                current = writer;
+                writer = null;
+                date = null;
+            }
+            if (current == null) {
+                return;
+            }
             try {
-                b.flush();
+                byte[] tail = utf8(getFormatter().getTail(this));
+                if (tail.length > 0) {
+                    current.write(tail);
+                }
+            } catch (Exception ex) {
+                reportError(null, ex, ErrorManager.CLOSE_FAILURE);
+            }
+            try {
+                current.flush();
             } catch (IOException ex) {
                 reportError(null, ex, ErrorManager.FLUSH_FAILURE);
             }
             try {
-                b.close();
+                current.close();
             } catch (IOException ex) {
                 reportError(null, ex, ErrorManager.CLOSE_FAILURE);
             }
+        } finally {
+            writerLock.writeLock().unlock();
         }
+    }
+
+    private static byte[] utf8(String text) {
+        if (text == null || text.isEmpty()) {
+            return new byte[0];
+        }
+        return text.getBytes(StandardCharsets.UTF_8);
     }
 
     /**
@@ -278,24 +374,65 @@ public class FileLogHandler extends Handler {
         }
     }
 
+    /**
+     * Flushes the open writer. Does nothing when the file has not been opened yet.
+     * <p>
+     * Tomcat reference:
+     * https://github.com/apache/tomcat/blob/05b5d70555068a6647226e9924b2d7f1b9978b03/java/org/apache/juli/FileHandler.java
+     */
     @Override
-    public synchronized void flush() {
-        if (buffered != null) {
-            try {
-                buffered.flush();
-            } catch (IOException ex) {
-                reportError(null, ex, ErrorManager.FLUSH_FAILURE);
+    public void flush() {
+        writerLock.readLock().lock();
+        try {
+            BufferedOutputStream current = writer;
+            if (current == null) {
+                return;
             }
+            synchronized (streamLock) {
+                try {
+                    current.flush();
+                } catch (IOException ex) {
+                    reportError(null, ex, ErrorManager.FLUSH_FAILURE);
+                }
+            }
+        } finally {
+            writerLock.readLock().unlock();
         }
     }
 
-    @Override
-    public synchronized void close() {
-        if (closed) {
-            return;
+    /**
+     * Clears {@link #closed} and opens the file again. {@link AsyncFileLogHandler#open()} uses this so a handler closed
+     * on purpose can accept records afterwards. {@link #publish} on this class stays closed until then.
+     */
+    void reopen() {
+        writerLock.writeLock().lock();
+        try {
+            closed = false;
+            openWriter();
+        } catch (IOException ex) {
+            reportError(null, ex, ErrorManager.OPEN_FAILURE);
+        } finally {
+            writerLock.writeLock().unlock();
         }
-        closed = true;
-        closeStreamsNoMarkClosed();
-        releaseOutputFile();
+    }
+
+    /**
+     * Closes the open log file.
+     * <p>
+     * Tomcat reference:
+     * https://github.com/apache/tomcat/blob/05b5d70555068a6647226e9924b2d7f1b9978b03/java/org/apache/juli/FileHandler.java
+     */
+    @Override
+    public void close() {
+        writerLock.writeLock().lock();
+        try {
+            if (closed) {
+                return;
+            }
+            closed = true;
+            closeWriter();
+        } finally {
+            writerLock.writeLock().unlock();
+        }
     }
 }

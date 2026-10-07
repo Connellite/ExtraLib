@@ -160,15 +160,23 @@ class FileLoggersTest {
     }
 
     @Test
-    void twoLoggersSameNormalizedPathSecondForLogFileThrows(@TempDir Path dir) {
+    void twoLoggersSameNormalizedPathEachGetAHandler(@TempDir Path dir) {
         Path log1 = dir.resolve("a").resolve("shared.log");
         Path log2 = dir.resolve("b").resolve("..").resolve("a").resolve("shared.log");
         Logger first = FileLoggers.forLogFile("one.logger", log1);
+        Logger second = null;
         try {
-            assertThrows(IllegalStateException.class, () -> FileLoggers.forLogFile("other.logger", log2));
+            second = FileLoggers.forLogFile("other.logger", log2);
+            assertEquals(1, first.getHandlers().length);
+            assertEquals(1, second.getHandlers().length);
         } finally {
             for (var h : first.getHandlers()) {
                 h.close();
+            }
+            if (second != null) {
+                for (var h : second.getHandlers()) {
+                    h.close();
+                }
             }
         }
     }
@@ -207,6 +215,66 @@ class FileLoggersTest {
                 }
             }
             assertEquals(1, fileHandlers);
+        } finally {
+            for (var h : logger.getHandlers()) {
+                h.close();
+            }
+        }
+    }
+
+    @Test
+    void forAsyncLogFileWritesOneAsyncHandler(@TempDir Path dir) throws Exception {
+        Path log = dir.resolve("async.log");
+        Logger logger = FileLoggers.forAsyncLogFile("async.factory", log);
+        logger.setLevel(Level.INFO);
+        try {
+            logger.info("async-line");
+            assertEquals(1, logger.getHandlers().length);
+            assertTrue(logger.getHandlers()[0] instanceof AsyncFileLogHandler);
+            AsyncFileLogHandler handler = (AsyncFileLogHandler) logger.getHandlers()[0];
+            handler.awaitIdle();
+            handler.flush();
+            assertTrue(Files.readString(log, StandardCharsets.UTF_8).contains("async-line"));
+        } finally {
+            for (var h : logger.getHandlers()) {
+                h.close();
+            }
+        }
+    }
+
+    @Test
+    void addAsyncFileHandlerDoesNotDuplicateSamePathAndConfig(@TempDir Path dir) {
+        Path log = dir.resolve("async-dup.log");
+        Logger logger = Logger.getLogger("test.async.dup");
+        logger.setUseParentHandlers(false);
+        logger.setLevel(Level.INFO);
+        try {
+            AsyncFileLogHandler first = FileLoggers.addAsyncFileHandler(logger, log);
+            AsyncFileLogHandler second = FileLoggers.addAsyncFileHandler(logger, log);
+            assertSame(first, second);
+            assertEquals(1, logger.getHandlers().length);
+        } finally {
+            for (var h : logger.getHandlers()) {
+                h.close();
+            }
+        }
+    }
+
+    @Test
+    void addAsyncFileHandlerReplacesSyncHandlerOnTheSamePath(@TempDir Path dir) throws Exception {
+        Path log = dir.resolve("replace.log");
+        Logger logger = Logger.getLogger("test.async.replace");
+        logger.setUseParentHandlers(false);
+        logger.setLevel(Level.INFO);
+        try {
+            FileLoggers.addFileHandler(logger, log);
+            AsyncFileLogHandler async = FileLoggers.addAsyncFileHandler(logger, log);
+            assertEquals(1, logger.getHandlers().length);
+            assertSame(async, logger.getHandlers()[0]);
+            logger.info("via-async");
+            async.awaitIdle();
+            async.flush();
+            assertTrue(Files.readString(log, StandardCharsets.UTF_8).contains("via-async"));
         } finally {
             for (var h : logger.getHandlers()) {
                 h.close();
