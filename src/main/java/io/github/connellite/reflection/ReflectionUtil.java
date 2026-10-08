@@ -10,6 +10,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Proxy;
 import java.lang.reflect.RecordComponent;
 import java.lang.reflect.Type;
 import java.lang.reflect.TypeVariable;
@@ -19,6 +20,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -290,6 +292,42 @@ public class ReflectionUtil {
     }
 
     /**
+     * Method named {@code name} with {@code paramCount} parameters on {@code type}, a superclass, or an
+     * implemented interface (most specific class first). Parameter types are not compared, so a generic
+     * method is found after erasure. A non-bridge, non-synthetic method is preferred; a bridge or synthetic
+     * method is returned only when no other match exists. Made accessible, or {@code null}.
+     */
+    public static Method findMethod(Class<?> type, String name, int paramCount) {
+        if (paramCount < 0) {
+            throw new IllegalArgumentException("paramCount must not be negative");
+        }
+        Method fallback = null;
+        List<Class<?>> types = new ArrayList<>();
+        for (Class<?> current = type; current != null && current != Object.class; current = current.getSuperclass()) {
+            types.add(current);
+        }
+        types.addAll(getAllInterfaces(type));
+        for (Class<?> current : types) {
+            for (Method method : current.getDeclaredMethods()) {
+                if (!name.equals(method.getName()) || method.getParameterCount() != paramCount) {
+                    continue;
+                }
+                if (!method.isBridge() && !method.isSynthetic()) {
+                    method.trySetAccessible();
+                    return method;
+                }
+                if (fallback == null) {
+                    fallback = method;
+                }
+            }
+        }
+        if (fallback != null) {
+            fallback.trySetAccessible();
+        }
+        return fallback;
+    }
+
+    /**
      * {@code true} if {@code method} is {@code equals(Object)}.
      */
     public static boolean isEqualsMethod(Method method) {
@@ -424,6 +462,65 @@ public class ReflectionUtil {
      */
     public static boolean hasClassOrModuleAnnotation(Class<?> clazz, Class<? extends Annotation> annotation) {
         return getClassOrModuleAnnotation(clazz, annotation) != null;
+    }
+
+    /**
+     * User class behind a JDK, CGLIB, Byte Buddy, Hibernate, Mockito, or Javassist proxy.
+     * A JDK proxy with several application interfaces is returned unchanged.
+     *
+     * @param type class to unwrap; must not be {@code null}
+     * @return the underlying class, or {@code type} when it is not a recognized proxy
+     */
+    public static Class<?> unwrapProxy(Class<?> type) {
+        Objects.requireNonNull(type, "type");
+        Class<?> current = type;
+        while (true) {
+            Class<?> next = unwrapProxyOnce(current);
+            if (next == current) {
+                return current;
+            }
+            current = next;
+        }
+    }
+
+    /**
+     * {@code true} when {@code className} looks like a generated subclass proxy.
+     */
+    static boolean isGeneratedProxyName(String className) {
+        return className.contains("$$")
+                || className.contains("$ByteBuddy$")
+                || className.contains("$HibernateProxy$")
+                || className.contains("$MockitoMock$")
+                || className.contains("_$$_");
+    }
+
+    private static Class<?> unwrapProxyOnce(Class<?> type) {
+        if (Proxy.isProxyClass(type)) {
+            return singleUserInterface(type);
+        }
+        if (isGeneratedProxyName(type.getName())) {
+            Class<?> superclass = type.getSuperclass();
+            if (superclass != null && superclass != Object.class) {
+                return superclass;
+            }
+            return singleUserInterface(type);
+        }
+        return type;
+    }
+
+    private static Class<?> singleUserInterface(Class<?> type) {
+        Class<?> found = null;
+        for (Class<?> iface : type.getInterfaces()) {
+            String name = iface.getName();
+            if (name.startsWith("java.") || name.startsWith("jdk.")) {
+                continue;
+            }
+            if (found != null) {
+                return type;
+            }
+            found = iface;
+        }
+        return found == null ? type : found;
     }
 
     /**

@@ -1,5 +1,9 @@
 package io.github.connellite.reflection;
 
+import net.bytebuddy.ByteBuddy;
+import net.bytebuddy.dynamic.DynamicType;
+import net.sf.cglib.proxy.Enhancer;
+import net.sf.cglib.proxy.MethodInterceptor;
 import org.junit.jupiter.api.Test;
 
 import java.lang.annotation.ElementType;
@@ -328,6 +332,7 @@ class ReflectionUtilTest {
         assertEquals(3, ReflectionUtil.invoke(local, new Fixture()));
 
         Method override = ReflectionUtil.findMethod(ChildMethod.class, "value");
+        assertNotNull(override);
         assertEquals(ChildMethod.class, override.getDeclaringClass());
         assertEquals(2, ReflectionUtil.invoke(override, new ChildMethod()));
 
@@ -336,6 +341,16 @@ class ReflectionUtilTest {
         assertEquals(Greeter.class, iface.getDeclaringClass());
         assertNull(ReflectionUtil.findMethod(Fixture.class, "noSuchMethod"));
         assertNull(ReflectionUtil.findMethod(Fixture.class, "instM", String.class));
+    }
+
+    @Test
+    void findMethod_byParamCount_findsGenericMethodWithoutOverride() throws Exception {
+        assertNull(ReflectionUtil.findMethod(StringBox.class, "pass", String.class));
+
+        Method pass = ReflectionUtil.findMethod(StringBox.class, "pass", 1);
+        assertNotNull(pass);
+        assertEquals(Box.class, pass.getDeclaringClass());
+        assertEquals("hi", ReflectionUtil.invoke(pass, new StringBox(), "hi"));
     }
 
     @Test
@@ -376,7 +391,7 @@ class ReflectionUtilTest {
     }
 
     @Test
-    void invokeDefault_onInterfaceProxy() throws Throwable {
+    void invokeDefault_onInterfaceProxy() {
         Greeter greeter = (Greeter) Proxy.newProxyInstance(
                 Greeter.class.getClassLoader(),
                 new Class<?>[]{Greeter.class},
@@ -397,5 +412,80 @@ class ReflectionUtilTest {
 
         Field plain = GenericFixture.class.getDeclaredField("plain");
         assertTrue(ReflectionUtil.getAllGenericParameterClasses(plain.getGenericType()).isEmpty());
+    }
+
+    @Test
+    void unwrapProxy_plainClass_returnsItself() {
+        assertEquals(String.class, ReflectionUtil.unwrapProxy(String.class));
+    }
+
+    @Test
+    void unwrapProxy_jdkProxyOneInterface_returnsThatInterface() {
+        Class<?> proxy = Proxy.newProxyInstance(
+                Greeter.class.getClassLoader(),
+                new Class<?>[]{Greeter.class},
+                (p, method, args) -> null).getClass();
+        assertEquals(Greeter.class, ReflectionUtil.unwrapProxy(proxy));
+    }
+
+    @Test
+    void unwrapProxy_jdkProxyTwoInterfaces_returnsProxyClass() {
+        Class<?> proxy = Proxy.newProxyInstance(
+                Greeter.class.getClassLoader(),
+                new Class<?>[]{Greeter.class, MarkerService.class},
+                (p, method, args) -> null).getClass();
+        assertEquals(proxy, ReflectionUtil.unwrapProxy(proxy));
+    }
+
+    @Test
+    void unwrapProxy_null_throws() {
+        assertThrows(NullPointerException.class, () -> ReflectionUtil.unwrapProxy(null));
+    }
+
+    @Test
+    void unwrapProxy_cglibSubclass() {
+        Enhancer enhancer = new Enhancer();
+        enhancer.setSuperclass(ProxyTarget.class);
+        enhancer.setCallback((MethodInterceptor) (obj, method, args, proxy) -> null);
+        Class<?> cglibType = enhancer.create().getClass();
+        assertTrue(ReflectionUtil.isGeneratedProxyName(cglibType.getName()));
+        assertEquals(ProxyTarget.class, ReflectionUtil.unwrapProxy(cglibType));
+    }
+
+    @Test
+    void unwrapProxy_byteBuddySubclass() {
+        try (DynamicType.Unloaded<ProxyTarget> unloaded = new ByteBuddy().subclass(ProxyTarget.class).make()) {
+            Class<?> byteBuddyType = unloaded.load(ProxyTarget.class.getClassLoader()).getLoaded();
+            assertTrue(ReflectionUtil.isGeneratedProxyName(byteBuddyType.getName()));
+            assertEquals(ProxyTarget.class, ReflectionUtil.unwrapProxy(byteBuddyType));
+        }
+    }
+
+    @Test
+    void isGeneratedProxyName_knownMarkers() {
+        assertTrue(ReflectionUtil.isGeneratedProxyName("com.example.User$$EnhancerByCGLIB$$abc"));
+        assertTrue(ReflectionUtil.isGeneratedProxyName("com.example.User$$FastClassByCGLIB$$abc"));
+        assertTrue(ReflectionUtil.isGeneratedProxyName("com.example.User$HibernateProxy$abc"));
+        assertTrue(ReflectionUtil.isGeneratedProxyName("com.example.User$MockitoMock$abc"));
+        assertTrue(ReflectionUtil.isGeneratedProxyName("com.example.User_$$_jvstabc"));
+        assertFalse(ReflectionUtil.isGeneratedProxyName("com.example.User"));
+    }
+
+    public static class ProxyTarget {
+        public String hello() {
+            return "ok";
+        }
+    }
+
+    interface MarkerService {
+    }
+
+    abstract static class Box<T> {
+        public T pass(T value) {
+            return value;
+        }
+    }
+
+    static class StringBox extends Box<String> {
     }
 }

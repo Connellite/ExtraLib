@@ -46,6 +46,8 @@
         <sqlite-jdbc.version>3.46.1.0</sqlite-jdbc.version>
         <slf4j.version>1.7.36</slf4j.version>
         <objenesis.version>3.4</objenesis.version>
+        <cglib.version>3.3.0</cglib.version>
+        <bytebuddy.version>1.15.11</bytebuddy.version>
         <maven-surefire-plugin.version>3.2.5</maven-surefire-plugin.version>
         <jmh.version>1.37</jmh.version>
         <exec-maven-plugin.version>3.5.0</exec-maven-plugin.version>
@@ -88,6 +90,18 @@
             <scope>test</scope>
         </dependency>
         <dependency>
+            <groupId>cglib</groupId>
+            <artifactId>cglib</artifactId>
+            <version>${cglib.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>net.bytebuddy</groupId>
+            <artifactId>byte-buddy</artifactId>
+            <version>${bytebuddy.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
             <groupId>org.openjdk.jmh</groupId>
             <artifactId>jmh-core</artifactId>
             <version>${jmh.version}</version>
@@ -107,6 +121,9 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>${maven-surefire-plugin.version}</version>
+                <configuration>
+                    <argLine>--add-opens java.base/java.lang=ALL-UNNAMED</argLine>
+                </configuration>
             </plugin>
 
             <plugin>
