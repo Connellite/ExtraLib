@@ -3,11 +3,16 @@ package io.github.connellite.format;
 import io.github.connellite.logger.Logger;
 import io.github.connellite.logger.LoggerFactory;
 
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Properties;
 import java.util.Set;
+import java.util.function.Supplier;
 
 /**
  * Replaces placeholders such as {@code ${name}} with values from {@link Properties} or a resolver.
@@ -17,6 +22,8 @@ import java.util.Set;
  * escape of the prefix or separator.
  */
 public final class PropertyPlaceholderReplacer {
+
+    private static final int PLACEHOLDER_CACHE_SIZE = 1_000;
 
     private static final Map<String, String> WELL_KNOWN_SIMPLE_PREFIXES = Map.of(
             "}", "{",
@@ -30,6 +37,7 @@ public final class PropertyPlaceholderReplacer {
     private final String valueSeparator;
     private final Character escapeCharacter;
     private final boolean ignoreUnresolvablePlaceholders;
+    private final Map<CacheKey, String> replacementCache;
 
     /**
      * Prefix/suffix only; unresolvable placeholders are left as-is.
@@ -66,6 +74,13 @@ public final class PropertyPlaceholderReplacer {
         this.valueSeparator = valueSeparator;
         this.escapeCharacter = escapeCharacter;
         this.ignoreUnresolvablePlaceholders = ignoreUnresolvablePlaceholders;
+
+        this.replacementCache = Collections.synchronizedMap(new LinkedHashMap<>(16, 0.75f, true) {
+            @Override
+            protected boolean removeEldestEntry(Map.Entry<CacheKey, String> eldest) {
+                return size() > PLACEHOLDER_CACHE_SIZE;
+            }
+        });
     }
 
     /**
@@ -74,6 +89,44 @@ public final class PropertyPlaceholderReplacer {
     public String replacePlaceholders(String value, Properties properties) {
         Objects.requireNonNull(properties, "properties");
         return replacePlaceholders(value, properties::getProperty);
+    }
+
+    /**
+     * Same as {@link #replacePlaceholders(String, Properties)}, reusing a previous result
+     * for the same template and property snapshot. There is no limit on template length.
+     * The cache keeps at most {@link #PLACEHOLDER_CACHE_SIZE} entries and drops the least recently used.
+     */
+    public String replacePlaceholdersCached(String value, Properties properties) {
+        Objects.requireNonNull(value, "value");
+        Objects.requireNonNull(properties, "properties");
+        CacheKey key = new CacheKey(value, propertySnapshot(properties), null);
+        return replaceCached(key, () -> replacePlaceholders(value, properties));
+    }
+
+    /**
+     * Same as {@link #replacePlaceholders(String, PlaceholderResolver)}, reusing a previous result
+     * for the same template and the same resolver instance.
+     */
+    public String replacePlaceholdersCached(String value, PlaceholderResolver placeholderResolver) {
+        Objects.requireNonNull(value, "value");
+        Objects.requireNonNull(placeholderResolver, "placeholderResolver");
+        CacheKey key = new CacheKey(value, List.of(), placeholderResolver);
+        return replaceCached(key, () -> replacePlaceholders(value, placeholderResolver));
+    }
+
+    private String replaceCached(CacheKey key, Supplier<String> replacement) {
+        String cached = replacementCache.get(key);
+        if (cached != null) {
+            return cached;
+        }
+        String replaced = replacement.get();
+        replacementCache.put(key, replaced);
+        return replaced;
+    }
+
+    /** Required for tests. */
+    Map<CacheKey, String> replacementCache() {
+        return replacementCache;
     }
 
     /**
@@ -198,6 +251,22 @@ public final class PropertyPlaceholderReplacer {
             }
         }
         return true;
+    }
+
+    private static List<PropertyEntry> propertySnapshot(Properties properties) {
+        List<String> names = new ArrayList<>(properties.stringPropertyNames());
+        Collections.sort(names);
+        List<PropertyEntry> entries = new ArrayList<>(names.size());
+        for (String name : names) {
+            entries.add(new PropertyEntry(name, properties.getProperty(name)));
+        }
+        return List.copyOf(entries);
+    }
+
+    record CacheKey(String value, List<PropertyEntry> properties, PlaceholderResolver resolver) {
+    }
+
+    record PropertyEntry(String key, String value) {
     }
 
     /**
