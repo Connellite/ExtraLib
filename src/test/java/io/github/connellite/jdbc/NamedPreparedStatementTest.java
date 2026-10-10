@@ -3,6 +3,7 @@ package io.github.connellite.jdbc;
 import io.github.connellite.format.PropertyPlaceholderReplacer;
 import io.github.connellite.jdbc.parser.BraceTokenSqlParser;
 import io.github.connellite.jdbc.parser.HashPrefixSqlParser;
+import io.github.connellite.jdbc.parser.PBraceTokenSqlParser;
 import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.Proxy;
@@ -122,6 +123,66 @@ class NamedPreparedStatementTest {
         try (Connection c = connectionThatAcceptsAnyPreparedSql()) {
             assertThrows(IllegalArgumentException.class, () ->
                     new NamedPreparedStatement(c, "SELECT #{id}, ?", new BraceTokenSqlParser()));
+        }
+    }
+
+    @Test
+    void pBraceParserReplacesParameterWithQuestionMark() throws Exception {
+        try (Connection c = connectionThatAcceptsAnyPreparedSql()) {
+            try (NamedPreparedStatement nps = new NamedPreparedStatement(
+                    c,
+                    "SELECT $P{id} AS v, '$P{not_param}' AS literal, \"$P{name}\" AS quoted",
+                    new PBraceTokenSqlParser())) {
+                assertEquals("SELECT ? AS v, '$P{not_param}' AS literal, \"$P{name}\" AS quoted", nps.getParsedSql());
+                assertEquals(List.of("id"), nps.getParameterOrder());
+            }
+        }
+    }
+
+    @Test
+    void pBraceParserKeepsSpaceInsideTheParameterName() throws Exception {
+        try (Connection c = connectionThatAcceptsAnyPreparedSql()) {
+            try (NamedPreparedStatement nps = new NamedPreparedStatement(
+                    c,
+                    "SELECT $P{ id } AS v",
+                    new PBraceTokenSqlParser())) {
+                assertEquals("SELECT ? AS v", nps.getParsedSql());
+                assertEquals(List.of(" id "), nps.getParameterOrder());
+            }
+        }
+    }
+
+    @Test
+    void pBraceParserIgnoresParameterInsideCommentsAndHonorsEscapes() throws Exception {
+        try (Connection c = connectionThatAcceptsAnyPreparedSql()) {
+            try (NamedPreparedStatement nps = new NamedPreparedStatement(
+                    c,
+                    "SELECT \\$P{escaped} AS e -- $P{ignored}\n, /* $P{hidden} */ $P{id} AS v",
+                    new PBraceTokenSqlParser())) {
+                assertEquals("SELECT $P{escaped} AS e -- $P{ignored}\n, /* $P{hidden} */ ? AS v", nps.getParsedSql());
+                assertEquals(List.of("id"), nps.getParameterOrder());
+            }
+        }
+    }
+
+    @Test
+    void pBraceParserLeavesClauseParameterAsText() throws Exception {
+        try (Connection c = connectionThatAcceptsAnyPreparedSql()) {
+            try (NamedPreparedStatement nps = new NamedPreparedStatement(
+                    c,
+                    "SELECT * FROM $P!{clause} WHERE id = $P{id}",
+                    new PBraceTokenSqlParser())) {
+                assertEquals("SELECT * FROM $P!{clause} WHERE id = ?", nps.getParsedSql());
+                assertEquals(List.of("id"), nps.getParameterOrder());
+            }
+        }
+    }
+
+    @Test
+    void pBraceParserMixingNamedAndPositionalThrows() throws Exception {
+        try (Connection c = connectionThatAcceptsAnyPreparedSql()) {
+            assertThrows(IllegalArgumentException.class, () ->
+                    new NamedPreparedStatement(c, "SELECT $P{id}, ?", new PBraceTokenSqlParser()));
         }
     }
 
