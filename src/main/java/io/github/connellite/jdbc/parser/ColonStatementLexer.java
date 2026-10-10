@@ -1,12 +1,10 @@
 package io.github.connellite.jdbc.parser;
 
 @SuppressWarnings("JavadocLinkAsPlainText")
-public final class ColonStatementLexer {
-    private final String sql;
-    private int pos;
+public final class ColonStatementLexer extends StatementLexer {
 
     public ColonStatementLexer(String sql) {
-        this.sql = sql;
+        super(sql);
     }
 
     /**
@@ -63,28 +61,6 @@ public final class ColonStatementLexer {
         return readLiteral();
     }
 
-    private Token readBlockComment() {
-        int start = pos;
-        pos += 2;
-        while (pos < sql.length()) {
-            if (sql.charAt(pos) == '*' && lookAhead(1) == '/') {
-                pos += 2;
-                break;
-            }
-            pos++;
-        }
-        return new Token(Token.COMMENT, sql.substring(start, pos));
-    }
-
-    private Token readLineComment() {
-        int start = pos;
-        pos += 2;
-        while (pos < sql.length() && sql.charAt(pos) != '\r' && sql.charAt(pos) != '\n') {
-            pos++;
-        }
-        return new Token(Token.COMMENT, sql.substring(start, pos));
-    }
-
     private Token readQuotedText() {
         int start = pos++;
         while (pos < sql.length()) {
@@ -101,17 +77,6 @@ public final class ColonStatementLexer {
             }
         }
         return new Token(Token.QUOTED_TEXT, sql.substring(start, pos));
-    }
-
-    private Token readDoubleQuotedText() {
-        int start = pos++;
-        while (pos < sql.length()) {
-            char c = sql.charAt(pos++);
-            if (c == '"') {
-                break;
-            }
-        }
-        return new Token(Token.DOUBLE_QUOTED_TEXT, sql.substring(start, pos));
     }
 
     private Token readNamedParam() {
@@ -145,11 +110,6 @@ public final class ColonStatementLexer {
             pos++;
         }
         return new Token(Token.LITERAL, sql.substring(start, pos));
-    }
-
-    private char lookAhead(int offset) {
-        int index = pos + offset;
-        return index < sql.length() ? sql.charAt(index) : '\0';
     }
 
     private static boolean isNameChar(char c) {
