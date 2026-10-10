@@ -10,11 +10,15 @@ import lombok.experimental.UtilityClass;
 import java.sql.Time;
 import java.sql.Timestamp;
 import java.time.DateTimeException;
+import java.time.DayOfWeek;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.Month;
 import java.time.MonthDay;
+import java.time.Period;
 import java.time.OffsetDateTime;
 import java.time.OffsetTime;
 import java.time.Year;
@@ -24,7 +28,10 @@ import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.Calendar;
 import java.util.Date;
+import java.util.Locale;
 import java.util.Set;
+import java.util.TimeZone;
+import java.util.function.Function;
 
 /**
  * Date and time coercion used by {@link TypeCoercionUtil}.
@@ -48,7 +55,13 @@ public class DateTimeCoercion {
             MonthDay.class,
             OffsetTime.class,
             ZoneId.class,
-            ZoneOffset.class
+            ZoneOffset.class,
+            TimeZone.class,
+            Duration.class,
+            Period.class,
+            Month.class,
+            DayOfWeek.class,
+            Calendar.class
     );
 
     /**
@@ -267,10 +280,96 @@ public class DateTimeCoercion {
 
         if (targetType == ZoneId.class) {
             if (raw instanceof ZoneId zoneId) return (T) zoneId;
+            if (raw instanceof TimeZone timeZone) {
+                try {
+                    return (T) timeZone.toZoneId();
+                } catch (DateTimeException e) {
+                    throw cannotCoerce(targetType);
+                }
+            }
             if (raw instanceof ZonedDateTime zonedDateTime) return (T) zonedDateTime.getZone();
             if (raw instanceof OffsetDateTime offsetDateTime) return (T) offsetDateTime.getOffset();
             if (raw instanceof String text) {
                 return (T) requirePresent(DateTimeUtil.tryParseZoneId(text), text, targetType);
+            }
+            return null;
+        }
+
+        if (targetType == TimeZone.class) {
+            if (raw instanceof TimeZone timeZone) return (T) timeZone;
+            if (raw instanceof ZoneId zoneId) return (T) TimeZone.getTimeZone(zoneId);
+            if (raw instanceof ZonedDateTime zonedDateTime) return (T) TimeZone.getTimeZone(zonedDateTime.getZone());
+            if (raw instanceof OffsetDateTime offsetDateTime) return (T) TimeZone.getTimeZone(offsetDateTime.getOffset());
+            if (raw instanceof String text) {
+                ZoneId zone = requirePresent(DateTimeUtil.tryParseZoneId(text), text, targetType);
+                return zone == null ? null : (T) TimeZone.getTimeZone(zone);
+            }
+            return null;
+        }
+
+        if (targetType == Duration.class) {
+            if (raw instanceof Duration duration) return (T) duration;
+            if (raw instanceof Number number) return (T) Duration.ofSeconds(number.longValue());
+            if (raw instanceof String text) {
+                return (T) requireTemporal(text, targetType, Duration::parse);
+            }
+            return null;
+        }
+
+        if (targetType == Period.class) {
+            if (raw instanceof Period period) return (T) period;
+            if (raw instanceof String text) {
+                return (T) requireTemporal(text, targetType, Period::parse);
+            }
+            return null;
+        }
+
+        if (targetType == Month.class) {
+            if (raw instanceof Month month) return (T) month;
+            if (raw instanceof Number number) {
+                try {
+                    return (T) Month.of(NumberUtils.toIntExact(number));
+                } catch (ArithmeticException | DateTimeException e) {
+                    throw cannotCoerce(targetType);
+                }
+            }
+            if (raw instanceof String text) {
+                return parseMonthOrDay(text, targetType, true);
+            }
+            return null;
+        }
+
+        if (targetType == DayOfWeek.class) {
+            if (raw instanceof DayOfWeek dayOfWeek) return (T) dayOfWeek;
+            if (raw instanceof Number number) {
+                try {
+                    return (T) DayOfWeek.of(NumberUtils.toIntExact(number));
+                } catch (ArithmeticException | DateTimeException e) {
+                    throw cannotCoerce(targetType);
+                }
+            }
+            if (raw instanceof String text) {
+                return parseMonthOrDay(text, targetType, false);
+            }
+            return null;
+        }
+
+        if (targetType == Calendar.class) {
+            if (raw instanceof Calendar calendar) return (T) calendar;
+            Long millis = epochMillis(raw);
+            if (millis != null) {
+                Calendar calendar = Calendar.getInstance();
+                calendar.setTimeInMillis(millis);
+                return (T) calendar;
+            }
+            if (raw instanceof String text) {
+                LocalDateTime parsed = requireLocalDateTime(text, targetType);
+                if (parsed == null) {
+                    return null;
+                }
+                Calendar calendar = Calendar.getInstance();
+                calendar.setTime(DateTimeUtil.toDate(parsed));
+                return (T) calendar;
             }
             return null;
         }
@@ -359,6 +458,39 @@ public class DateTimeCoercion {
         if (value instanceof Instant instant) return instant.toEpochMilli();
         if (value instanceof String text && StringUtils.isDigits(text)) return Long.parseLong(text);
         return null;
+    }
+
+    private static <T> T requireTemporal(String text, Class<?> targetType, Function<String, T> parser) {
+        if (text.isBlank()) {
+            return null;
+        }
+        try {
+            return parser.apply(text.trim());
+        } catch (DateTimeException e) {
+            throw cannotCoerce(targetType);
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private static <T> T parseMonthOrDay(String text, Class<?> targetType, boolean month) {
+        if (text.isBlank()) {
+            return null;
+        }
+        String name = text.trim();
+        if (StringUtils.isDigits(name)) {
+            try {
+                int number = Integer.parseInt(name);
+                return month ? (T) Month.of(number) : (T) DayOfWeek.of(number);
+            } catch (DateTimeException e) {
+                throw cannotCoerce(targetType);
+            }
+        }
+        try {
+            String upper = name.toUpperCase(Locale.ROOT);
+            return month ? (T) Month.valueOf(upper) : (T) DayOfWeek.valueOf(upper);
+        } catch (IllegalArgumentException e) {
+            throw cannotCoerce(targetType);
+        }
     }
 
     private static TypeCoercionException cannotCoerce(Class<?> targetType) {

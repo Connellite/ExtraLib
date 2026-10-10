@@ -4,16 +4,25 @@ import io.github.connellite.exception.TypeCoercionException;
 import io.github.connellite.jdbc.LobUtils;
 import org.junit.jupiter.api.Test;
 
+import java.io.File;
+import java.net.URI;
+import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
 import java.sql.Blob;
 import java.sql.Clob;
+import java.sql.NClob;
 import java.sql.Time;
 import java.sql.Timestamp;
+import java.time.DayOfWeek;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.Month;
 import java.time.MonthDay;
+import java.time.Period;
 import java.time.OffsetDateTime;
 import java.time.OffsetTime;
 import java.time.Year;
@@ -22,8 +31,11 @@ import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.Calendar;
+import java.util.Currency;
 import java.util.Date;
 import java.util.List;
+import java.util.Locale;
+import java.util.TimeZone;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -123,7 +135,47 @@ class TypeCoercionUtilTest {
         assertEquals(Color.RED, TypeCoercionUtil.coerce("RED", Color.class));
         assertEquals(Color.GREEN, TypeCoercionUtil.coerce(" GREEN ", Color.class));
         assertEquals(Color.BLUE, TypeCoercionUtil.coerce(2, Color.class));
+        assertEquals(Color.RED, TypeCoercionUtil.coerce("red", Color.class));
         assertNull(TypeCoercionUtil.coerce("  ", Color.class));
+    }
+
+    @Test
+    void coerce_booleanLiterals() {
+        assertEquals(Boolean.TRUE, TypeCoercionUtil.coerce("yes", boolean.class));
+        assertEquals(Boolean.TRUE, TypeCoercionUtil.coerce("on", Boolean.class));
+        assertEquals(Boolean.FALSE, TypeCoercionUtil.coerce("N", boolean.class));
+        assertEquals(Boolean.FALSE, TypeCoercionUtil.coerce("off", Boolean.class));
+    }
+
+    @Test
+    void coerce_durationPeriodMonthDayOfWeekAndCalendar() {
+        assertEquals(Duration.ofHours(1), TypeCoercionUtil.coerce("PT1H", Duration.class));
+        assertEquals(Duration.ofSeconds(90), TypeCoercionUtil.coerce(90, Duration.class));
+        assertEquals(Period.ofDays(1), TypeCoercionUtil.coerce("P1D", Period.class));
+        assertEquals(Month.JANUARY, TypeCoercionUtil.coerce("january", Month.class));
+        assertEquals(Month.MARCH, TypeCoercionUtil.coerce(3, Month.class));
+        assertEquals(DayOfWeek.MONDAY, TypeCoercionUtil.coerce("monday", DayOfWeek.class));
+        assertEquals(DayOfWeek.FRIDAY, TypeCoercionUtil.coerce(5, DayOfWeek.class));
+        assertThrows(TypeCoercionException.class, () -> TypeCoercionUtil.coerce("nope", Duration.class));
+
+        Calendar calendar = TypeCoercionUtil.coerce(1_700_000_000_000L, Calendar.class);
+        assertEquals(1_700_000_000_000L, calendar.getTimeInMillis());
+    }
+
+    @Test
+    void coerce_namedStringTypesAndNClob() throws Exception {
+        assertEquals(Currency.getInstance("USD"), TypeCoercionUtil.coerce("usd", Currency.class));
+        assertEquals(Locale.forLanguageTag("en-US"), TypeCoercionUtil.coerce("en_US", Locale.class));
+        assertEquals(StandardCharsets.UTF_8, TypeCoercionUtil.coerce("UTF-8", Charset.class));
+        assertEquals(TimeZone.getTimeZone("UTC"), TypeCoercionUtil.coerce("UTC", TimeZone.class));
+        assertEquals(URI.create("https://example.com"), TypeCoercionUtil.coerce("https://example.com", URI.class));
+        assertEquals(URI.create("https://example.com").toURL(), TypeCoercionUtil.coerce("https://example.com", java.net.URL.class));
+        assertEquals(new File("a.txt"), TypeCoercionUtil.coerce("a.txt", File.class));
+        assertEquals(Path.of("a.txt"), TypeCoercionUtil.coerce("a.txt", Path.class));
+        assertThrows(TypeCoercionException.class, () -> TypeCoercionUtil.coerce("not-money", Currency.class));
+
+        NClob nclob = TypeCoercionUtil.coerce("я", NClob.class);
+        assertEquals("я", LobUtils.convertClobToString(nclob));
     }
 
     @Test
@@ -331,6 +383,7 @@ class TypeCoercionUtilTest {
         assertThrows(TypeCoercionException.class, () -> TypeCoercionUtil.coerce("10:15:30", OffsetTime.class));
 
         assertEquals(ZoneId.of("Europe/Moscow"), TypeCoercionUtil.coerce(zonedDateTime, ZoneId.class));
+        assertEquals(ZoneId.of("Europe/Moscow"), TypeCoercionUtil.coerce(TimeZone.getTimeZone("Europe/Moscow"), ZoneId.class));
         assertEquals(ZoneOffset.ofHours(3), TypeCoercionUtil.coerce(offsetDateTime, ZoneId.class));
         assertEquals(ZoneId.of("Europe/Moscow"), TypeCoercionUtil.coerce("2024-03-21T10:15:30+03:00[Europe/Moscow]", ZoneId.class));
         assertEquals(ZoneId.of("Europe/Moscow"), TypeCoercionUtil.coerce("Europe/Moscow", ZoneId.class));

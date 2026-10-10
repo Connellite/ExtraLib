@@ -91,7 +91,8 @@ public class NumberUtils {
 
     /**
      * Parses a string into a {@link Boolean}.
-     * Recognizes {@code "true"} / {@code "false"} (case-insensitive) and {@code "1"} / {@code "0"} after trimming.
+     * Recognizes {@code true}/{@code false}, {@code yes}/{@code no}, {@code on}/{@code off},
+     * {@code y}/{@code n}, {@code t}/{@code f} (case-insensitive) and {@code 1}/{@code 0} after trimming.
      *
      * @param value the string to convert
      * @return the parsed value, or {@code null} if the input is {@code null}, blank, or not one of the supported literals
@@ -102,8 +103,8 @@ public class NumberUtils {
         }
         String s = value.trim().toLowerCase();
         return switch (s) {
-            case "true", "1" -> true;
-            case "false", "0" -> false;
+            case "true", "yes", "on", "y", "t", "1" -> true;
+            case "false", "no", "off", "n", "f", "0" -> false;
             default -> null;
         };
     }

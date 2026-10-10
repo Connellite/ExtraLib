@@ -26,8 +26,16 @@ class NumberUtilsTest {
         assertEquals(Boolean.TRUE, NumberUtils.toBoolean("true"));
         assertEquals(Boolean.TRUE, NumberUtils.toBoolean("TRUE"));
         assertEquals(Boolean.TRUE, NumberUtils.toBoolean(" 1 "));
+        assertEquals(Boolean.TRUE, NumberUtils.toBoolean("yes"));
+        assertEquals(Boolean.TRUE, NumberUtils.toBoolean("ON"));
+        assertEquals(Boolean.TRUE, NumberUtils.toBoolean("Y"));
+        assertEquals(Boolean.TRUE, NumberUtils.toBoolean("t"));
         assertEquals(Boolean.FALSE, NumberUtils.toBoolean("false"));
         assertEquals(Boolean.FALSE, NumberUtils.toBoolean("0"));
+        assertEquals(Boolean.FALSE, NumberUtils.toBoolean("no"));
+        assertEquals(Boolean.FALSE, NumberUtils.toBoolean("OFF"));
+        assertEquals(Boolean.FALSE, NumberUtils.toBoolean("N"));
+        assertEquals(Boolean.FALSE, NumberUtils.toBoolean("f"));
     }
 
     @Test

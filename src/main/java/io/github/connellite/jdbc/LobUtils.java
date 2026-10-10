@@ -9,6 +9,7 @@ import java.io.InputStream;
 import java.io.Reader;
 import java.sql.Blob;
 import java.sql.Clob;
+import java.sql.NClob;
 import java.sql.SQLException;
 
 @UtilityClass
@@ -82,6 +83,42 @@ public class LobUtils {
             return null;
         }
         return new SerialClob(chars);
+    }
+
+    /**
+     * Creates JDBC {@link NClob} from a {@link String}.
+     *
+     * @param s source text; may be {@code null}
+     * @return a new {@link NClob}, or {@code null} if {@code s} is {@code null}
+     */
+    public static NClob createNClob(String s) throws SQLException {
+        if (s == null) {
+            return null;
+        }
+        return new NClobAdapter(s);
+    }
+
+    /**
+     * Creates JDBC {@link NClob} from a character array.
+     *
+     * @param chars source character array; may be {@code null}
+     * @return a new {@link NClob}, or {@code null} if {@code chars} is {@code null}
+     */
+    public static NClob createNClob(char[] chars) throws SQLException {
+        if (chars == null) {
+            return null;
+        }
+        return new NClobAdapter(chars);
+    }
+
+    private static final class NClobAdapter extends SerialClob implements NClob {
+        private NClobAdapter(String s) throws SQLException {
+            this(s.toCharArray());
+        }
+
+        private NClobAdapter(char[] chars) throws SQLException {
+            super(chars);
+        }
     }
 
     /**

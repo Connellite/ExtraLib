@@ -1,17 +1,23 @@
 package io.github.connellite.util;
 
 import io.github.connellite.exception.TypeCoercionException;
-import io.github.connellite.jdbc.LobUtils;
 import io.github.connellite.reflection.ReflectionUtil;
 import io.github.connellite.reflection.SimpleMapBeanMapper;
 import io.github.connellite.util.internal.ArrayCoercion;
 import io.github.connellite.util.internal.DateTimeCoercion;
+import io.github.connellite.util.internal.LobCoercion;
 import lombok.experimental.UtilityClass;
 
+import java.io.File;
+import java.net.URI;
+import java.net.URL;
+import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
 import java.sql.Blob;
 import java.sql.Clob;
-import java.sql.SQLException;
+import java.util.Currency;
+import java.util.Locale;
 import java.util.Objects;
 import java.util.UUID;
 
@@ -32,13 +38,18 @@ import java.util.UUID;
  * </p>
  * <ul>
  *   <li>scalars: {@link String}, numeric wrappers, {@link Boolean}, {@link Character},
- *       {@link UUID}, enums (by name or ordinal)</li>
+ *       {@link UUID}, enums (by name, ignoring case, or ordinal)</li>
+ *   <li>identifiers: {@link Currency}, {@link Locale}, {@link Charset},
+ *       {@link URI}, {@link URL}, {@link File}, {@link Path}</li>
  *   <li>arrays of those scalars, including primitive arrays and the matching wrapper arrays
  *       ({@code byte[]}, {@code short[]}, {@code int[]}, {@code long[]}, {@code float[]},
  *       {@code double[]}, {@code char[]}, {@code boolean[]})</li>
- *   <li>JDBC: {@link Blob}, {@link Clob}, {@link java.sql.Date}, {@link java.sql.Time},
+ *   <li>JDBC: {@link Blob}, {@link Clob}, {@link java.sql.NClob}, {@link java.sql.Date}, {@link java.sql.Time},
  *       {@link java.sql.Timestamp}</li>
- *   <li>legacy and {@code java.time}: {@link java.util.Date}, {@link java.time.LocalDate},
+ *   <li>legacy and {@code java.time}: {@link java.util.Date}, {@link java.util.Calendar},
+ *       {@link java.util.TimeZone},
+ *       {@link java.time.Duration}, {@link java.time.Period}, {@link java.time.Month},
+ *       {@link java.time.DayOfWeek}, {@link java.time.LocalDate},
  *       {@link java.time.LocalTime}, {@link java.time.LocalDateTime}, {@link java.time.Instant},
  *       {@link java.time.ZonedDateTime}, {@link java.time.OffsetDateTime}, {@link java.time.Year},
  *       {@link java.time.YearMonth}, {@link java.time.MonthDay}, {@link java.time.OffsetTime},
@@ -83,12 +94,12 @@ public class TypeCoercionUtil {
 
         if (boxed == String.class) {
             if (raw instanceof String s) return (T) s;
-            if (raw instanceof Clob clob) return (T) coerceClobToString(clob);
+            if (raw instanceof Clob clob) return (T) LobCoercion.clobToString(clob);
             if (raw instanceof char[] chars) return (T) new String(chars);
             if (raw instanceof Character[] chars) return (T) new String(NumberUtils.objectCharactersToChars(chars));
             if (raw instanceof byte[] bytes) return (T) new String(bytes, StandardCharsets.UTF_8);
             if (raw instanceof Byte[] bytes) return (T) new String(NumberUtils.objectBytesToBytes(bytes), StandardCharsets.UTF_8);
-            if (raw instanceof Blob blob) return (T) coerceBlobToString(blob);
+            if (raw instanceof Blob blob) return (T) LobCoercion.blobToString(blob);
             if (raw.getClass().isArray()) return (T) StringUtils.toString(raw);
             return (T) Objects.toString(raw, null);
         }
@@ -136,30 +147,55 @@ public class TypeCoercionUtil {
             }
         }
 
+        if (DateTimeCoercion.supports(targetType)) {
+            return DateTimeCoercion.coerce(raw, targetType);
+        }
+
         if (boxed.isEnum()) {
             Class<? extends Enum> enumClass = (Class<? extends Enum>) boxed;
             return (T) coerceEnum(raw, enumClass);
         }
 
-        if (DateTimeCoercion.supports(targetType)) {
-            return DateTimeCoercion.coerce(raw, targetType);
+        if (LobCoercion.supports(targetType)) {
+            return LobCoercion.coerce(raw, targetType);
         }
-
-        if (boxed == Clob.class) {
-            if (raw instanceof Clob clob) return (T) clob;
-            if (raw instanceof String s) return (T) coerceStringToClob(s);
-            if (raw instanceof char[] chars) return (T) coerceStringToClob(new String(chars));
-            if (raw instanceof Character[] chars) return (T) coerceStringToClob(new String(NumberUtils.objectCharactersToChars(chars)));
-            return null;
-        }
-
-        if (boxed == Blob.class) {
-            if (raw instanceof Blob blob) return (T) blob;
-            if (raw instanceof byte[] bytes) return (T) coerceByteArrayToBlob(bytes);
-            if (raw instanceof Byte[] bytes) return (T) coerceByteArrayToBlob(NumberUtils.objectBytesToBytes(bytes));
-            return null;
+        if (isNamedTarget(boxed)) {
+            return coerceNamed(raw, boxed);
         }
         throw unsupportedTarget(targetType);
+    }
+
+    private static boolean isNamedTarget(Class<?> boxed) {
+        return boxed == Currency.class
+                || boxed == Locale.class
+                || boxed == Charset.class
+                || boxed == URI.class
+                || boxed == URL.class
+                || boxed == File.class
+                || boxed == Path.class;
+    }
+
+    @SuppressWarnings("unchecked")
+    private static <T> T coerceNamed(Object raw, Class<?> boxed) {
+        if (!(raw instanceof String text)) {
+            return null;
+        }
+        if (text.isBlank()) {
+            return null;
+        }
+        String trimmed = text.trim();
+        try {
+            if (boxed == Currency.class) return (T) Currency.getInstance(trimmed.toUpperCase(Locale.ROOT));
+            if (boxed == Locale.class) return (T) new Locale.Builder().setLanguageTag(trimmed.replace('_', '-')).build();
+            if (boxed == Charset.class) return (T) Charset.forName(trimmed);
+            if (boxed == URI.class) return (T) new URI(trimmed);
+            if (boxed == URL.class) return (T) new URI(trimmed).toURL();
+            if (boxed == File.class) return (T) new File(trimmed);
+            if (boxed == Path.class) return (T) Path.of(trimmed);
+        } catch (Exception e) {
+            throw cannotCoerce(boxed, e);
+        }
+        return null;
     }
 
     @SuppressWarnings("unchecked")
@@ -171,38 +207,6 @@ public class TypeCoercionUtil {
         }
     }
 
-    private static String coerceBlobToString(Blob blob) {
-        try {
-            return new String(LobUtils.convertBlobToByteArray(blob), StandardCharsets.UTF_8);
-        } catch (SQLException e) {
-            throw cannotCoerce(String.class, e);
-        }
-    }
-
-    private static String coerceClobToString(Clob clob) {
-        try {
-            return LobUtils.convertClobToString(clob);
-        } catch (SQLException e) {
-            throw cannotCoerce(String.class, e);
-        }
-    }
-
-    private static Clob coerceStringToClob(String value) {
-        try {
-            return LobUtils.createClob(value);
-        } catch (SQLException e) {
-            throw cannotCoerce(Clob.class, e);
-        }
-    }
-
-    private static Blob coerceByteArrayToBlob(byte[] bytes) {
-        try {
-            return LobUtils.createBlob(bytes);
-        } catch (SQLException e) {
-            throw cannotCoerce(Blob.class, e);
-        }
-    }
-
     @SuppressWarnings({"rawtypes", "unchecked"})
     private static Enum<?> coerceEnum(Object raw, Class<? extends Enum> enumClass) {
         if (raw instanceof String s) {
@@ -210,8 +214,13 @@ public class TypeCoercionUtil {
             if (name.isEmpty()) return null;
             try {
                 return Enum.valueOf(enumClass, name);
-            } catch (IllegalArgumentException e) {
-                throw cannotCoerce(enumClass, e);
+            } catch (IllegalArgumentException ignored) {
+                for (Enum<?> constant : enumClass.getEnumConstants()) {
+                    if (constant.name().equalsIgnoreCase(name)) {
+                        return constant;
+                    }
+                }
+                throw cannotCoerce(enumClass, null);
             }
         }
         if (raw instanceof Number n) {
