@@ -287,7 +287,7 @@ public class FileLogHandler extends Handler {
         }
     }
 
-    private static byte[] utf8(String text) {
+    static byte[] utf8(String text) {
         if (text == null || text.isEmpty()) {
             return new byte[0];
         }

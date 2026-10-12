@@ -28,12 +28,16 @@ import java.util.logging.Logger;
  * Shorter overload: {@link #forLogFile(Path)} uses {@link Path#getFileName()} as the logger name.
  * Async counterparts are {@link #forAsyncLogFile(String, Path, AsyncFileLogHandlerConfig)} and
  * {@link #addAsyncFileHandler(Logger, Path, AsyncFileLogHandlerConfig)}.
+ * Per-message counterparts {@link #forPerMessageLogFile(String, Path, FileLogHandlerConfig)} and
+ * {@link #addPerMessageFileHandler(Logger, Path, FileLogHandlerConfig)} open and close the file on every record.
+ * They are deprecated and not recommended for production.
  * </p>
  * <p>
  * Each record is one line from the handler's {@link java.util.logging.Formatter}
  * ({@link java.util.logging.SimpleFormatter} by default; override via {@link FileLogHandlerConfig#withFormatter}).
  * </p>
  */
+@SuppressWarnings("SynchronizationOnLocalVariableOrMethodParameter")
 @UtilityClass
 public final class FileLoggers {
 
@@ -94,6 +98,90 @@ public final class FileLoggers {
 
     public static FileLogHandler addFileHandler(Logger logger, Path logFile) {
         return addFileHandler(logger, logFile, FileLogHandlerConfig.DEFAULT);
+    }
+
+    /**
+     * {@code Logger.getLogger(loggerName)} plus a single {@link PerMessageFileLogHandler} for {@code logFile}
+     * (no parent handlers).
+     *
+     * @deprecated Not recommended for production. Each record opens and closes the file.
+     *             Prefer {@link #forLogFile(String, Path, FileLogHandlerConfig)}.
+     */
+    @Deprecated
+    public static Logger forPerMessageLogFile(String loggerName, Path logFile, FileLogHandlerConfig config) {
+        Objects.requireNonNull(loggerName, "loggerName must not be null");
+        Path normalized = logFile.toAbsolutePath().normalize();
+        Logger logger = Logger.getLogger(loggerName);
+        synchronized (logger) {
+            logger.setUseParentHandlers(false);
+            if (findOurPerMessageHandlerForFile(logger, normalized, config) != null) {
+                if (logger.getLevel() == null) {
+                    logger.setLevel(Level.FINE);
+                }
+                return logger;
+            }
+            removeOurHandlersForFile(logger, normalized);
+            logger.addHandler(new PerMessageFileLogHandler(normalized, config));
+            if (logger.getLevel() == null) {
+                logger.setLevel(Level.FINE);
+            }
+        }
+        return logger;
+    }
+
+    /**
+     * @deprecated Not recommended for production. Prefer {@link #forLogFile(String, Path)}.
+     */
+    @Deprecated
+    public static Logger forPerMessageLogFile(String loggerName, Path logFile) {
+        return forPerMessageLogFile(loggerName, logFile, FileLogHandlerConfig.DEFAULT);
+    }
+
+    /**
+     * Uses {@code logFile.getFileName().toString()} as the logger name (two different paths with the same file name
+     * share one {@link Logger} — pass an explicit name if that is a problem).
+     *
+     * @deprecated Not recommended for production. Prefer {@link #forLogFile(Path)}.
+     */
+    @Deprecated
+    public static Logger forPerMessageLogFile(Path logFile) {
+        return forPerMessageLogFile(logFile.getFileName().toString(), logFile);
+    }
+
+    /**
+     * @deprecated Not recommended for production. Prefer {@link #forLogFile(Path, FileLogHandlerConfig)}.
+     */
+    @Deprecated
+    public static Logger forPerMessageLogFile(Path logFile, FileLogHandlerConfig config) {
+        return forPerMessageLogFile(logFile.getFileName().toString(), logFile, config);
+    }
+
+    /**
+     * @deprecated Not recommended for production. Each record opens and closes the file.
+     *             Prefer {@link #addFileHandler(Logger, Path, FileLogHandlerConfig)}.
+     */
+    @Deprecated
+    public static PerMessageFileLogHandler addPerMessageFileHandler(Logger logger, Path logFile, FileLogHandlerConfig config) {
+        Objects.requireNonNull(logger, "logger");
+        Path normalized = logFile.toAbsolutePath().normalize();
+        synchronized (logger) {
+            PerMessageFileLogHandler existing = findOurPerMessageHandlerForFile(logger, normalized, config);
+            if (existing != null) {
+                return existing;
+            }
+            removeOurHandlersForFile(logger, normalized);
+            PerMessageFileLogHandler handler = new PerMessageFileLogHandler(normalized, config);
+            logger.addHandler(handler);
+            return handler;
+        }
+    }
+
+    /**
+     * @deprecated Not recommended for production. Prefer {@link #addFileHandler(Logger, Path)}.
+     */
+    @Deprecated
+    public static PerMessageFileLogHandler addPerMessageFileHandler(Logger logger, Path logFile) {
+        return addPerMessageFileHandler(logger, logFile, FileLogHandlerConfig.DEFAULT);
     }
 
     /**
@@ -170,6 +258,17 @@ public final class FileLoggers {
         return null;
     }
 
+    private static PerMessageFileLogHandler findOurPerMessageHandlerForFile(Logger logger, Path normalized, FileLogHandlerConfig config) {
+        for (Handler h : logger.getHandlers()) {
+            if (h instanceof PerMessageFileLogHandler ph
+                    && ph.getLogFile().equals(normalized)
+                    && ph.getConfig().equals(config)) {
+                return ph;
+            }
+        }
+        return null;
+    }
+
     private static AsyncFileLogHandler findOurAsyncHandlerForFile(Logger logger, Path normalized, AsyncFileLogHandlerConfig config) {
         for (Handler h : logger.getHandlers()) {
             if (h instanceof AsyncFileLogHandler ah
@@ -186,6 +285,9 @@ public final class FileLoggers {
             if (h instanceof FileLogHandler fh && fh.getLogFile().equals(normalized)) {
                 logger.removeHandler(fh);
                 fh.close();
+            } else if (h instanceof PerMessageFileLogHandler ph && ph.getLogFile().equals(normalized)) {
+                logger.removeHandler(ph);
+                ph.close();
             }
         }
     }
