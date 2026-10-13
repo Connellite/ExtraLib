@@ -239,4 +239,92 @@ public class QueryUtils {
             throw new SQLException("CallableStatement returned no ResultSet");
         }
     }
+
+    /**
+     * Executes a named call ({@code :name} parameters) with IN parameters only.
+     * Return value matches {@link CallableStatement#execute()}.
+     */
+    public static boolean executeNamedCall(Connection connection, String call, Map<String, Object> params) throws SQLException {
+        return executeNamedCall(connection, NamedQuery.of(call), params);
+    }
+
+    /**
+     * Binds {@code params} onto {@code namedQuery} and executes the call.
+     * Return value matches {@link CallableStatement#execute()}. IN parameters only.
+     */
+    public static boolean executeNamedCall(Connection connection, NamedQuery namedQuery, Map<String, Object> params) throws SQLException {
+        try (NamedCallableStatement statement = Objects.requireNonNull(namedQuery, "namedQuery").setAll(params).prepareCall(connection)) {
+            return statement.execute();
+        }
+    }
+
+    /**
+     * Executes a named call that returns a result set. The wrapper closes both the call and the {@link ResultSet}.
+     * IN parameters only.
+     */
+    public static ResultSet selectNamedFromCall(Connection connection, String call, Map<String, Object> params) throws SQLException {
+        return selectNamedFromCall(connection, NamedQuery.of(call), params);
+    }
+
+    /**
+     * Binds {@code params} onto {@code namedQuery} and returns the first non-null {@link ResultSet}
+     * from {@link CallableStatement#execute()} / {@link CallableStatement#getMoreResults()}.
+     * The wrapper closes both the call and the {@link ResultSet}. IN parameters only.
+     */
+    public static ResultSet selectNamedFromCall(Connection connection, NamedQuery namedQuery, Map<String, Object> params) throws SQLException {
+        CallableStatement statement = Objects.requireNonNull(namedQuery, "namedQuery").setAll(params).prepareCall(connection).unwrap();
+        try {
+            boolean hasResult = statement.execute();
+            for (;;) {
+                if (hasResult) {
+                    ResultSet rs = statement.getResultSet();
+                    if (rs != null) {
+                        return new ResultSetWrapper(statement, rs);
+                    }
+                } else if (statement.getUpdateCount() == -1) {
+                    break;
+                }
+                hasResult = statement.getMoreResults();
+            }
+            throw new SQLException("CallableStatement returned no ResultSet");
+        } catch (SQLException e) {
+            statement.close();
+            throw e;
+        }
+    }
+
+    /**
+     * Executes a named call and returns detached rows as a {@link CachedRowSet}.
+     * The JDBC {@link ResultSet} and {@link CallableStatement} are closed before this method returns.
+     * IN parameters only.
+     */
+    public static ResultSet selectNamedFromCallCached(Connection connection, String call, Map<String, Object> params) throws SQLException {
+        return selectNamedFromCallCached(connection, NamedQuery.of(call), params);
+    }
+
+    /**
+     * Binds {@code params} onto {@code namedQuery} and returns the first non-null {@link ResultSet}
+     * from {@link CallableStatement#execute()} / {@link CallableStatement#getMoreResults()} as a {@link CachedRowSet}.
+     * The JDBC {@link ResultSet} and {@link CallableStatement} are closed before this method returns. IN parameters only.
+     */
+    public static ResultSet selectNamedFromCallCached(Connection connection, NamedQuery namedQuery, Map<String, Object> params) throws SQLException {
+        try (CallableStatement statement = Objects.requireNonNull(namedQuery, "namedQuery").setAll(params).prepareCall(connection).unwrap()) {
+            boolean hasResult = statement.execute();
+            for (;;) {
+                if (hasResult) {
+                    try (ResultSet rs = statement.getResultSet()) {
+                        if (rs != null) {
+                            CachedRowSet cachedRowSet = RowSetProvider.newFactory().createCachedRowSet();
+                            cachedRowSet.populate(rs);
+                            return cachedRowSet;
+                        }
+                    }
+                } else if (statement.getUpdateCount() == -1) {
+                    break;
+                }
+                hasResult = statement.getMoreResults();
+            }
+            throw new SQLException("CallableStatement returned no ResultSet");
+        }
+    }
 }

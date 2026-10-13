@@ -4,6 +4,7 @@ import io.github.connellite.collections.LinkedMultiValueHashMap;
 import io.github.connellite.jdbc.parser.ColonPrefixSqlParser;
 import io.github.connellite.jdbc.parser.ParsedSql;
 import io.github.connellite.jdbc.parser.SqlParser;
+import lombok.Getter;
 
 import java.io.InputStream;
 import java.io.Reader;
@@ -11,6 +12,7 @@ import java.math.BigDecimal;
 import java.net.URL;
 import java.sql.Array;
 import java.sql.Blob;
+import java.sql.CallableStatement;
 import java.sql.Clob;
 import java.sql.Connection;
 import java.sql.Date;
@@ -59,17 +61,24 @@ import java.util.StringJoiner;
  * creating a {@link PreparedStatement}. By default colon-prefixed parameters
  * ({@code :name}) are parsed with {@link ColonPrefixSqlParser}; a custom
  * {@link SqlParser} can be supplied via {@link #of(String, SqlParser)}.
+ * <p>
+ * {@link #prepareCall(Connection)} materializes a {@link NamedCallableStatement}
+ * instead. OUT parameters are declared with {@link #registerOutParameter(String, int)}
+ * and do not accept an IN value. An INOUT parameter is both set and registered.
  *
  * @see NamedPreparedStatement
+ * @see NamedCallableStatement
  * @see ColonPrefixSqlParser
  */
 @SuppressWarnings({"UnusedReturnValue"})
 public final class NamedQuery {
     private static final SqlParser DEFAULT_SQL_PARSER = new ColonPrefixSqlParser();
 
+    @Getter
     private final String sql;
     private final SqlParser sqlParser;
     private final Map<String, Binding> bindings = new LinkedHashMap<>();
+    private final Map<String, OutRegistrar> outRegistrations = new LinkedHashMap<>();
     private ParsedSql parsedSql;
 
     private NamedQuery(String sql, SqlParser sqlParser) {
@@ -89,13 +98,6 @@ public final class NamedQuery {
      */
     public static NamedQuery of(String sql, SqlParser sqlParser) {
         return new NamedQuery(sql, sqlParser);
-    }
-
-    /**
-     * Returns the original SQL text supplied to this builder.
-     */
-    public String getSql() {
-        return sql;
     }
 
     public NamedQuery setObject(String name, Object value) {
@@ -299,6 +301,49 @@ public final class NamedQuery {
     }
 
     /**
+     * Registers {@code name} as an OUT parameter. The placeholder is kept, and no IN value is bound.
+     * Combine with a {@code set*} call on the same name for an INOUT parameter.
+     */
+    public NamedQuery registerOutParameter(String name, int sqlType) {
+        return registerOut(name, (statement, parameterName) -> statement.registerOutParameter(parameterName, sqlType));
+    }
+
+    /**
+     * Registers {@code name} as an OUT parameter with scale.
+     */
+    public NamedQuery registerOutParameter(String name, int sqlType, int scale) {
+        return registerOut(name, (statement, parameterName) -> statement.registerOutParameter(parameterName, sqlType, scale));
+    }
+
+    /**
+     * Registers {@code name} as an OUT parameter with a database-specific type name.
+     */
+    public NamedQuery registerOutParameter(String name, int sqlType, String typeName) {
+        return registerOut(name, (statement, parameterName) -> statement.registerOutParameter(parameterName, sqlType, typeName));
+    }
+
+    /**
+     * Registers {@code name} as an OUT parameter of the given {@link SQLType}.
+     */
+    public NamedQuery registerOutParameter(String name, SQLType sqlType) {
+        return registerOut(name, (statement, parameterName) -> statement.registerOutParameter(parameterName, sqlType));
+    }
+
+    /**
+     * Registers {@code name} as an OUT parameter of the given {@link SQLType} and scale.
+     */
+    public NamedQuery registerOutParameter(String name, SQLType sqlType, int scale) {
+        return registerOut(name, (statement, parameterName) -> statement.registerOutParameter(parameterName, sqlType, scale));
+    }
+
+    /**
+     * Registers {@code name} as an OUT parameter of the given {@link SQLType} and type name.
+     */
+    public NamedQuery registerOutParameter(String name, SQLType sqlType, String typeName) {
+        return registerOut(name, (statement, parameterName) -> statement.registerOutParameter(parameterName, sqlType, typeName));
+    }
+
+    /**
      * Binds a collection value, expanding each SQL occurrence into multiple
      * positional placeholders bound with {@link PreparedStatement#setObject(int, Object)}.
      *
@@ -339,7 +384,9 @@ public final class NamedQuery {
      * Removes the binding for {@code name}, if present.
      */
     public NamedQuery clearBinding(String name) {
-        bindings.remove(Objects.requireNonNull(name, "name"));
+        Objects.requireNonNull(name, "name");
+        bindings.remove(name);
+        outRegistrations.remove(name);
         return this;
     }
 
@@ -348,6 +395,7 @@ public final class NamedQuery {
      */
     public NamedQuery clearBindings() {
         bindings.clear();
+        outRegistrations.clear();
         return this;
     }
 
@@ -367,6 +415,9 @@ public final class NamedQuery {
      */
     public NamedPreparedStatement prepare(Connection connection) throws SQLException {
         Objects.requireNonNull(connection, "connection");
+        if (!outRegistrations.isEmpty()) {
+            throw new IllegalStateException("OUT parameters require prepareCall");
+        }
         ExpandedQuery expanded = expand();
         NamedPreparedStatement statement = NamedPreparedStatement.fromExpanded(
                 connection,
@@ -374,6 +425,26 @@ public final class NamedQuery {
                 expanded.namedIndexes());
         for (Map.Entry<String, Binding> entry : bindings.entrySet()) {
             entry.getValue().apply(statement, entry.getKey());
+        }
+        return statement;
+    }
+
+    /**
+     * Resolves bindings and creates a fully bound {@link NamedCallableStatement}.
+     * OUT registrations are applied after IN values.
+     */
+    public NamedCallableStatement prepareCall(Connection connection) throws SQLException {
+        Objects.requireNonNull(connection, "connection");
+        ExpandedQuery expanded = expand();
+        NamedCallableStatement statement = NamedCallableStatement.fromExpanded(
+                connection,
+                expanded.sql(),
+                expanded.namedIndexes());
+        for (Map.Entry<String, Binding> entry : bindings.entrySet()) {
+            entry.getValue().applyCall(statement, entry.getKey());
+        }
+        for (Map.Entry<String, OutRegistrar> entry : outRegistrations.entrySet()) {
+            entry.getValue().register(statement, entry.getKey());
         }
         return statement;
     }
@@ -387,11 +458,28 @@ public final class NamedQuery {
         return this;
     }
 
+    private NamedQuery registerOut(String name, OutRegistrar registrar) {
+        Objects.requireNonNull(name, "name");
+        Objects.requireNonNull(registrar, "registrar");
+        ensureKnownParameter(name);
+        if (outRegistrations.containsKey(name)) {
+            throw new IllegalArgumentException("Parameter already bound: " + name);
+        }
+        if (bindings.get(name) instanceof CollectionBinding) {
+            throw new IllegalArgumentException("Collection parameter cannot be registered as OUT: " + name);
+        }
+        outRegistrations.put(name, registrar);
+        return this;
+    }
+
     private void bind(String name, Binding binding) {
         Objects.requireNonNull(name, "name");
         Objects.requireNonNull(binding, "binding");
         if (bindings.containsKey(name)) {
             throw new IllegalArgumentException("Parameter already bound: " + name);
+        }
+        if (binding instanceof CollectionBinding && outRegistrations.containsKey(name)) {
+            throw new IllegalArgumentException("Collection parameter cannot be registered as OUT: " + name);
         }
         ensureKnownParameter(name);
         bindings.put(name, binding);
@@ -429,6 +517,10 @@ public final class NamedQuery {
                 expandedSql.append(ParsedSql.POSITIONAL_PARAM);
                 namedIndexes.add(name, nextIndex++);
                 scalarBinding.addResolveValue(resolveValues);
+            } else if (outRegistrations.containsKey(name)) {
+                expandedSql.append(ParsedSql.POSITIONAL_PARAM);
+                namedIndexes.add(name, nextIndex++);
+                resolveValues.add(null);
             } else {
                 throw new IllegalStateException("Unbound named parameter: " + name);
             }
@@ -461,7 +553,7 @@ public final class NamedQuery {
     private void ensureAllNamedParametersAreBound(List<String> parameterOrder) {
         List<String> missing = new ArrayList<>();
         for (String name : requiredParameterNames(parameterOrder)) {
-            if (!bindings.containsKey(name)) {
+            if (!bindings.containsKey(name) && !outRegistrations.containsKey(name)) {
                 missing.add(name);
             }
         }
@@ -508,13 +600,25 @@ public final class NamedQuery {
         void bind(PreparedStatement statement, int index) throws SQLException;
     }
 
+    @FunctionalInterface
+    private interface OutRegistrar {
+        void register(NamedCallableStatement statement, String name) throws SQLException;
+    }
+
     private sealed interface Binding permits ScalarBinding, CollectionBinding {
         void apply(NamedPreparedStatement statement, String name) throws SQLException;
+
+        void applyCall(NamedCallableStatement statement, String name) throws SQLException;
     }
 
     private record ScalarBinding(IndexStatementBinder binder, Object resolveValue) implements Binding {
         @Override
         public void apply(NamedPreparedStatement statement, String name) throws SQLException {
+            statement.applyByIndex(name, index -> binder.bind(statement.unwrap(), index));
+        }
+
+        @Override
+        public void applyCall(NamedCallableStatement statement, String name) throws SQLException {
             statement.applyByIndex(name, index -> binder.bind(statement.unwrap(), index));
         }
 
@@ -536,6 +640,23 @@ public final class NamedQuery {
                     preparedStatement.setNull(index, Types.NULL);
                 } else {
                     preparedStatement.setObject(index, value);
+                }
+            }
+            statement.markBound(name);
+        }
+
+        @Override
+        public void applyCall(NamedCallableStatement statement, String name) throws SQLException {
+            CallableStatement callableStatement = statement.unwrap();
+            List<Integer> indexes = statement.bindingIndexesFor(name);
+            int valuesPerOccurrence = values.size();
+            for (int i = 0; i < indexes.size(); i++) {
+                int index = indexes.get(i);
+                Object value = values.get(i % valuesPerOccurrence);
+                if (value == null) {
+                    callableStatement.setNull(index, Types.NULL);
+                } else {
+                    callableStatement.setObject(index, value);
                 }
             }
             statement.markBound(name);

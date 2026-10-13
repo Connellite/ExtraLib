@@ -1,6 +1,7 @@
 package io.github.connellite.jdbc;
 
 import io.github.connellite.collections.LinkedMultiValueHashMap;
+import io.github.connellite.jdbc.internal.PreparedStatementCreator;
 import io.github.connellite.jdbc.internal.ThrowingConsumer;
 import io.github.connellite.jdbc.parser.ColonPrefixSqlParser;
 import io.github.connellite.jdbc.parser.ParsedParameters;
@@ -762,10 +763,5 @@ public final class NamedPreparedStatement implements AutoCloseable {
         if (statement != null) {
             statement.close();
         }
-    }
-
-    @FunctionalInterface
-    private interface PreparedStatementCreator {
-        PreparedStatement create(Connection connection, String sql) throws SQLException;
     }
 }

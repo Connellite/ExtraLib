@@ -4,6 +4,8 @@ import org.junit.jupiter.api.Test;
 
 import java.sql.Connection;
 import java.sql.ResultSet;
+import java.sql.Types;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
@@ -277,6 +279,28 @@ class NamedQueryTest {
                 assertEquals("one", secondResult.getString("name"));
                 assertFalse(secondResult.next());
             }
+        }
+    }
+
+    @Test
+    void resolveKeepsOutPlaceholderWithoutAnInValue() {
+        NamedQuery.ResolvedQuery resolved = NamedQuery.of("{:ret = call add(:a, :b)}")
+                .setInt("a", 2)
+                .setInt("b", 3)
+                .registerOutParameter("ret", Types.INTEGER)
+                .resolve();
+
+        assertEquals("{? = call add(?, ?)}", resolved.sql());
+        assertEquals(Arrays.asList(null, 2, 3), resolved.values());
+    }
+
+    @Test
+    void prepareRejectsOutRegistration() throws Exception {
+        NamedQuery query = NamedQuery.of("{:ret = call add(:a)}")
+                .setInt("a", 1)
+                .registerOutParameter("ret", Types.INTEGER);
+        try (Connection connection = SqliteMemory.open()) {
+            assertThrows(IllegalStateException.class, () -> query.prepare(connection));
         }
     }
 }

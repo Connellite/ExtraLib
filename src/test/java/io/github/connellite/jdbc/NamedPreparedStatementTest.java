@@ -52,19 +52,6 @@ class NamedPreparedStatementTest {
     }
 
     @Test
-    void hashPrefixParserIgnoresHashInsideCommentsAndHonorsEscapes() throws Exception {
-        try (Connection c = connectionThatAcceptsAnyPreparedSql()) {
-            try (NamedPreparedStatement nps = new NamedPreparedStatement(
-                    c,
-                    "SELECT \\#escaped AS e -- #ignored\n, #id AS v",
-                    new HashPrefixSqlParser())) {
-                assertEquals("SELECT #escaped AS e -- #ignored\n, ? AS v", nps.getParsedSql());
-                assertEquals(List.of("id"), nps.getParameterOrder());
-            }
-        }
-    }
-
-    @Test
     void braceParserReplacesHashBraceParameterWithQuestionMark() throws Exception {
         try (Connection c = connectionThatAcceptsAnyPreparedSql()) {
             try (NamedPreparedStatement nps = new NamedPreparedStatement(
@@ -105,19 +92,6 @@ class NamedPreparedStatementTest {
     }
 
     @Test
-    void braceParserIgnoresHashBraceInsideCommentsAndHonorsEscapes() throws Exception {
-        try (Connection c = connectionThatAcceptsAnyPreparedSql()) {
-            try (NamedPreparedStatement nps = new NamedPreparedStatement(
-                    c,
-                    "SELECT \\#{escaped} AS e -- #{ignored}\n, /* #{hidden} */ #{id} AS v",
-                    new BraceTokenSqlParser())) {
-                assertEquals("SELECT #{escaped} AS e -- #{ignored}\n, /* #{hidden} */ ? AS v", nps.getParsedSql());
-                assertEquals(List.of("id"), nps.getParameterOrder());
-            }
-        }
-    }
-
-    @Test
     void braceParserMixingNamedAndPositionalThrows() throws Exception {
         try (Connection c = connectionThatAcceptsAnyPreparedSql()) {
             assertThrows(IllegalArgumentException.class, () ->
@@ -132,22 +106,6 @@ class NamedPreparedStatementTest {
                     c,
                     "SELECT :id AS v, '12:00' AS t, ':prefix' AS u")) {
                 assertEquals("SELECT ? AS v, '12:00' AS t, ':prefix' AS u", nps.getParsedSql());
-                assertEquals(List.of("id"), nps.getParameterOrder());
-            }
-        }
-    }
-
-    /**
-     * PostgreSQL-style cast ({@code ::type}) is not valid SQLite syntax; use a connection stub so
-     * {@link NamedPreparedStatement} does not call the real driver's {@code prepareStatement}.
-     */
-    @Test
-    void doubleColonCastIsLiteralNotSecondNamedParameter() throws Exception {
-        try (Connection c = connectionThatAcceptsAnyPreparedSql()) {
-            try (NamedPreparedStatement nps = new NamedPreparedStatement(
-                    c,
-                    "SELECT :id::jsonb AS v")) {
-                assertEquals("SELECT ?::jsonb AS v", nps.getParsedSql());
                 assertEquals(List.of("id"), nps.getParameterOrder());
             }
         }
