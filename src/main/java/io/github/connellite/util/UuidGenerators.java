@@ -255,13 +255,19 @@ public class UuidGenerators {
     }
 
     /**
-     * Version 2: DCE Security time-based UUID (RFC 4122 §4.1.2).
+     * Version 2: DCE Security time-based UUID (DCE 1.1; RFC 4122 §4.1.3, RFC 9562 §5.2).
+     * <p>DCE 1.1 Authentication and Security Services registers only
+     * {@link #LOCAL_DOMAIN_PERSON}, {@link #LOCAL_DOMAIN_GROUP}, and {@link #LOCAL_DOMAIN_ORG}.</p>
      *
-     * @param localDomain      DCE local domain ({@code 0} = person/UID, {@code 1} = group/GID)
-     * @param localIdentifier  32-bit POSIX UID or GID
+     * @param localDomain      registered DCE local domain ({@code 0}, {@code 1}, or {@code 2})
+     * @param localIdentifier  32-bit identifier meaningful in {@code localDomain}
      * @return a new version-2 UUID
+     * @throws IllegalArgumentException if {@code localDomain} is not a registered DCE domain
      */
     public static UUID generateVersion2(int localDomain, long localIdentifier) {
+        if (localDomain != LOCAL_DOMAIN_PERSON && localDomain != LOCAL_DOMAIN_GROUP && localDomain != LOCAL_DOMAIN_ORG) {
+            throw new IllegalArgumentException("localDomain must be LOCAL_DOMAIN_PERSON (0), LOCAL_DOMAIN_GROUP (1), or LOCAL_DOMAIN_ORG (2): " + localDomain);
+        }
         TIME_BASED_LOCK.lock();
         try {
             long gregorianTimestamp = TIME_FUNCTION.gregorianTimestamp();

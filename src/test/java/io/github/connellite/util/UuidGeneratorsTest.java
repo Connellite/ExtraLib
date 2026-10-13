@@ -13,6 +13,7 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class UuidGeneratorsTest {
@@ -45,6 +46,17 @@ class UuidGeneratorsTest {
 
         assertEquals(42L, uuid.getMostSignificantBits() >>> 32);
         assertEquals(UuidGenerators.LOCAL_DOMAIN_ORG, (uuid.getLeastSignificantBits() >>> 48) & 0xffL);
+    }
+
+    @Test
+    void generateVersion2_rejectsUnregisteredLocalDomain() {
+        IllegalArgumentException ex = assertThrows(
+                IllegalArgumentException.class,
+                () -> UuidGenerators.generateVersion2(3, 42L));
+        assertTrue(ex.getMessage().contains("localDomain"));
+
+        assertThrows(IllegalArgumentException.class, () -> UuidGenerators.generateVersion2(-1, 42L));
+        assertThrows(IllegalArgumentException.class, () -> UuidGenerators.generateVersion2(255, 42L));
     }
 
     @Test
