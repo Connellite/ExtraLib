@@ -3,6 +3,7 @@ package io.github.connellite.logger;
 import lombok.Getter;
 
 import java.io.BufferedOutputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
@@ -20,42 +21,46 @@ import java.util.logging.LogRecord;
 import java.util.logging.SimpleFormatter;
 
 /**
- * {@link Handler} that opens the log file, appends one formatted line, and closes the file for every {@link LogRecord}.
- * Optional rotation uses the same {@link FileLogHandlerConfig} rules as {@link FileLogHandler}: size, calendar day,
- * backup count, and gzip.
+ * {@link Handler} that keeps formatted lines in a byte buffer and opens the log file only to drain that buffer.
+ * A drain runs from {@link #flush()}, from {@link #close()}, and when the buffer reaches
+ * {@link FileLogHandlerConfig#bufferSize()}.
+ * Optional rotation uses the same rules as {@link FileLogHandler}: size, calendar day, backup count, and gzip.
  * <p>
- * {@link #publish} holds {@link #lock} across rotation, the write, and the close of that stream. {@link #flush()} does
- * nothing, because the stream is already closed. {@link #close()} appends the formatter tail when this instance wrote
- * the current segment, then ignores later records.
+ * {@link #publish}, {@link #flush()}, and {@link #close()} hold {@link #lock}. The file is not left open after a drain.
+ * {@link #close()} drains the buffer, appends the formatter tail when this instance wrote the current segment, then
+ * ignores later records.
  * </p>
  *
- * @deprecated Not recommended for production. Each record opens and closes the file and holds a lock across those
- *             calls. Prefer {@link FileLogHandler}.
+ * @deprecated Not recommended for production. Draining the buffer opens and closes the file and holds a lock across
+ *             those calls. Prefer {@link FileLogHandler}.
  */
 @Deprecated
-public class PerMessageFileLogHandler extends Handler {
+public class BufferedFileLogHandler extends Handler {
 
     @Getter
     private final Path logFile;
     @Getter
     private final FileLogHandlerConfig config;
     private final ZoneId zone = ZoneId.systemDefault();
-    /** Serializes rotation, the per-record write, and {@link #close()}. */
+    /** Serializes buffering, a drain, and {@link #close()}. */
     private final ReentrantLock lock = new ReentrantLock();
+    /** Formatted lines waiting for a drain. Not an open file. */
+    private final ByteArrayOutputStream pending;
 
-    /** Set after this instance has appended a record to the current segment. Cleared when that segment is finished. */
+    /** Set after this instance has drained a chunk into the current segment. Cleared when that segment is finished. */
     private boolean wroteCurrentSegment;
     private volatile boolean closed;
 
-    public PerMessageFileLogHandler(Path logFile, FileLogHandlerConfig config) {
+    public BufferedFileLogHandler(Path logFile, FileLogHandlerConfig config) {
         Objects.requireNonNull(logFile, "logFile cannot be null");
         Objects.requireNonNull(config, "config cannot be null");
         this.logFile = logFile.toAbsolutePath().normalize();
         this.config = config;
+        this.pending = new ByteArrayOutputStream(config.bufferSize());
         configure();
     }
 
-    public PerMessageFileLogHandler(Path logFile) {
+    public BufferedFileLogHandler(Path logFile) {
         this(logFile, FileLogHandlerConfig.DEFAULT);
     }
 
@@ -73,8 +78,9 @@ public class PerMessageFileLogHandler extends Handler {
     }
 
     /**
-     * Formats the record, rotates when the calendar day or the size limit says so, then appends one line and closes
-     * the file. Formatting runs before the lock, so a formatter failure does not rotate the file.
+     * Formats the record and appends it to the buffer. The file is opened only when the buffer reaches
+     * {@link FileLogHandlerConfig#bufferSize()}. Formatting runs before the lock, so a formatter failure does not
+     * drain or rotate.
      */
     @Override
     public void publish(LogRecord record) {
@@ -95,13 +101,41 @@ public class PerMessageFileLogHandler extends Handler {
             if (closed) {
                 return;
             }
-            rotateIfNeeded();
-            writeRecord(bytes, needsNl);
+            pending.write(bytes);
+            if (needsNl) {
+                pending.write('\n');
+            }
+            if (pending.size() >= config.bufferSize()) {
+                drain();
+            }
         } catch (IOException ex) {
             reportError(null, ex, ErrorManager.WRITE_FAILURE);
         } finally {
             lock.unlock();
         }
+    }
+
+    /**
+     * Writes the buffer to the current log file and drops those bytes only after the write succeeds.
+     * An empty buffer does not create the file.
+     */
+    private void drain() throws IOException {
+        if (pending.size() == 0) {
+            return;
+        }
+        rotateIfNeeded();
+        long size = Files.isRegularFile(logFile) ? Files.size(logFile) : 0L;
+        try (BufferedOutputStream out = openAppend()) {
+            if (size == 0L) {
+                byte[] head = FileLogHandler.utf8(getFormatter().getHead(this));
+                if (head.length > 0) {
+                    out.write(head);
+                }
+            }
+            pending.writeTo(out);
+        }
+        pending.reset();
+        wroteCurrentSegment = true;
     }
 
     /**
@@ -137,23 +171,6 @@ public class PerMessageFileLogHandler extends Handler {
         return Files.size(logFile) >= config.maxFileBytes();
     }
 
-    private void writeRecord(byte[] bytes, boolean needsNl) throws IOException {
-        long size = Files.isRegularFile(logFile) ? Files.size(logFile) : 0L;
-        try (BufferedOutputStream out = openAppend()) {
-            if (size == 0L) {
-                byte[] head = FileLogHandler.utf8(getFormatter().getHead(this));
-                if (head.length > 0) {
-                    out.write(head);
-                }
-            }
-            out.write(bytes);
-            if (needsNl) {
-                out.write('\n');
-            }
-        }
-        wroteCurrentSegment = true;
-    }
-
     /**
      * Appends {@link Formatter#getTail(Handler)} when it is non-empty. Failures are reported and do not escape, so
      * rotation can still move the segment.
@@ -181,14 +198,26 @@ public class PerMessageFileLogHandler extends Handler {
     }
 
     /**
-     * Does nothing. The stream is closed inside {@link #publish}.
+     * Drains the buffer into the log file. Does nothing when the buffer is empty or this handler is already closed.
      */
     @Override
     public void flush() {
+        lock.lock();
+        try {
+            if (closed) {
+                return;
+            }
+            drain();
+        } catch (IOException ex) {
+            reportError(null, ex, ErrorManager.FLUSH_FAILURE);
+        } finally {
+            lock.unlock();
+        }
     }
 
     /**
-     * Appends the formatter tail when this instance wrote the current segment, then ignores later records.
+     * Drains the buffer, appends the formatter tail when this instance wrote the current segment, then ignores later
+     * records.
      */
     @Override
     public void close() {
@@ -197,11 +226,16 @@ public class PerMessageFileLogHandler extends Handler {
             if (closed) {
                 return;
             }
-            closed = true;
+            try {
+                drain();
+            } catch (IOException ex) {
+                reportError(null, ex, ErrorManager.CLOSE_FAILURE);
+            }
             if (wroteCurrentSegment) {
                 appendTail();
                 wroteCurrentSegment = false;
             }
+            closed = true;
         } finally {
             lock.unlock();
         }
