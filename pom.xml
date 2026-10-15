@@ -41,7 +41,7 @@
         <maven.compiler.target>17</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <maven.compiler.plugin.version>3.13.0</maven.compiler.plugin.version>
-        <lombok.version>1.18.42</lombok.version>
+        <lombok.version>1.18.48</lombok.version>
         <junit.version>5.10.2</junit.version>
         <sqlite-jdbc.version>3.46.1.0</sqlite-jdbc.version>
         <h2.version>2.3.232</h2.version>
@@ -129,7 +129,7 @@
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>${maven-surefire-plugin.version}</version>
                 <configuration>
-                    <argLine>--add-opens java.base/java.lang=ALL-UNNAMED</argLine>
+                    <argLine>--add-opens java.base/java.lang=ALL-UNNAMED --add-opens jdk.unsupported/sun.misc=ALL-UNNAMED --add-opens jdk.unsupported/sun.misc=io.github.connellite.ExtraLib --add-opens java.base/java.nio=ALL-UNNAMED --add-opens java.base/java.nio=io.github.connellite.ExtraLib --enable-native-access=io.github.connellite.ExtraLib,ALL-UNNAMED</argLine>
                 </configuration>
             </plugin>
 

@@ -141,7 +141,7 @@ final class SpecParser {
 
     /**
      * fmt {@code i} maps to Java {@code d}. {@code S} is the Java extra for upper-case strings.
-     * {@code p} is accepted by the parser so the formatter can throw.
+     * {@code p} is the pointer type formatted by {@link ValueFormatter}.
      */
     private static Character toType(char t) {
         return switch (t) {

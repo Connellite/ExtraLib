@@ -867,10 +867,11 @@ class FmtTest {
     }
 
     @Test
-    void pointerTypeNotSupported() {
-        FormatException ex = assertThrows(FormatException.class, () -> Fmt.format("{:p}", 42));
-        assertTrue(ex.getMessage().contains("'p'"));
-        assertThrows(FormatException.class, () -> Fmt.format("{:>16p}", "x"));
+    void pointerTypePrintsReferenceBits() {
+        assertEquals("0x0", Fmt.format("{:p}", (Object) null));
+        assertEquals("               0x0", Fmt.format("{:>18p}", (Object) null));
+        String text = Fmt.format("{:p}", new Object());
+        assertTrue(text.matches("0x[0-9a-f]+"));
     }
 
     // --- fmt 11.2 syntax examples: https://fmt.dev/11.2/syntax/ ---

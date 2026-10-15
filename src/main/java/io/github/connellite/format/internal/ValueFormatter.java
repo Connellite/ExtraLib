@@ -2,6 +2,7 @@ package io.github.connellite.format.internal;
 
 import io.github.connellite.exception.FormatException;
 import io.github.connellite.format.FmtFormattable;
+import io.github.connellite.reflection.UnsafeReflectionUtil;
 import io.github.connellite.util.StringUtils;
 import lombok.experimental.UtilityClass;
 
@@ -19,7 +20,8 @@ import java.util.Locale;
  * <a href="https://fmt.dev/11.2/syntax/#format-specification-mini-language">fmt 11.2 format_spec</a>.
  * Java extras kept for compatibility: type {@code i} as {@code d}, type {@code S}, {@code bits}/{@code Bf},
  * {@code null} rendered as {@code "null"}, and a {@link String#format} fallback when the spec is not
- * a format_spec. Type {@code p} throws {@link FormatException}.
+ * a format_spec. Type {@code p} prints {@code 0x} and the reference bits from
+ * {@link UnsafeReflectionUtil#referenceBitsOf(Object)}; {@code null} is {@code 0x0}.
  */
 @UtilityClass
 final class ValueFormatter {
@@ -47,7 +49,8 @@ final class ValueFormatter {
             return;
         }
         if (parsed.type() != null && parsed.type() == 'p') {
-            throw new FormatException("pointer format 'p' is not supported");
+            formatPointer(out, value, parsed);
+            return;
         }
         if (ChronoFormatter.isChronoValue(value)
                 && (ChronoFormatter.isChronoSpec(parsed) || ChronoFormatter.isDefaultSpec(parsed))) {
@@ -69,6 +72,16 @@ final class ValueFormatter {
             return;
         }
         formatStandard(out, value, parsed, spec, locale);
+    }
+
+    private static void formatPointer(Appendable out, Object value, FormatSpec spec) throws IOException {
+        long address;
+        try {
+            address = UnsafeReflectionUtil.referenceBitsOf(value);
+        } catch (IllegalStateException e) {
+            throw new FormatException("pointer format 'p' is not supported", e);
+        }
+        out.append(Pad.apply("0x" + Long.toHexString(address), spec));
     }
 
     private static void formatStandard(Appendable out, Object value, FormatSpec spec, String raw,

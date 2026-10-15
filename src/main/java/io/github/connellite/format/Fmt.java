@@ -12,7 +12,8 @@ import java.util.Objects;
 import java.util.function.Consumer;
 
 /**
- * Java port of {fmt} replacement-field formatting (fmtlib 11.2). Pointers ({@code p}) are not formatted.
+ * Java port of {fmt} replacement-field formatting (fmtlib 11.2).
+ * Type {@code p} prints {@code 0x} and the reference bits of the argument; {@code null} is {@code 0x0}.
  *
  * <p>Grammar and presentation types follow
  * <a href="https://fmt.dev/11.2/syntax/">fmt 11.2 syntax</a>:

@@ -7,6 +7,7 @@ module io.github.connellite.ExtraLib {
     requires static lombok;
     requires static org.slf4j;
     requires static org.objenesis;
+    requires static jdk.unsupported;
     requires java.desktop;
 
     exports io.github.connellite.collections;

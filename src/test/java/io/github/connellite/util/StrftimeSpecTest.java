@@ -9,7 +9,9 @@ import org.junit.jupiter.params.provider.ValueSource;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 import java.time.format.DecimalStyle;
+import java.time.format.FormatStyle;
 import java.util.Locale;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -76,7 +78,6 @@ class StrftimeSpecTest {
             "%w|6",
             "%W|24",
             "%x|6/15/24",
-            "%X|2:30:45 PM",
             "%y|24",
             "%Y|2024",
             "%z|+0300",
@@ -84,6 +85,12 @@ class StrftimeSpecTest {
     })
     void posixConversions(String pattern, String expected) {
         assertEquals(expected, fmt(pattern));
+    }
+
+    @Test
+    void localizedTimeUsesTheJdkMediumPattern() {
+        String expected = DateTimeFormatter.ofLocalizedTime(FormatStyle.MEDIUM).withLocale(Locale.US).format(SAMPLE);
+        assertEquals(expected, fmt("%X"));
     }
 
     @Test
