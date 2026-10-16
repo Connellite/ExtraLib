@@ -1,9 +1,11 @@
 package io.github.connellite.jdbc;
 
+import io.github.connellite.jdbc.annotation.Bind;
 import org.junit.jupiter.api.Test;
 
 import java.sql.Connection;
 import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.sql.Types;
 import java.util.Arrays;
 import java.util.List;
@@ -301,6 +303,193 @@ class NamedQueryTest {
                 .registerOutParameter("ret", Types.INTEGER);
         try (Connection connection = SqliteMemory.open()) {
             assertThrows(IllegalStateException.class, () -> query.prepare(connection));
+        }
+    }
+
+    @Test
+    void setBeanBindsPrivateFieldsAndNull() {
+        NamedQuery.ResolvedQuery resolved = NamedQuery.of("SELECT :id AS id, :name AS name")
+                .setBean(new NullableRow(1, null))
+                .resolve();
+
+        assertEquals("SELECT ? AS id, ? AS name", resolved.sql());
+        assertEquals(Arrays.asList(1, null), resolved.values());
+    }
+
+    @Test
+    void setBeanRenamesRecordComponent() {
+        NamedQuery.ResolvedQuery resolved = NamedQuery.of("SELECT :user_name AS n")
+                .setBean(new Renamed("ada"))
+                .resolve();
+
+        assertEquals("SELECT ? AS n", resolved.sql());
+        assertEquals(List.of("ada"), resolved.values());
+    }
+
+    @Test
+    void setBeanRejectsTypeWithoutBind() {
+        assertThrows(IllegalArgumentException.class, () ->
+                NamedQuery.of("SELECT :name AS n").setBean(new Plain("a")));
+    }
+
+    @Test
+    void setBeanRejectsNullBean() {
+        assertThrows(NullPointerException.class, () ->
+                NamedQuery.of("SELECT :id AS id").setBean(null));
+    }
+
+    @Test
+    void setBeanRejectsWhenNoBindNameMatchesSql() {
+        assertThrows(IllegalArgumentException.class, () ->
+                NamedQuery.of("SELECT :name AS n").setBean(new OnlyId(1)));
+    }
+
+    @Test
+    void setBeanSkipsBindNamesAbsentFromSql() {
+        NamedQuery.ResolvedQuery resolved = NamedQuery.of("SELECT :id AS id")
+                .setBean(new Extra(7, "skip"))
+                .resolve();
+
+        assertEquals("SELECT ? AS id", resolved.sql());
+        assertEquals(List.of(7), resolved.values());
+    }
+
+    @Test
+    void setBeanLeavesUnmatchedSqlParameterUnbound() {
+        assertThrows(IllegalStateException.class, () ->
+                NamedQuery.of("SELECT :id AS id, :name AS name")
+                        .setBean(new OnlyId(1))
+                        .resolve());
+    }
+
+    @Test
+    void setBeanAppliesConverterBeforeNullCheck() {
+        NamedQuery.ResolvedQuery resolved = NamedQuery.of("SELECT :body AS b, :note AS n")
+                .setBean(new Converted("payload", null))
+                .resolve();
+
+        assertEquals("SELECT ? AS b, ? AS n", resolved.sql());
+        assertEquals(List.of("json:payload", ""), resolved.values());
+    }
+
+    @Test
+    void setBeanWrapsConverterFailure() {
+        IllegalStateException failure = assertThrows(IllegalStateException.class, () ->
+                NamedQuery.of("SELECT :name AS n").setBean(new Failing("x")));
+        assertEquals("convert failed", failure.getCause().getMessage());
+    }
+
+    @Test
+    void setBeanRejectsStaticBind() {
+        assertThrows(IllegalArgumentException.class, () ->
+                NamedQuery.of("SELECT :id AS id").setBean(new StaticBind()));
+    }
+
+    @Test
+    void setBeanRejectsDuplicateParameterName() {
+        assertThrows(IllegalArgumentException.class, () ->
+                NamedQuery.of("SELECT :id AS id").setBean(new Duplicate(1, 2)));
+    }
+
+    @Test
+    void setBeanBindsCollectionParameters() {
+        NamedQuery.ResolvedQuery resolved = NamedQuery.of("SELECT name FROM demo WHERE id IN (:ids) AND name = :name")
+                .setBean(new IdsAndName(List.of(1, 2), "one"))
+                .resolve();
+
+        assertEquals("SELECT name FROM demo WHERE id IN (?,?) AND name = ?", resolved.sql());
+        assertEquals(List.of(1, 2, "one"), resolved.values());
+    }
+
+    @Test
+    void setBeanReadsInheritedFields() {
+        NamedQuery.ResolvedQuery resolved = NamedQuery.of("SELECT :id AS id, :name AS name")
+                .setBean(new Child(4, "child"))
+                .resolve();
+
+        assertEquals(Arrays.asList(4, "child"), resolved.values());
+    }
+
+    static final class NullableRow {
+        @Bind
+        private final Integer id;
+        @Bind
+        private final String name;
+
+        NullableRow(Integer id, String name) {
+            this.id = id;
+            this.name = name;
+        }
+    }
+
+    record Renamed(@Bind("user_name") String name) {
+    }
+
+    record Plain(String name) {
+    }
+
+    record OnlyId(@Bind int id) {
+    }
+
+    record IdsAndName(@Bind List<Integer> ids, @Bind String name) {
+    }
+
+    record Extra(@Bind int id, @Bind String unused) {
+    }
+
+    record Converted(
+            @Bind(converter = PrefixConverter.class) String body,
+            @Bind(converter = NullToEmpty.class) String note) {
+    }
+
+    record Failing(@Bind(converter = FailingConverter.class) String name) {
+    }
+
+    static final class StaticBind {
+        @Bind
+        static int id;
+    }
+
+    record Duplicate(@Bind("id") int a, @Bind("id") int b) {
+    }
+
+    static class Parent {
+        @Bind
+        private final int id;
+
+        Parent(int id) {
+            this.id = id;
+        }
+    }
+
+    static final class Child extends Parent {
+        @Bind
+        private final String name;
+
+        Child(int id, String name) {
+            super(id);
+            this.name = name;
+        }
+    }
+
+    static final class PrefixConverter implements TypeConverter<String> {
+        @Override
+        public String convert(Object raw) {
+            return "json:" + raw;
+        }
+    }
+
+    static final class NullToEmpty implements TypeConverter<String> {
+        @Override
+        public String convert(Object raw) {
+            return raw == null ? "" : raw.toString();
+        }
+    }
+
+    static final class FailingConverter implements TypeConverter<Object> {
+        @Override
+        public Object convert(Object raw) throws SQLException {
+            throw new SQLException("convert failed");
         }
     }
 }

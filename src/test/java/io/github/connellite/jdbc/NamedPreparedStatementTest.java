@@ -1,6 +1,7 @@
 package io.github.connellite.jdbc;
 
 import io.github.connellite.format.PropertyPlaceholderReplacer;
+import io.github.connellite.jdbc.annotation.Bind;
 import io.github.connellite.jdbc.parser.BraceTokenSqlParser;
 import io.github.connellite.jdbc.parser.HashPrefixSqlParser;
 import org.junit.jupiter.api.Test;
@@ -212,6 +213,25 @@ class NamedPreparedStatementTest {
                 try (ResultSet rs = nps.executeQuery()) {
                     assertTrue(rs.next());
                     assertEquals("one", rs.getString("name"));
+                }
+            }
+        }
+    }
+
+    @Test
+    void setBeanInsertsAndSelects() throws Exception {
+        try (Connection c = SqliteMemory.open()) {
+            SqliteMemory.bootstrapDemoSchema(c);
+            try (NamedPreparedStatement insert = new NamedPreparedStatement(
+                    c, "INSERT INTO demo (id, name) VALUES (:id, :name)")) {
+                assertEquals(1, insert.setBean(new DemoRow(3, "three")).executeUpdate());
+            }
+            try (NamedPreparedStatement select = new NamedPreparedStatement(
+                    c, "SELECT name FROM demo WHERE id = :id")) {
+                try (ResultSet rs = select.setBean(new DemoId(3)).executeQuery()) {
+                    assertTrue(rs.next());
+                    assertEquals("three", rs.getString("name"));
+                    assertFalse(rs.next());
                 }
             }
         }
@@ -688,6 +708,12 @@ class NamedPreparedStatementTest {
                 }
             }
         }
+    }
+
+    private record DemoRow(@Bind int id, @Bind String name) {
+    }
+
+    private record DemoId(@Bind int id) {
     }
 
     /**

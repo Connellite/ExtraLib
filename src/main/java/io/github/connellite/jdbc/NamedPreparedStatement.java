@@ -1,6 +1,7 @@
 package io.github.connellite.jdbc;
 
 import io.github.connellite.collections.LinkedMultiValueHashMap;
+import io.github.connellite.jdbc.internal.BeanBindSource;
 import io.github.connellite.jdbc.internal.PreparedStatementCreator;
 import io.github.connellite.jdbc.internal.ThrowingConsumer;
 import io.github.connellite.jdbc.parser.ColonPrefixSqlParser;
@@ -644,6 +645,34 @@ public final class NamedPreparedStatement implements AutoCloseable {
                 setObject(e.getKey(), e.getValue());
             } else {
                 setNull(e.getKey(), Types.NULL);
+            }
+        }
+        return this;
+    }
+
+    /**
+     * Binds {@link io.github.connellite.jdbc.annotation.Bind @Bind} members of {@code bean}.
+     * <p>
+     * Each member is read by reflection. When {@link io.github.connellite.jdbc.annotation.Bind#converter()}
+     * is not {@link TypeConverter.DefaultConverter}, {@link TypeConverter#convert(Object)} runs first.
+     * A {@code null} result is bound with {@link #setNull(String)}; any other result uses
+     * {@link #setObject(String, Object)}. Members whose names are not parameters of this statement
+     * are ignored. Collection values are not expanded.
+     *
+     * @throws SQLException when a converter cannot be created or {@code convert} fails
+     * @throws IllegalArgumentException when {@code bean} has no {@code @Bind} members or none of those
+     *         names are parameters of this statement
+     * @throws IllegalStateException when a member cannot be read
+     * @throws NullPointerException when {@code bean} is {@code null}
+     */
+    @SuppressWarnings("resource")
+    public NamedPreparedStatement setBean(Object bean) throws SQLException {
+        Objects.requireNonNull(bean, "bean");
+        for (BeanBindSource.BindValue value : BeanBindSource.read(bean, namedIndexes.keySet())) {
+            if (value.value() == null) {
+                setNull(value.name());
+            } else {
+                setObject(value.name(), value.value());
             }
         }
         return this;

@@ -1,5 +1,6 @@
 package io.github.connellite.jdbc;
 
+import io.github.connellite.jdbc.annotation.Bind;
 import org.junit.jupiter.api.Test;
 
 import java.sql.Connection;
@@ -175,6 +176,23 @@ class NamedCallableStatementH2Test {
                 assertEquals(10, call.getInt("ret"));
             }
         }
+    }
+
+    @Test
+    void setBeanBindsInParameters() throws Exception {
+        try (Connection connection = openWithAliases()) {
+            try (NamedCallableStatement call = new NamedCallableStatement(
+                    connection,
+                    "{:ret = call ADD_VALUES(:a, :b)}")) {
+                call.setBean(new AddArgs(2, 3));
+                call.registerOutParameter("ret", Types.INTEGER);
+                call.execute();
+                assertEquals(5, call.getInt("ret"));
+            }
+        }
+    }
+
+    private record AddArgs(@Bind int a, @Bind int b) {
     }
 
     private static Connection openWithAliases() throws Exception {

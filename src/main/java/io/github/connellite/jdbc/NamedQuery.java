@@ -1,6 +1,7 @@
 package io.github.connellite.jdbc;
 
 import io.github.connellite.collections.LinkedMultiValueHashMap;
+import io.github.connellite.jdbc.internal.BeanBindSource;
 import io.github.connellite.jdbc.parser.ColonPrefixSqlParser;
 import io.github.connellite.jdbc.parser.ParsedSql;
 import io.github.connellite.jdbc.parser.SqlParser;
@@ -375,6 +376,41 @@ public final class NamedQuery {
                 setObject(entry.getKey(), value);
             } else {
                 setNull(entry.getKey(), Types.NULL);
+            }
+        }
+        return this;
+    }
+
+    /**
+     * Binds {@link io.github.connellite.jdbc.annotation.Bind @Bind} members of {@code bean}.
+     * <p>
+     * Each member is read by reflection. When {@link io.github.connellite.jdbc.annotation.Bind#converter()}
+     * is not {@link TypeConverter.DefaultConverter}, {@link TypeConverter#convert(Object)} runs first.
+     * A {@code null} result is bound with {@link #setNull(String)}. A {@link Collection} is bound
+     * with {@link #setCollection(String, Collection)}. Any other result uses
+     * {@link #setObject(String, Object)}. Members whose names are not parameters of this statement
+     * are ignored.
+     *
+     * @throws IllegalArgumentException when {@code bean} has no {@code @Bind} members, none of those
+     *         names are parameters of this statement, or a matching parameter is already bound
+     * @throws IllegalStateException when a converter cannot be created or {@code convert} fails
+     * @throws NullPointerException when {@code bean} is {@code null}
+     */
+    public NamedQuery setBean(Object bean) {
+        Objects.requireNonNull(bean, "bean");
+        List<BeanBindSource.BindValue> values;
+        try {
+            values = BeanBindSource.read(bean, requiredParameterNames(parsedSql().parameters().parameterNames()));
+        } catch (SQLException e) {
+            throw new IllegalStateException(e.getMessage(), e);
+        }
+        for (BeanBindSource.BindValue value : values) {
+            if (value.value() instanceof Collection<?> collection) {
+                setCollection(value.name(), collection);
+            } else if (value.value() != null) {
+                setObject(value.name(), value.value());
+            } else {
+                setNull(value.name());
             }
         }
         return this;

@@ -4,6 +4,7 @@ import lombok.experimental.UtilityClass;
 
 import java.lang.invoke.MethodHandles;
 import java.lang.annotation.Annotation;
+import java.lang.reflect.AccessibleObject;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
@@ -174,6 +175,17 @@ public class ReflectionUtil {
             field.trySetAccessible();
         }
         field.set(o, value);
+    }
+
+    /**
+     * Opens {@code member} for reflective access. Covers {@link Field}, {@link Method}, and {@link Constructor}.
+     *
+     * @throws IllegalStateException if {@link AccessibleObject#trySetAccessible()} returns false
+     */
+    public static void open(AccessibleObject member) {
+        if (!member.trySetAccessible()) {
+            throw new IllegalStateException("Cannot access " + member);
+        }
     }
 
     /**
