@@ -20,7 +20,7 @@ public final class BraceTokenSqlParser extends CachingSqlParser {
      * @return parsed SQL
      */
     @Override
-    ParsedSql internalParse(String sql) {
+    protected ParsedSql internalParse(String sql) {
         ParsedSql.Builder builder = ParsedSql.builder();
         BraceTokenSqlLexer lexer = new BraceTokenSqlLexer(sql);
         Token t = lexer.nextToken();

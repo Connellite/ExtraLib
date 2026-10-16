@@ -27,7 +27,7 @@ public final class ColonPrefixSqlParser extends CachingSqlParser {
      * https://github.com/jdbi/jdbi/blob/6e959ba70365fb0e15f19f39e8b2bf32d4998b6c/core/src/main/java/org/jdbi/v3/core/statement/ColonPrefixSqlParser.java
      */
     @Override
-    ParsedSql internalParse(String sql) {
+    protected ParsedSql internalParse(String sql) {
         ParsedSql.Builder builder = ParsedSql.builder();
         ColonStatementLexer lexer = new ColonStatementLexer(sql);
         Token t = lexer.nextToken();

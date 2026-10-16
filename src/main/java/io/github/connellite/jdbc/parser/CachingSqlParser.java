@@ -48,5 +48,5 @@ public abstract class CachingSqlParser implements SqlParser {
         }
     }
 
-    abstract ParsedSql internalParse(String sql);
+    protected abstract ParsedSql internalParse(String sql);
 }
