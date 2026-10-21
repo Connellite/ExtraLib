@@ -6,6 +6,8 @@ import lombok.experimental.UtilityClass;
 
 import java.io.IOException;
 import java.lang.reflect.Array;
+import java.nio.file.Path;
+import java.util.IdentityHashMap;
 import java.util.Iterator;
 import java.util.Locale;
 import java.util.Map;
@@ -21,12 +23,24 @@ import java.util.Set;
  * Default {@code {}} quotes strings and characters as in fmt; {@code {::spec}}, {@code n},
  * {@code s}/{@code ?s} follow {@code range_format_spec}. Empty underlying {@code {::}} formats
  * each element with an empty spec (unquoted strings/chars).
+ *
+ * <p>{@link Path} is an {@link Iterable} whose elements are again {@code Path}s (a single-name path
+ * yields itself), so like fmt, which excludes {@code std::filesystem::path} from ranges, it is
+ * formatted as a scalar. A range that contains itself renders the repeated container as
+ * {@code [...]} / {@code {...}}; nesting deeper than {@value #MAX_DEPTH} levels throws
+ * {@link FormatException} instead of overflowing the stack.
  */
 @UtilityClass
 final class RangeFormatter {
 
+    /** Maximum range nesting depth; guards against iterables that yield fresh nested ranges forever. */
+    static final int MAX_DEPTH = 256;
+
+    /** Ranges being rendered on the current thread, compared by identity, to detect cycles. */
+    private static final ThreadLocal<IdentityHashMap<Object, Boolean>> IN_PROGRESS = ThreadLocal.withInitial(IdentityHashMap::new);
+
     static boolean isRange(Object value) {
-        if (value == null) {
+        if (value == null || value instanceof Path) {
             return false;
         }
         return value.getClass().isArray() || value instanceof Iterable<?> || value instanceof Map<?, ?>;
@@ -72,7 +86,21 @@ final class RangeFormatter {
 
     static void format(Appendable out, Object value, FormatSpec spec, Locale locale) throws IOException {
         RangeSpec range = parseRange(spec);
-        String core = render(value, range, locale);
+        IdentityHashMap<Object, Boolean> inProgress = IN_PROGRESS.get();
+        String core;
+        if (inProgress.containsKey(value)) {
+            core = value instanceof Set<?> || value instanceof Map<?, ?> ? "{...}" : "[...]";
+        } else {
+            if (inProgress.size() >= MAX_DEPTH) {
+                throw new FormatException("range nesting is deeper than " + MAX_DEPTH + " levels: "  + value.getClass().getName());
+            }
+            inProgress.put(value, Boolean.TRUE);
+            try {
+                core = render(value, range, locale);
+            } finally {
+                inProgress.remove(value);
+            }
+        }
         out.append(Pad.apply(core, spec, Align.LEFT));
     }
 
@@ -187,7 +215,7 @@ final class RangeFormatter {
     private static void appendElement(StringBuilder sb, Object el, RangeSpec range, Locale locale)
             throws IOException {
         if (range.debugElements) {
-            appendDebugElement(sb, el);
+            appendDebugElement(sb, el, locale);
             return;
         }
         if (range.underlying != null) {
@@ -214,13 +242,17 @@ final class RangeFormatter {
         sb.append(StringUtils.toString(el));
     }
 
-    private static void appendDebugElement(StringBuilder sb, Object el) throws IOException {
+    private static void appendDebugElement(StringBuilder sb, Object el, Locale locale) throws IOException {
         if (el instanceof Character ch) {
             sb.append(DebugFormat.escapedChar(ch));
             return;
         }
         if (el instanceof CharSequence cs) {
             sb.append(DebugFormat.escapedString(cs));
+            return;
+        }
+        if (isRange(el)) {
+            format(sb, el, SpecParser.parse("?"), locale);
             return;
         }
         sb.append(StringUtils.toString(el));
