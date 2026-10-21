@@ -700,6 +700,45 @@ class DateTimeParseTest {
                 assertEquals(LocalDate.of(1999, 2, 12), DateTimeUtil.parseLocalDate("12.02.1999")));
     }
 
+    @Test
+    void explicitOrderOverridesLocale() {
+        for (Locale locale : new Locale[]{Locale.US, Locale.UK}) {
+            withLocale(locale, () -> {
+                assertEquals(LocalDate.of(2024, 4, 3), DateTimeUtil.parseLocalDate("03/04/2024", true));
+                assertEquals(LocalDate.of(2024, 3, 4), DateTimeUtil.parseLocalDate("03/04/2024", false));
+                assertEquals(LocalDate.of(2024, 4, 3), DateTimeUtil.tryParseLocalDate("03-04-2024", true));
+                assertEquals(LocalDate.of(2024, 3, 4), DateTimeUtil.tryParseLocalDate("03-04-2024", false));
+                assertEquals(LocalDate.of(2003, 2, 1), DateTimeUtil.parseLocalDate("01/02/03", true));
+                assertEquals(LocalDate.of(2003, 1, 2), DateTimeUtil.parseLocalDate("01/02/03", false));
+                assertEquals(LocalDate.of(2024, 4, 3), DateTimeUtil.parseLocalDate("03.04.2024", true));
+                assertEquals(LocalDate.of(2024, 3, 4), DateTimeUtil.parseLocalDate("03.04.2024", false));
+                assertEquals(
+                        LocalDateTime.of(2024, 4, 3, 10, 15, 30),
+                        DateTimeUtil.parseLocalDateTime("03/04/2024 10:15:30", true));
+                assertEquals(
+                        LocalDateTime.of(2024, 3, 4, 10, 15, 30),
+                        DateTimeUtil.tryParseLocalDateTime("03/04/2024 10:15:30", false));
+                assertEquals(
+                        LocalDateTime.of(2024, 3, 4, 0, 0),
+                        DateTimeUtil.tryParseLocalDateTime("03/04/2024", ZoneOffset.UTC, false));
+            });
+        }
+    }
+
+    @Test
+    void explicitOrderKeepsUnambiguousDates() {
+        for (boolean dayFirst : new boolean[]{true, false}) {
+            assertEquals(LocalDate.of(2024, 12, 25), DateTimeUtil.parseLocalDate("25/12/2024", dayFirst));
+            assertEquals(LocalDate.of(2024, 12, 25), DateTimeUtil.parseLocalDate("12/25/2024", dayFirst));
+            assertEquals(LocalDate.of(2024, 3, 4), DateTimeUtil.parseLocalDate("2024-03-04", dayFirst));
+            assertEquals(LocalDate.of(2024, 3, 4), DateTimeUtil.parseLocalDate("4 March 2024", dayFirst));
+            assertEquals(LocalDate.of(2024, 3, 4), DateTimeUtil.parseLocalDate("March 4, 2024", dayFirst));
+            assertNull(DateTimeUtil.parseLocalDate("  ", dayFirst));
+            assertNull(DateTimeUtil.tryParseLocalDate("not-a-date", dayFirst));
+            assertThrows(IllegalArgumentException.class, () -> DateTimeUtil.parseLocalDate("not-a-date", dayFirst));
+        }
+    }
+
     /**
      * Two-digit years fall into the window that starts 80 years back, so the year just before that
      * window belongs to the next century.

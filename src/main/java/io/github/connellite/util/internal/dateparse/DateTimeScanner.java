@@ -48,6 +48,7 @@ public final class DateTimeScanner {
 
     private final CharSequence text;
     private final CalendarNames names;
+    private final Boolean dayFirst;
     private int pos;
     private int end;
 
@@ -69,11 +70,13 @@ public final class DateTimeScanner {
     private boolean previousWasDateField;
     private char pendingSeparator;
 
-    private DateTimeScanner(CharSequence text, int start, int end, CalendarNames names) {
+    private DateTimeScanner(
+            CharSequence text, int start, int end, CalendarNames names, Boolean dayFirst) {
         this.text = text;
         this.pos = start;
         this.end = end;
         this.names = names;
+        this.dayFirst = dayFirst;
     }
 
     /**
@@ -85,7 +88,20 @@ public final class DateTimeScanner {
      */
     public static boolean scan(
             CharSequence text, int start, int end, CalendarNames names, ParsedFields out) {
-        return new DateTimeScanner(text, start, end, names).run(out);
+        return scan(text, start, end, names, null, out);
+    }
+
+    /**
+     * Same as {@link #scan(CharSequence, int, int, CalendarNames, ParsedFields)}, with the order of
+     * an ambiguous all-numeric date given explicitly.
+     *
+     * @param dayFirst {@code true} to read an ambiguous pair as day-month, {@code false} as
+     *                 month-day, or {@code null} to follow the locale
+     */
+    public static boolean scan(
+            CharSequence text, int start, int end, CalendarNames names, Boolean dayFirst,
+            ParsedFields out) {
+        return new DateTimeScanner(text, start, end, names, dayFirst).run(out);
     }
 
     /**
@@ -760,8 +776,9 @@ public final class DateTimeScanner {
      * Decides whether the two leading numbers of an all-numeric date were day-month or month-day.
      *
      * <p>A value above 12 can only be the day, which settles most inputs on its own. A genuinely
-     * ambiguous pair follows the locale, except for dot-separated dates: no month-first locale
-     * writes {@code 12.02.1999}.
+     * ambiguous pair follows the order given to {@link #scan(CharSequence, int, int, CalendarNames,
+     * Boolean, ParsedFields)} when there is one. Otherwise it follows the locale, except for
+     * dot-separated dates: no month-first locale writes {@code 12.02.1999}.
      *
      * <p>Based on araddon/dateparse:
      * <a href="https://github.com/araddon/dateparse/blob/5dd51ed0f76a3790e35b502070d9acbb404fab30/parseany.go#L1996">PreferMonthFirst</a>
@@ -773,7 +790,8 @@ public final class DateTimeScanner {
         if (!provisionalOrder || monthFromName || day > 12) {
             return;
         }
-        if (month > 12 || !(datePunctuation == '.' || FieldOrder.dayFirst())) {
+        boolean dayMonth = dayFirst != null ? dayFirst : datePunctuation == '.' || FieldOrder.dayFirst();
+        if (month > 12 || !dayMonth) {
             int swapped = day;
             day = month;
             month = swapped;

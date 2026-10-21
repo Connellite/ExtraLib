@@ -37,7 +37,8 @@ import java.util.Date;
  * {@code 12/25/2024} mean Christmas. When both values could be a month, the order follows the
  * {@linkplain java.util.Locale.Category#FORMAT formatting locale}: {@code 03/04/2024} is the
  * fourth of March in the US and the third of April in the UK. Dot-separated dates are always
- * day-first, because no month-first locale writes {@code 12.02.1999}.
+ * day-first, because no month-first locale writes {@code 12.02.1999}. The overloads taking a
+ * {@code dayFirst} flag replace both rules with a fixed order, dot-separated dates included.
  *
  * <p>An offset or zone in the input is accepted but never shifts the result: the returned value
  * holds the date and time exactly as written.
@@ -78,6 +79,44 @@ public class DateTimeUtil {
     }
 
     /**
+     * Same as {@link #parseLocalDate(String)}, with the order of an ambiguous all-numeric date given
+     * explicitly instead of taken from the locale.
+     *
+     * @param dayFirst {@code true} to read {@code 03/04/2024} as the third of April, {@code false}
+     *                 as the fourth of March; a value above 12 is still always the day
+     * @return parsed date; time-of-day is discarded if present, or {@code null} if {@code text} is null/blank
+     * @throws IllegalArgumentException if {@code text} cannot be parsed
+     */
+    public static LocalDate parseLocalDate(String text, boolean dayFirst) {
+        if (text == null || text.isBlank()) return null;
+
+        LocalDate date = tryParseLocalDate(text, dayFirst);
+        if (date == null) {
+            throw new IllegalArgumentException("Unparseable date: '" + text.trim() + "'");
+        }
+        return date;
+    }
+
+    /**
+     * Same as {@link #parseLocalDateTime(String)}, with the order of an ambiguous all-numeric date
+     * given explicitly instead of taken from the locale.
+     *
+     * @param dayFirst {@code true} to read {@code 03/04/2024} as the third of April, {@code false}
+     *                 as the fourth of March; a value above 12 is still always the day
+     * @return parsed date-time; date-only strings use start of day (00:00), or {@code null} if {@code text} is null/blank
+     * @throws IllegalArgumentException if {@code text} cannot be parsed
+     */
+    public static LocalDateTime parseLocalDateTime(String text, boolean dayFirst) {
+        if (text == null || text.isBlank()) return null;
+
+        LocalDateTime dateTime = tryParseLocalDateTime(text, dayFirst);
+        if (dateTime == null) {
+            throw new IllegalArgumentException("Unparseable date-time: '" + text.trim() + "'");
+        }
+        return dateTime;
+    }
+
+    /**
      * @return parsed local time, or {@code null} if {@code text} is null/blank
      * @throws IllegalArgumentException if {@code text} cannot be parsed
      */
@@ -97,7 +136,18 @@ public class DateTimeUtil {
      * @return parsed date, or {@code null} if {@code text} is null/blank or unparseable
      */
     public static LocalDate tryParseLocalDate(String text) {
-        ParsedFields fields = parseFields(text);
+        ParsedFields fields = parseFields(text, null);
+        return fields == null ? null : fields.toLocalDate();
+    }
+
+    /**
+     * Same as {@link #parseLocalDate(String, boolean)} without the exception on unparseable input.
+     *
+     * @param dayFirst {@code true} to read an ambiguous all-numeric date as day-month, {@code false} as month-day
+     * @return parsed date, or {@code null} if {@code text} is null/blank or unparseable
+     */
+    public static LocalDate tryParseLocalDate(String text, boolean dayFirst) {
+        ParsedFields fields = parseFields(text, dayFirst);
         return fields == null ? null : fields.toLocalDate();
     }
 
@@ -107,7 +157,18 @@ public class DateTimeUtil {
      * @return parsed date-time, or {@code null} if {@code text} is null/blank or unparseable
      */
     public static LocalDateTime tryParseLocalDateTime(String text) {
-        ParsedFields fields = parseFields(text);
+        ParsedFields fields = parseFields(text, null);
+        return fields == null ? null : fields.toLocalDateTime();
+    }
+
+    /**
+     * Same as {@link #parseLocalDateTime(String, boolean)} without the exception on unparseable input.
+     *
+     * @param dayFirst {@code true} to read an ambiguous all-numeric date as day-month, {@code false} as month-day
+     * @return parsed date-time, or {@code null} if {@code text} is null/blank or unparseable
+     */
+    public static LocalDateTime tryParseLocalDateTime(String text, boolean dayFirst) {
+        ParsedFields fields = parseFields(text, dayFirst);
         return fields == null ? null : fields.toLocalDateTime();
     }
 
@@ -117,7 +178,7 @@ public class DateTimeUtil {
      * @return parsed time, or {@code null} if {@code text} is null/blank or unparseable
      */
     public static LocalTime tryParseLocalTime(String text) {
-        ParsedFields fields = parseFields(text);
+        ParsedFields fields = parseFields(text, null);
         return fields == null ? null : fields.toLocalTime();
     }
 
@@ -129,7 +190,7 @@ public class DateTimeUtil {
      * @return the offset time, or {@code null} if {@code text} is null/blank or does not carry one
      */
     public static OffsetTime tryParseOffsetTime(String text) {
-        ParsedFields fields = parseFields(text);
+        ParsedFields fields = parseFields(text, null);
         return fields == null ? null : fields.toOffsetTime();
     }
 
@@ -146,7 +207,7 @@ public class DateTimeUtil {
         try {
             return ZoneId.of(text.trim());
         } catch (DateTimeException e) {
-            ParsedFields fields = parseFields(text);
+            ParsedFields fields = parseFields(text, null);
             return fields == null ? null : fields.toZoneId();
         }
     }
@@ -163,7 +224,7 @@ public class DateTimeUtil {
         try {
             return ZoneOffset.of(text.trim());
         } catch (DateTimeException e) {
-            ParsedFields fields = parseFields(text);
+            ParsedFields fields = parseFields(text, null);
             return fields == null ? null : fields.toZoneOffset();
         }
     }
@@ -182,6 +243,19 @@ public class DateTimeUtil {
     public static LocalDateTime tryParseLocalDateTime(String text, ZoneId zone) {
         Instant epoch = tryParseEpoch(text);
         return epoch == null ? tryParseLocalDateTime(text) : epoch.atZone(zone).toLocalDateTime();
+    }
+
+    /**
+     * Same as {@link #tryParseLocalDateTime(String, ZoneId)}, with the order of an ambiguous
+     * all-numeric date given explicitly instead of taken from the locale.
+     *
+     * @param zone     the zone to resolve an epoch in; must not be {@code null}
+     * @param dayFirst {@code true} to read an ambiguous all-numeric date as day-month, {@code false} as month-day
+     * @return parsed date-time, or {@code null} if {@code text} is null/blank or unparseable
+     */
+    public static LocalDateTime tryParseLocalDateTime(String text, ZoneId zone, boolean dayFirst) {
+        Instant epoch = tryParseEpoch(text);
+        return epoch == null ? tryParseLocalDateTime(text, dayFirst) : epoch.atZone(zone).toLocalDateTime();
     }
 
     /**
@@ -225,16 +299,17 @@ public class DateTimeUtil {
      * before it found nothing: the scanner with the common name tables, the fallback formatters, and
      * finally the scanner with the name tables of every JDK language.
      *
+     * @param dayFirst order of an ambiguous all-numeric date, or {@code null} to follow the locale
      * @return the parsed fields, or {@code null} if {@code text} is null/blank or unparseable
      */
-    private static ParsedFields parseFields(String text) {
+    private static ParsedFields parseFields(String text, Boolean dayFirst) {
         if (text == null || text.isBlank()) return null;
 
         int start = CharBounds.trimStart(text, 0, text.length());
         int end = CharBounds.trimEnd(text, start, text.length());
 
         ParsedFields fields = new ParsedFields();
-        if (DateTimeScanner.scan(text, start, end, CalendarNames.primary(), fields)) {
+        if (DateTimeScanner.scan(text, start, end, CalendarNames.primary(), dayFirst, fields)) {
             return fields;
         }
         fields.reset();
@@ -243,7 +318,7 @@ public class DateTimeUtil {
         }
         fields.reset();
         if (DateTimeScanner.mayContainLocalizedNames(text, start, end)
-                && DateTimeScanner.scan(text, start, end, CalendarNames.global(), fields)) {
+                && DateTimeScanner.scan(text, start, end, CalendarNames.global(), dayFirst, fields)) {
             return fields;
         }
         return null;
