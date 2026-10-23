@@ -49,6 +49,7 @@
         <objenesis.version>3.4</objenesis.version>
         <cglib.version>3.3.0</cglib.version>
         <bytebuddy.version>1.15.11</bytebuddy.version>
+        <openhft-compiler.version>2026.2</openhft-compiler.version>
         <maven-surefire-plugin.version>3.2.5</maven-surefire-plugin.version>
         <jmh.version>1.37</jmh.version>
         <exec-maven-plugin.version>3.5.0</exec-maven-plugin.version>
@@ -109,6 +110,12 @@
             <scope>test</scope>
         </dependency>
         <dependency>
+            <groupId>net.openhft</groupId>
+            <artifactId>compiler</artifactId>
+            <version>${openhft-compiler.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
             <groupId>org.openjdk.jmh</groupId>
             <artifactId>jmh-core</artifactId>
             <version>${jmh.version}</version>
@@ -129,7 +136,7 @@
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>${maven-surefire-plugin.version}</version>
                 <configuration>
-                    <argLine>--add-opens java.base/java.lang=ALL-UNNAMED --add-opens jdk.unsupported/sun.misc=ALL-UNNAMED --add-opens jdk.unsupported/sun.misc=io.github.connellite.ExtraLib --add-opens java.base/java.nio=ALL-UNNAMED --add-opens java.base/java.nio=io.github.connellite.ExtraLib --enable-native-access=io.github.connellite.ExtraLib,ALL-UNNAMED</argLine>
+                    <argLine>--add-opens java.base/java.lang=ALL-UNNAMED --add-opens jdk.unsupported/sun.misc=ALL-UNNAMED --add-opens jdk.unsupported/sun.misc=io.github.connellite.ExtraLib --add-opens java.base/java.nio=ALL-UNNAMED --add-opens java.base/java.nio=io.github.connellite.ExtraLib --add-exports jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED --enable-native-access=io.github.connellite.ExtraLib,ALL-UNNAMED</argLine>
                 </configuration>
             </plugin>
 

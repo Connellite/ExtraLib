@@ -41,7 +41,9 @@ public class InstanceFactory {
 
     private static final class ObjenesisInstantiator {
 
-        private static final org.objenesis.ObjenesisStd OBJENESIS = new org.objenesis.ObjenesisStd();
+        // ObjenesisStd keys its cache by class name, so the same name loaded by another
+        // class loader reuses the first class's instantiator.
+        private static final org.objenesis.ObjenesisStd OBJENESIS = new org.objenesis.ObjenesisStd(false);
 
         private static <T> T newInstance(Class<T> type) {
             return OBJENESIS.newInstance(type);
