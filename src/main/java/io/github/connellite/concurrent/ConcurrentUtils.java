@@ -1,6 +1,5 @@
 package io.github.connellite.concurrent;
 
-import lombok.NonNull;
 import lombok.experimental.UtilityClass;
 
 import java.net.SocketTimeoutException;
@@ -29,7 +28,9 @@ public class ConcurrentUtils {
      * @return result of {@code operation}
      * @throws Exception if {@code operation} fails or the wait is interrupted
      */
-    public static <T> T runWithTimeout(@NonNull Callable<T> operation, long timeout, @NonNull TimeUnit unit) throws Exception {
+    public static <T> T runWithTimeout(Callable<T> operation, long timeout, TimeUnit unit) throws Exception {
+        Objects.requireNonNull(operation, "operation");
+        Objects.requireNonNull(unit, "unit");
         return runWithTimeout(operation, timeout, unit, null);
     }
 
@@ -43,7 +44,7 @@ public class ConcurrentUtils {
      * @return result of {@code operation}
      * @throws Exception if {@code operation} fails or the wait is interrupted
      */
-    public static <T> T runWithTimeout(@NonNull Callable<T> operation, long timeout, @NonNull TimeUnit unit, String operationName) throws Exception {
+    public static <T> T runWithTimeout(Callable<T> operation, long timeout, TimeUnit unit, String operationName) throws Exception {
         Objects.requireNonNull(operation, "operation");
         Objects.requireNonNull(unit, "unit");
         if (timeout < 0) {
@@ -75,7 +76,9 @@ public class ConcurrentUtils {
      * @param unit      time unit for {@code timeout}; must not be {@code null}
      * @throws Exception if {@code operation} fails or the wait is interrupted
      */
-    public static void runWithTimeout(@NonNull Runnable operation, long timeout, @NonNull TimeUnit unit) throws Exception {
+    public static void runWithTimeout(Runnable operation, long timeout, TimeUnit unit) throws Exception {
+        Objects.requireNonNull(operation, "operation");
+        Objects.requireNonNull(unit, "unit");
         runWithTimeout(operation, timeout, unit, null);
     }
 
@@ -88,7 +91,9 @@ public class ConcurrentUtils {
      * @param operationName optional label used in timeout messages; may be {@code null}
      * @throws Exception if {@code operation} fails or the wait is interrupted
      */
-    public static void runWithTimeout(@NonNull Runnable operation, long timeout, @NonNull TimeUnit unit, String operationName) throws Exception {
+    public static void runWithTimeout(Runnable operation, long timeout, TimeUnit unit, String operationName) throws Exception {
+        Objects.requireNonNull(operation, "operation");
+        Objects.requireNonNull(unit, "unit");
         runWithTimeout(() -> {
             operation.run();
             return null;

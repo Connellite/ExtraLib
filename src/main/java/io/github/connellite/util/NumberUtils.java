@@ -1,6 +1,5 @@
 package io.github.connellite.util;
 
-import lombok.NonNull;
 import lombok.experimental.UtilityClass;
 
 import java.math.BigDecimal;
@@ -9,6 +8,7 @@ import java.text.NumberFormat;
 import java.text.ParsePosition;
 import java.util.Comparator;
 import java.util.Locale;
+import java.util.Objects;
 import java.util.function.Function;
 
 @UtilityClass
@@ -282,7 +282,8 @@ public class NumberUtils {
      * or the target type is not supported
      */
     @SuppressWarnings("unchecked")
-    public static <T extends Number> T parseNumber(String text, @NonNull Class<T> targetClass) {
+    public static <T extends Number> T parseNumber(String text, Class<T> targetClass) {
+        Objects.requireNonNull(targetClass, "targetClass");
         if (Byte.class == targetClass) {
             return (T) toByte(text);
         }
@@ -320,7 +321,8 @@ public class NumberUtils {
      * @param <T>         the numeric type
      * @return the parsed value, or {@code fallback}
      */
-    public static <T extends Number> T parseNumber(String text, @NonNull Class<T> targetClass, T fallback) {
+    public static <T extends Number> T parseNumber(String text, Class<T> targetClass, T fallback) {
+        Objects.requireNonNull(targetClass, "targetClass");
         T parsed = parseNumber(text, targetClass);
         return parsed != null ? parsed : fallback;
     }
@@ -337,7 +339,9 @@ public class NumberUtils {
      * @return the narrowed value
      * @throws ArithmeticException if an exact integral conversion is not possible
      */
-    public static Number narrowNumber(@NonNull Number value, @NonNull Class<?> targetClass) {
+    public static Number narrowNumber(Number value, Class<?> targetClass) {
+        Objects.requireNonNull(value, "value");
+        Objects.requireNonNull(targetClass, "targetClass");
         if (targetClass == Byte.class) return toByteExact(value);
         if (targetClass == Short.class) return toShortExact(value);
         if (targetClass == Integer.class) return toIntExact(value);
@@ -356,7 +360,8 @@ public class NumberUtils {
      * @return the exact {@code byte} value
      * @throws ArithmeticException if the value has a fractional part or does not fit in {@code byte}
      */
-    public static byte toByteExact(@NonNull Number value) {
+    public static byte toByteExact(Number value) {
+        Objects.requireNonNull(value, "value");
         return (byte) narrowToRange(value, Byte.MIN_VALUE, Byte.MAX_VALUE);
     }
 
@@ -367,7 +372,8 @@ public class NumberUtils {
      * @return the exact {@code short} value
      * @throws ArithmeticException if the value has a fractional part or does not fit in {@code short}
      */
-    public static short toShortExact(@NonNull Number value) {
+    public static short toShortExact(Number value) {
+        Objects.requireNonNull(value, "value");
         return (short) narrowToRange(value, Short.MIN_VALUE, Short.MAX_VALUE);
     }
 
@@ -378,7 +384,8 @@ public class NumberUtils {
      * @return the exact {@code int} value
      * @throws ArithmeticException if the value has a fractional part or does not fit in {@code int}
      */
-    public static int toIntExact(@NonNull Number value) {
+    public static int toIntExact(Number value) {
+        Objects.requireNonNull(value, "value");
         return (int) narrowToRange(value, Integer.MIN_VALUE, Integer.MAX_VALUE);
     }
 
@@ -389,7 +396,8 @@ public class NumberUtils {
      * @return the exact {@code long} value
      * @throws ArithmeticException if the value has a fractional part or does not fit in {@code long}
      */
-    public static long toLongExact(@NonNull Number value) {
+    public static long toLongExact(Number value) {
+        Objects.requireNonNull(value, "value");
         return exactLongValue(value);
     }
 
@@ -400,7 +408,8 @@ public class NumberUtils {
      * @return the exact {@link BigInteger} value
      * @throws ArithmeticException if the value has a fractional part
      */
-    public static BigInteger toBigIntegerExact(@NonNull Number value) {
+    public static BigInteger toBigIntegerExact(Number value) {
+        Objects.requireNonNull(value, "value");
         if (value instanceof BigInteger bi) return bi;
         if (value instanceof BigDecimal bd) return bd.toBigIntegerExact();
         if (value instanceof Float || value instanceof Double) {
@@ -415,7 +424,8 @@ public class NumberUtils {
      * @param value the source value, must not be {@code null}
      * @return the {@link BigDecimal} representation
      */
-    public static BigDecimal toBigDecimal(@NonNull Number value) {
+    public static BigDecimal toBigDecimal(Number value) {
+        Objects.requireNonNull(value, "value");
         if (value instanceof BigDecimal bd) return bd;
         if (value instanceof BigInteger bi) return new BigDecimal(bi);
         return new BigDecimal(value.toString());

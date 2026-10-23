@@ -3,7 +3,6 @@ package io.github.connellite.reflection;
 import io.github.connellite.exception.TypeCoercionException;
 import io.github.connellite.reflection.annotation.MapField;
 import io.github.connellite.util.TypeCoercionUtil;
-import lombok.NonNull;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
@@ -43,7 +42,8 @@ public class SimpleMapBeanMapper<T> {
     /**
      * Maps one logical row expressed as a map from string key to value.
      */
-    public T mapRow(@NonNull Map<String, Object> row) {
+    public T mapRow(Map<String, Object> row) {
+        Objects.requireNonNull(row, "row");
         if (beanClass.isRecord()) {
             return mapRecordRowFromMap(row);
         }

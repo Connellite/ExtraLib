@@ -1,7 +1,6 @@
 package io.github.connellite.reflection;
 
 import io.github.connellite.reflection.annotation.MapField;
-import lombok.NonNull;
 import lombok.experimental.UtilityClass;
 
 import java.lang.reflect.Field;
@@ -9,6 +8,7 @@ import java.lang.reflect.Modifier;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * Maps object fields into {@link LinkedHashMap}.
@@ -23,7 +23,8 @@ public class ObjectFieldMapMapper {
      * @param source source object
      * @return field map where key is field name or {@link MapField#key()}
      */
-    public static Map<String, Object> map(@NonNull Object source) {
+    public static Map<String, Object> map(Object source) {
+        Objects.requireNonNull(source, "source");
         LinkedHashMap<String, Object> result = new LinkedHashMap<>();
         for (Field field : ReflectionUtil.getAllDeclaredFields(source.getClass())) {
             if (field.isSynthetic() || Modifier.isStatic(field.getModifiers())) {

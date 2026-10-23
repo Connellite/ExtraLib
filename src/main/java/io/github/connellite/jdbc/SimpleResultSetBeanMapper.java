@@ -6,7 +6,6 @@ import io.github.connellite.exception.TypeCoercionException;
 import io.github.connellite.util.TypeCoercionUtil;
 import io.github.connellite.reflection.InstanceFactory;
 import io.github.connellite.reflection.ReflectionUtil;
-import lombok.NonNull;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
@@ -131,7 +130,9 @@ public class SimpleResultSetBeanMapper<T> {
     /**
      * Registers custom converter for target type. Primitive types are normalized to wrappers.
      */
-    public <C> SimpleResultSetBeanMapper<T> withConverter(@NonNull Class<C> type, @NonNull TypeConverter<C> converter) {
+    public <C> SimpleResultSetBeanMapper<T> withConverter(Class<C> type, TypeConverter<C> converter) {
+        Objects.requireNonNull(type, "type");
+        Objects.requireNonNull(converter, "converter");
         converters.put(ReflectionUtil.primitiveToWrapper(type), converter);
         return this;
     }
@@ -139,7 +140,8 @@ public class SimpleResultSetBeanMapper<T> {
     /**
      * Maps current row of {@code rs} to target bean/record instance.
      */
-    public T mapRow(@NonNull ResultSet rs) throws SQLException {
+    public T mapRow(ResultSet rs) throws SQLException {
+        Objects.requireNonNull(rs, "rs");
         if (metadata.scalarMode() || isOverriddenByRootConverter()) {
             return mapScalarRow(rs);
         }

@@ -1,10 +1,9 @@
 package io.github.connellite.concurrent;
 
-import lombok.NonNull;
-
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Objects;
 import java.util.Queue;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CancellationException;
@@ -73,7 +72,8 @@ public class ThreadPool implements AutoCloseable {
      * @param task work item
      * @throws IllegalStateException if stopped ThreadPool
      */
-    public void enqueue(@NonNull Runnable task) {
+    public void enqueue(Runnable task) {
+        Objects.requireNonNull(task, "task");
         synchronized (queueMutex) {
             // don't allow enqueueing after stopping the pool
             if (stop) {
@@ -91,7 +91,8 @@ public class ThreadPool implements AutoCloseable {
      * @param <T> The result type returned by this Future's get method
      * @throws IllegalStateException if stopped ThreadPool
      */
-    public <T> Future<T> enqueue(@NonNull Callable<T> task) {
+    public <T> Future<T> enqueue(Callable<T> task) {
+        Objects.requireNonNull(task, "task");
         FutureTask<T> future = new FutureTask<>(task);
         synchronized (queueMutex) {
             // don't allow enqueueing after stopping the pool

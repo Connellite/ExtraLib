@@ -3,7 +3,6 @@ package io.github.connellite.util;
 import io.github.connellite.exception.FormatException;
 import io.github.connellite.util.internal.strftime.BrokenDownTime;
 import io.github.connellite.util.internal.strftime.Strftime;
-import lombok.NonNull;
 import lombok.experimental.UtilityClass;
 
 import java.io.IOException;
@@ -21,6 +20,7 @@ import java.time.ZonedDateTime;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.Locale;
+import java.util.Objects;
 
 /**
  * POSIX {@code strftime} formatting for {@link java.time} and legacy date types.
@@ -67,7 +67,9 @@ public class DateTimeUtilFormat {
      * @param pattern format string with {@code %} conversions; must not be {@code null}
      * @return formatted string
      */
-    public static String strftime(@NonNull Locale locale, ZonedDateTime zdt, @NonNull String pattern) {
+    public static String strftime(Locale locale, ZonedDateTime zdt, String pattern) {
+        Objects.requireNonNull(locale, "locale");
+        Objects.requireNonNull(pattern, "pattern");
         if (zdt == null) {
             return "null";
         }
@@ -80,14 +82,18 @@ public class DateTimeUtilFormat {
      * Same as {@link #strftime(Locale, ZonedDateTime, String)} using {@code instant} in the
      * {@linkplain ZoneId#systemDefault() system default} time zone.
      */
-    public static String strftime(@NonNull Locale locale, Instant instant, @NonNull String pattern) {
+    public static String strftime(Locale locale, Instant instant, String pattern) {
+        Objects.requireNonNull(locale, "locale");
+        Objects.requireNonNull(pattern, "pattern");
         return strftime(locale, instant, SystemDefaultZoneHolder.INSTANCE, pattern);
     }
 
     /**
      * {@code instant} at {@code zone}, then {@link #strftime(Locale, ZonedDateTime, String)}.
      */
-    public static String strftime(@NonNull Locale locale, Instant instant, ZoneId zone, @NonNull String pattern) {
+    public static String strftime(Locale locale, Instant instant, ZoneId zone, String pattern) {
+        Objects.requireNonNull(locale, "locale");
+        Objects.requireNonNull(pattern, "pattern");
         if (instant == null) {
             return "null";
         }
@@ -100,14 +106,18 @@ public class DateTimeUtilFormat {
      * Same as {@link #strftime(Locale, ZonedDateTime, String)} using {@code odt} at the same instant in the
      * {@linkplain ZoneId#systemDefault() system default} time zone.
      */
-    public static String strftime(@NonNull Locale locale, OffsetDateTime odt, @NonNull String pattern) {
+    public static String strftime(Locale locale, OffsetDateTime odt, String pattern) {
+        Objects.requireNonNull(locale, "locale");
+        Objects.requireNonNull(pattern, "pattern");
         return strftime(locale, odt, SystemDefaultZoneHolder.INSTANCE, pattern);
     }
 
     /**
      * {@code odt} at the same instant in {@code zone}, then {@link #strftime(Locale, ZonedDateTime, String)}.
      */
-    public static String strftime(@NonNull Locale locale, OffsetDateTime odt, ZoneId zone, @NonNull String pattern) {
+    public static String strftime(Locale locale, OffsetDateTime odt, ZoneId zone, String pattern) {
+        Objects.requireNonNull(locale, "locale");
+        Objects.requireNonNull(pattern, "pattern");
         if (odt == null) {
             return "null";
         }
@@ -120,14 +130,18 @@ public class DateTimeUtilFormat {
      * Same as {@link #strftime(Locale, ZonedDateTime, String)} using {@code date} in the
      * {@linkplain ZoneId#systemDefault() system default} time zone.
      */
-    public static String strftime(@NonNull Locale locale, Date date, @NonNull String pattern) {
+    public static String strftime(Locale locale, Date date, String pattern) {
+        Objects.requireNonNull(locale, "locale");
+        Objects.requireNonNull(pattern, "pattern");
         return strftime(locale, date, SystemDefaultZoneHolder.INSTANCE, pattern);
     }
 
     /**
      * {@code date} at the same instant in {@code zone}, then {@link #strftime(Locale, ZonedDateTime, String)}.
      */
-    public static String strftime(@NonNull Locale locale, Date date, ZoneId zone, @NonNull String pattern) {
+    public static String strftime(Locale locale, Date date, ZoneId zone, String pattern) {
+        Objects.requireNonNull(locale, "locale");
+        Objects.requireNonNull(pattern, "pattern");
         if (date == null) {
             return "null";
         }
@@ -140,14 +154,18 @@ public class DateTimeUtilFormat {
      * Same as {@link #strftime(Locale, ZonedDateTime, String)} using the calendar instant in the
      * {@linkplain ZoneId#systemDefault() system default} time zone (same instant on the time-line).
      */
-    public static String strftime(@NonNull Locale locale, Calendar calendar, @NonNull String pattern) {
+    public static String strftime(Locale locale, Calendar calendar, String pattern) {
+        Objects.requireNonNull(locale, "locale");
+        Objects.requireNonNull(pattern, "pattern");
         return strftime(locale, calendar, SystemDefaultZoneHolder.INSTANCE, pattern);
     }
 
     /**
      * {@code calendar} at the same instant in {@code zone}, then {@link #strftime(Locale, ZonedDateTime, String)}.
      */
-    public static String strftime(@NonNull Locale locale, Calendar calendar, ZoneId zone, @NonNull String pattern) {
+    public static String strftime(Locale locale, Calendar calendar, ZoneId zone, String pattern) {
+        Objects.requireNonNull(locale, "locale");
+        Objects.requireNonNull(pattern, "pattern");
         if (calendar == null) {
             return "null";
         }
@@ -160,14 +178,18 @@ public class DateTimeUtilFormat {
      * {@code ldt} interpreted as local clock in the {@linkplain ZoneId#systemDefault() system default} zone,
      * then {@link #strftime(Locale, ZonedDateTime, String)}.
      */
-    public static String strftime(@NonNull Locale locale, LocalDateTime ldt, @NonNull String pattern) {
+    public static String strftime(Locale locale, LocalDateTime ldt, String pattern) {
+        Objects.requireNonNull(locale, "locale");
+        Objects.requireNonNull(pattern, "pattern");
         return strftime(locale, ldt, SystemDefaultZoneHolder.INSTANCE, pattern);
     }
 
     /**
      * {@code ldt} interpreted as local clock in {@code zone}, then {@link #strftime(Locale, ZonedDateTime, String)}.
      */
-    public static String strftime(@NonNull Locale locale, LocalDateTime ldt, ZoneId zone, @NonNull String pattern) {
+    public static String strftime(Locale locale, LocalDateTime ldt, ZoneId zone, String pattern) {
+        Objects.requireNonNull(locale, "locale");
+        Objects.requireNonNull(pattern, "pattern");
         if (ldt == null) {
             return "null";
         }
@@ -180,14 +202,18 @@ public class DateTimeUtilFormat {
      * Start of {@code ld} in the {@linkplain ZoneId#systemDefault() system default} zone,
      * then {@link #strftime(Locale, ZonedDateTime, String)}.
      */
-    public static String strftime(@NonNull Locale locale, LocalDate ld, @NonNull String pattern) {
+    public static String strftime(Locale locale, LocalDate ld, String pattern) {
+        Objects.requireNonNull(locale, "locale");
+        Objects.requireNonNull(pattern, "pattern");
         return strftime(locale, ld, SystemDefaultZoneHolder.INSTANCE, pattern);
     }
 
     /**
      * Start of {@code ld} at {@code zone}, then {@link #strftime(Locale, ZonedDateTime, String)}.
      */
-    public static String strftime(@NonNull Locale locale, LocalDate ld, ZoneId zone, @NonNull String pattern) {
+    public static String strftime(Locale locale, LocalDate ld, ZoneId zone, String pattern) {
+        Objects.requireNonNull(locale, "locale");
+        Objects.requireNonNull(pattern, "pattern");
         if (ld == null) {
             return "null";
         }
@@ -207,7 +233,9 @@ public class DateTimeUtilFormat {
      * {@code "null"}; an unsupported type throws {@link FormatException}.
      * </p>
      */
-    public static String strftime(@NonNull Locale locale, Object value, @NonNull String pattern) {
+    public static String strftime(Locale locale, Object value, String pattern) {
+        Objects.requireNonNull(locale, "locale");
+        Objects.requireNonNull(pattern, "pattern");
         if (value == null) {
             return "null";
         }
@@ -223,8 +251,10 @@ public class DateTimeUtilFormat {
      * @throws FormatException if {@code value} is of an unsupported type
      * @see #strftime(Locale, Object, String)
      */
-    public static void strftimeTo(@NonNull Appendable out, @NonNull Locale locale, Object value,
-                                  @NonNull String pattern) {
+    public static void strftimeTo(Appendable out, Locale locale, Object value, String pattern) {
+        Objects.requireNonNull(out, "out");
+        Objects.requireNonNull(locale, "locale");
+        Objects.requireNonNull(pattern, "pattern");
         if (out instanceof StringBuilder sb) {
             if (value == null) {
                 sb.append("null");

@@ -1,6 +1,5 @@
 package io.github.connellite.util;
 
-import lombok.NonNull;
 import lombok.experimental.UtilityClass;
 
 import java.io.ByteArrayOutputStream;
@@ -87,7 +86,9 @@ public class StringUtils {
      * @param items     sequence to join; not null (may be empty)
      * @param separator placed between elements; not null (may be empty)
      */
-    public static <T> String join(@NonNull Iterable<T> items, @NonNull String separator) {
+    public static <T> String join(Iterable<T> items, String separator) {
+        Objects.requireNonNull(items, "items");
+        Objects.requireNonNull(separator, "separator");
         StringJoiner joiner = new StringJoiner(separator);
         for (T item : items) {
             joiner.add(String.valueOf(item));
@@ -106,9 +107,12 @@ public class StringUtils {
      * @param toString  converts each non-null element; not null
      */
     public static <T> String join(
-            @NonNull Iterable<T> items,
-            @NonNull String separator,
-            @NonNull Function<? super T, ? extends CharSequence> toString) {
+            Iterable<T> items,
+            String separator,
+            Function<? super T, ? extends CharSequence> toString) {
+        Objects.requireNonNull(items, "items");
+        Objects.requireNonNull(separator, "separator");
+        Objects.requireNonNull(toString, "toString");
         StringJoiner joiner = new StringJoiner(separator);
         for (T item : items) {
             joiner.add(item == null ? null : toString.apply(item));
@@ -128,7 +132,9 @@ public class StringUtils {
      * @param obj       non-null container, array, iterator, map, or scalar
      * @param separator placed between segments; not null (may be empty)
      */
-    public static String join(@NonNull Object obj, @NonNull String separator) {
+    public static String join(Object obj, String separator) {
+        Objects.requireNonNull(obj, "obj");
+        Objects.requireNonNull(separator, "separator");
         StringJoiner joiner = new StringJoiner(separator);
         if (obj instanceof Iterable) {
             for (Object item : (Iterable<?>) obj) {
@@ -192,7 +198,8 @@ public class StringUtils {
      * @throws NullPointerException if {@code regex} is {@code null}
      * @see String#split(String, int)
      */
-    public static List<String> splitAndTrim(String string, @NonNull String regex, int limit) {
+    public static List<String> splitAndTrim(String string, String regex, int limit) {
+        Objects.requireNonNull(regex, "regex");
         if (string == null) {
             return Collections.emptyList();
         }
@@ -227,7 +234,8 @@ public class StringUtils {
      * @return normalized text with the rules above applied
      * @throws NullPointerException if {@code text} is {@code null}
      */
-    public static String removeLineBreaks(@NonNull String text, boolean removeSoftHyphens) {
+    public static String removeLineBreaks(String text, boolean removeSoftHyphens) {
+        Objects.requireNonNull(text, "text");
         text = text.replaceAll("(?<=\n|^)[\t ]+|[\t ]+(?=$|\n)", "");
         text = text.replaceAll("(?<=.)([-‐‑‒–—―\u00AD])\n(?=.)", "$1");
         text = text.replaceAll("(?<=.)\n(?=.)", " ");

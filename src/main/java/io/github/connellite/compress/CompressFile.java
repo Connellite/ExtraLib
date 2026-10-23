@@ -1,12 +1,12 @@
 package io.github.connellite.compress;
 
-import lombok.NonNull;
 import lombok.experimental.UtilityClass;
 
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Objects;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
 
@@ -25,7 +25,9 @@ public class CompressFile {
      * @param outputFile destination file (created or overwritten); must not be {@code null}
      * @throws IOException if reading or writing fails
      */
-    public static void decompressGzipFile(@NonNull File gzipFile, @NonNull File outputFile) throws IOException {
+    public static void decompressGzipFile(File gzipFile, File outputFile) throws IOException {
+        Objects.requireNonNull(gzipFile, "gzipFile");
+        Objects.requireNonNull(outputFile, "outputFile");
         decompressGzipFile(gzipFile.toPath(), outputFile.toPath());
     }
 
@@ -36,7 +38,9 @@ public class CompressFile {
      * @param outputFile destination path (created or overwritten); must not be {@code null}
      * @throws IOException if reading or writing fails
      */
-    public static void decompressGzipFile(@NonNull Path gzipFile, @NonNull Path outputFile) throws IOException {
+    public static void decompressGzipFile(Path gzipFile, Path outputFile) throws IOException {
+        Objects.requireNonNull(gzipFile, "gzipFile");
+        Objects.requireNonNull(outputFile, "outputFile");
         try (GZIPInputStream gis = new GZIPInputStream(Files.newInputStream(gzipFile));
              var outputStream = Files.newOutputStream(outputFile)) {
             byte[] buffer = new byte[BUFFER_SIZE];
@@ -54,7 +58,9 @@ public class CompressFile {
      * @param gzipFile   destination gzip file (created or overwritten); must not be {@code null}
      * @throws IOException if reading or writing fails
      */
-    public static void compressGzipFile(@NonNull File sourceFile, @NonNull File gzipFile) throws IOException {
+    public static void compressGzipFile(File sourceFile, File gzipFile) throws IOException {
+        Objects.requireNonNull(sourceFile, "sourceFile");
+        Objects.requireNonNull(gzipFile, "gzipFile");
         compressGzipFile(sourceFile.toPath(), gzipFile.toPath());
     }
 
@@ -65,7 +71,9 @@ public class CompressFile {
      * @param gzipFile   destination gzip path (created or overwritten); must not be {@code null}
      * @throws IOException if reading or writing fails
      */
-    public static void compressGzipFile(@NonNull Path sourceFile, @NonNull Path gzipFile) throws IOException {
+    public static void compressGzipFile(Path sourceFile, Path gzipFile) throws IOException {
+        Objects.requireNonNull(sourceFile, "sourceFile");
+        Objects.requireNonNull(gzipFile, "gzipFile");
         try (var inputStream = Files.newInputStream(sourceFile);
              GZIPOutputStream gzipOS = new GZIPOutputStream(Files.newOutputStream(gzipFile))) {
             byte[] buffer = new byte[BUFFER_SIZE];

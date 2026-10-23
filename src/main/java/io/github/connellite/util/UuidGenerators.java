@@ -1,6 +1,5 @@
 package io.github.connellite.util;
 
-import lombok.NonNull;
 import lombok.experimental.UtilityClass;
 
 import java.nio.ByteBuffer;
@@ -10,6 +9,7 @@ import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.time.Clock;
 import java.time.Instant;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReentrantLock;
@@ -289,7 +289,9 @@ public class UuidGenerators {
      * @return deterministic version-3 UUID for the given namespace and name
      * @throws NoSuchAlgorithmException if MD5 is not available
      */
-    public static UUID generateVersion3(@NonNull UUID namespace, @NonNull byte[] name) throws NoSuchAlgorithmException {
+    public static UUID generateVersion3(UUID namespace, byte[] name) throws NoSuchAlgorithmException {
+        Objects.requireNonNull(namespace, "namespace");
+        Objects.requireNonNull(name, "name");
         return nameBasedUuid(namespace, name, "MD5", 3);
     }
 
@@ -301,7 +303,9 @@ public class UuidGenerators {
      * @return deterministic version-3 UUID for the given namespace and name
      * @throws NoSuchAlgorithmException if MD5 is not available
      */
-    public static UUID generateVersion3(@NonNull UUID namespace, @NonNull String name) throws NoSuchAlgorithmException {
+    public static UUID generateVersion3(UUID namespace, String name) throws NoSuchAlgorithmException {
+        Objects.requireNonNull(namespace, "namespace");
+        Objects.requireNonNull(name, "name");
         return generateVersion3(namespace, name.getBytes(StandardCharsets.UTF_8));
     }
 
@@ -324,7 +328,9 @@ public class UuidGenerators {
      * @return deterministic version-5 UUID for the given namespace and name
      * @throws NoSuchAlgorithmException if SHA-1 is not available
      */
-    public static UUID generateVersion5(@NonNull UUID namespace, @NonNull byte[] name) throws NoSuchAlgorithmException {
+    public static UUID generateVersion5(UUID namespace, byte[] name) throws NoSuchAlgorithmException {
+        Objects.requireNonNull(namespace, "namespace");
+        Objects.requireNonNull(name, "name");
         return nameBasedUuid(namespace, name, "SHA-1", 5);
     }
 
@@ -336,7 +342,9 @@ public class UuidGenerators {
      * @return deterministic version-5 UUID for the given namespace and name
      * @throws NoSuchAlgorithmException if SHA-1 is not available
      */
-    public static UUID generateVersion5(@NonNull UUID namespace, @NonNull String name) throws NoSuchAlgorithmException {
+    public static UUID generateVersion5(UUID namespace, String name) throws NoSuchAlgorithmException {
+        Objects.requireNonNull(namespace, "namespace");
+        Objects.requireNonNull(name, "name");
         return generateVersion5(namespace, name.getBytes(StandardCharsets.UTF_8));
     }
 

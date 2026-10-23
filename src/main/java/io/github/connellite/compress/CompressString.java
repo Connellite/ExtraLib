@@ -1,6 +1,5 @@
 package io.github.connellite.compress;
 
-import lombok.NonNull;
 import lombok.experimental.UtilityClass;
 
 import java.io.ByteArrayInputStream;
@@ -8,6 +7,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.nio.charset.StandardCharsets;
+import java.util.Objects;
 import java.util.zip.DeflaterOutputStream;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
@@ -29,7 +29,8 @@ public class CompressString {
      * @param str source text; must not be {@code null} (empty string is allowed)
      * @return RLE form or the original string when expansion would not save space
      */
-    public static String compressStringRLE(@NonNull String str) {
+    public static String compressStringRLE(String str) {
+        Objects.requireNonNull(str, "str");
         if (str.isEmpty()) {
             return str;
         }
@@ -79,7 +80,8 @@ public class CompressString {
      * @return deflated bytes
      * @throws IOException if compression fails
      */
-    public static byte[] compress(@NonNull String text) throws IOException {
+    public static byte[] compress(String text) throws IOException {
+        Objects.requireNonNull(text, "text");
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         try (DeflaterOutputStream out = new DeflaterOutputStream(baos)) {
             out.write(text.getBytes(StandardCharsets.UTF_8));
@@ -94,7 +96,8 @@ public class CompressString {
      * @return restored text
      * @throws IOException if the payload is not valid DEFLATE data
      */
-    public static String decompress(@NonNull byte[] bytes) throws IOException {
+    public static String decompress(byte[] bytes) throws IOException {
+        Objects.requireNonNull(bytes, "bytes");
         try (InflaterInputStream in = new InflaterInputStream(new ByteArrayInputStream(bytes));
              ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
             byte[] buffer = new byte[BUFFER_SIZE];
@@ -113,7 +116,8 @@ public class CompressString {
      * @return decoded text
      * @throws IOException if the input is not valid GZIP
      */
-    public static String ungzip(@NonNull byte[] bytes) throws IOException {
+    public static String ungzip(byte[] bytes) throws IOException {
+        Objects.requireNonNull(bytes, "bytes");
         try (GZIPInputStream gis = new GZIPInputStream(new ByteArrayInputStream(bytes))) {
             return new String(gis.readAllBytes(), StandardCharsets.UTF_8);
         }
@@ -126,7 +130,8 @@ public class CompressString {
      * @return gzip file payload (magic {@code 0x1f 0x8b}, ...})
      * @throws IOException if writing fails
      */
-    public static byte[] gzip(@NonNull String s) throws IOException {
+    public static byte[] gzip(String s) throws IOException {
+        Objects.requireNonNull(s, "s");
         ByteArrayOutputStream bos = new ByteArrayOutputStream();
         try (GZIPOutputStream gzip = new GZIPOutputStream(bos);
              OutputStreamWriter osw = new OutputStreamWriter(gzip, StandardCharsets.UTF_8)) {
@@ -143,7 +148,8 @@ public class CompressString {
      * @return text interpretation of the payload
      * @throws IOException if gzip decompression fails
      */
-    public static String getStringDump(@NonNull byte[] bytes) throws IOException {
+    public static String getStringDump(byte[] bytes) throws IOException {
+        Objects.requireNonNull(bytes, "bytes");
         if (isGzipStream(bytes)) {
             return ungzip(bytes);
         }
