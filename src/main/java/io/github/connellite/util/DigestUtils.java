@@ -7,7 +7,6 @@ import lombok.experimental.UtilityClass;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.security.DigestInputStream;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Base64;
@@ -17,6 +16,8 @@ import java.util.Base64;
  */
 @UtilityClass
 public class DigestUtils {
+
+    private static final int BUFFER_SIZE = 8192;
 
     /**
      * Computes a message digest for all bytes from {@code in} using the given algorithm.
@@ -30,12 +31,10 @@ public class DigestUtils {
      */
     public static byte[] digest(@NonNull InputStream in, @NonNull String algorithm) throws IOException, NoSuchAlgorithmException {
         MessageDigest md = MessageDigest.getInstance(algorithm);
-        try (DigestInputStream dis = new DigestInputStream(in, md)) {
-            byte[] buffer = new byte[8192];
-            //noinspection StatementWithEmptyBody
-            while (dis.read(buffer) != -1) {
-                // reading through to update digest
-            }
+        byte[] buffer = new byte[BUFFER_SIZE];
+        int n;
+        while ((n = in.read(buffer)) != -1) {
+            md.update(buffer, 0, n);
         }
         return md.digest();
     }
@@ -224,7 +223,7 @@ public class DigestUtils {
     }
 
     private static byte[] readAllBytes(InputStream in) throws IOException {
-        byte[] buffer = new byte[8192];
+        byte[] buffer = new byte[BUFFER_SIZE];
         int n;
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         while ((n = in.read(buffer)) != -1) {

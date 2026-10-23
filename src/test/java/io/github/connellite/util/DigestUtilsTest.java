@@ -10,6 +10,7 @@ import java.security.NoSuchAlgorithmException;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class DigestUtilsTest {
@@ -88,6 +89,19 @@ class DigestUtilsTest {
     }
 
     @Test
+    void inputStream_overloads_doNotCloseStream() throws IOException, NoSuchAlgorithmException {
+        CloseTrackingInputStream in = new CloseTrackingInputStream("hello");
+        DigestUtils.digest(in, "MD5");
+        DigestUtils.digestHex(in, "SHA-256");
+        DigestUtils.md5(in);
+        DigestUtils.sha256Hex(in);
+        DigestUtils.base64(in);
+        DigestUtils.base64String(in);
+
+        assertFalse(in.closed);
+    }
+
+    @Test
     void fromHex_decodesValidHex() {
         assertArrayEquals(new byte[]{0x00}, DigestUtils.fromHex("00"));
         assertArrayEquals(new byte[]{(byte) 0xff}, DigestUtils.fromHex("ff"));
@@ -123,6 +137,20 @@ class DigestUtilsTest {
     @Test
     void fromBase64_rejectsInvalidByteArray() {
         assertThrows(IllegalArgumentException.class, () -> DigestUtils.fromBase64("not-base64!!".getBytes()));
+    }
+
+    private static final class CloseTrackingInputStream extends ByteArrayInputStream {
+        boolean closed;
+
+        CloseTrackingInputStream(String s) {
+            super(s.getBytes());
+        }
+
+        @Override
+        public void close() throws IOException {
+            closed = true;
+            super.close();
+        }
     }
 
 }
