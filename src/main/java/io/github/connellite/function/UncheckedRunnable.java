@@ -2,6 +2,8 @@ package io.github.connellite.function;
 
 import io.github.connellite.reflection.ReflectionUtil;
 
+import java.util.Objects;
+
 /** {@link Runnable} that may throw; checked exceptions are rethrown via {@link ReflectionUtil#propagate(Throwable)}. */
 @FunctionalInterface
 public interface UncheckedRunnable extends Runnable {
@@ -17,4 +19,12 @@ public interface UncheckedRunnable extends Runnable {
 
     /** Same as {@link #run}, but may throw. */
     void uncheckedRun() throws Throwable;
+
+    /**
+     * Gives a throwing method reference this interface as its target type.
+     * The same instance is returned; {@link #run} still propagates checked exceptions.
+     */
+    static UncheckedRunnable of(UncheckedRunnable runnable) {
+        return Objects.requireNonNull(runnable);
+    }
 }
